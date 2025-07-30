@@ -20,6 +20,7 @@ app.use('/api/posts', require('./src/routes/post'));
 app.use('/api/users', require('./src/routes/user'));
 app.use('/api/comments', require('./src/routes/comment'));
 app.use('/api/stories', require('./src/routes/story'));
+app.use('/api/notifications', require('./src/routes/notification'));
 
 // Servir imágenes de uploads
 app.use('/uploads', express.static('uploads'));
