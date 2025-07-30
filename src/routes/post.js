@@ -8,5 +8,9 @@ const upload = require('../middlewares/upload');
 router.post('/', auth, upload.single('image'), createPost);
 // Listar posts (público)
 router.get('/', getPosts);
+// Like/unlike post (protegido)
+router.post('/:id/like', auth, require('../controllers/postController').toggleLike);
+// Listar usuarios que han dado like
+router.get('/:id/likes', require('../controllers/postController').getLikes);
 
 module.exports = router;
