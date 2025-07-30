@@ -1,4 +1,6 @@
 const Comment = require('../models/Comment');
+const Post = require('../models/Post');
+const Notification = require('../models/Notification');
 
 // Añadir comentario a un post
 exports.addComment = async (req, res) => {
@@ -11,6 +13,17 @@ exports.addComment = async (req, res) => {
       text
     });
     await comment.save();
+    // Notificar al dueño del post si no es el mismo usuario
+    const post = await Post.findById(req.params.postId);
+    if (post && post.user.toString() !== req.user.id) {
+      await Notification.create({
+        user: post.user,
+        type: 'comment',
+        from: req.user.id,
+        post: post._id,
+        message: 'Ha comentado tu publicación'
+      });
+    }
     res.status(201).json({ message: 'Comentario añadido', comment });
   } catch (error) {
     res.status(500).json({ message: 'Error al añadir comentario', error: error.message });

@@ -1,4 +1,5 @@
 const Post = require('../models/Post');
+const Notification = require('../models/Notification');
 
 exports.createPost = async (req, res) => {
   try {
@@ -32,7 +33,8 @@ exports.getPosts = async (req, res) => {
 // Dar/quitar like a un post
 exports.toggleLike = async (req, res) => {
   try {
-    const post = await require('../models/Post').findById(req.params.id);
+    const Post = require('../models/Post');
+    const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
     const userId = req.user.id;
     const index = post.likes.indexOf(userId);
@@ -40,6 +42,16 @@ exports.toggleLike = async (req, res) => {
     if (index === -1) {
       post.likes.push(userId);
       liked = true;
+      // Notificar al dueño del post si no es el mismo usuario
+      if (post.user.toString() !== userId) {
+        await Notification.create({
+          user: post.user,
+          type: 'like',
+          from: userId,
+          post: post._id,
+          message: 'Le ha gustado tu publicación'
+        });
+      }
     } else {
       post.likes.splice(index, 1);
       liked = false;

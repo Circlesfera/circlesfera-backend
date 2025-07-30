@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // Seguir usuario
 exports.followUser = async (req, res) => {
@@ -14,6 +15,13 @@ exports.followUser = async (req, res) => {
     user.following.push(targetId);
     await target.save();
     await user.save();
+    // Notificar al usuario seguido
+    await Notification.create({
+      user: targetId,
+      type: 'follow',
+      from: userId,
+      message: 'Ha comenzado a seguirte'
+    });
     res.json({ message: 'Ahora sigues a ' + target.username });
   } catch (error) {
     res.status(500).json({ message: 'Error al seguir usuario', error: error.message });

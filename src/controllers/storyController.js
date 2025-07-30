@@ -1,5 +1,6 @@
 const Story = require('../models/Story');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // Crear story
 exports.createStory = async (req, res) => {
@@ -12,6 +13,19 @@ exports.createStory = async (req, res) => {
       expiresAt
     });
     await story.save();
+    // Notificar a todos los seguidores
+    const user = await User.findById(req.user.id);
+    if (user.followers && user.followers.length > 0) {
+      await Promise.all(user.followers.map(followerId =>
+        Notification.create({
+          user: followerId,
+          type: 'story',
+          from: req.user.id,
+          story: story._id,
+          message: 'Ha subido una nueva historia'
+        })
+      ));
+    }
     res.status(201).json({ message: 'Story creada', story });
   } catch (error) {
     res.status(500).json({ message: 'Error al crear story', error: error.message });
