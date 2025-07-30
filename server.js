@@ -19,6 +19,7 @@ app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/posts', require('./src/routes/post'));
 app.use('/api/users', require('./src/routes/user'));
 app.use('/api/comments', require('./src/routes/comment'));
+app.use('/api/stories', require('./src/routes/story'));
 
 // Servir imágenes de uploads
 app.use('/uploads', express.static('uploads'));
