@@ -187,6 +187,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     const {
+      username,
       fullName,
       bio,
       website,
@@ -206,7 +207,23 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    // Si se está cambiando el username, verificar que no exista
+    if (username && username !== user.username) {
+      const existingUser = await User.findOne({ 
+        username: username.toLowerCase(),
+        _id: { $ne: user._id } // Excluir el usuario actual
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Este nombre de usuario ya está en uso'
+        });
+      }
+    }
+
     // Actualizar campos permitidos
+    if (username !== undefined) user.username = username.toLowerCase();
     if (fullName !== undefined) user.fullName = fullName;
     if (bio !== undefined) user.bio = bio;
     if (website !== undefined) user.website = website;
