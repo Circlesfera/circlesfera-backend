@@ -56,11 +56,13 @@ const updatePostValidation = [
 // Rutas públicas
 router.get('/trending', getTrendingPosts);
 router.get('/user/:username', getUserPosts);
-router.get('/:id', getPost);
-router.get('/:id/likes', getLikes);
 
 // Rutas protegidas
 router.get('/feed', auth, getFeed);
+
+// Rutas con parámetros (deben ir después de las rutas específicas)
+router.get('/:id', getPost);
+router.get('/:id/likes', getLikes);
 
 router.post('/', 
   auth, 

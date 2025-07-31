@@ -114,6 +114,7 @@ exports.createPost = async (req, res) => {
 exports.getFeed = async (req, res) => {
   try {
     const userId = req.user.id;
+    
     const user = await User.findById(userId);
     
     if (!user) {

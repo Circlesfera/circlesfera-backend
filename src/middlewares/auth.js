@@ -79,6 +79,14 @@ const auth = async (req, res, next) => {
       });
     }
     
+    // Si es un error de JWT_SECRET no configurado
+    if (error.message && error.message.includes('secretOrPrivateKey')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error de configuración del servidor'
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
