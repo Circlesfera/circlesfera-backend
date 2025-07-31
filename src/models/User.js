@@ -130,15 +130,15 @@ UserSchema.index({ createdAt: -1 });
 
 // Virtuals
 UserSchema.virtual('followersCount').get(function() {
-  return this.followers.length;
+  return this.followers ? this.followers.length : 0;
 });
 
 UserSchema.virtual('followingCount').get(function() {
-  return this.following.length;
+  return this.following ? this.following.length : 0;
 });
 
 UserSchema.virtual('postsCount').get(function() {
-  return this.posts.length;
+  return this.posts ? this.posts.length : 0;
 });
 
 UserSchema.virtual('isFollowing').get(function() {
