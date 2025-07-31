@@ -1,88 +1,203 @@
 const Post = require('../models/Post');
+const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { validationResult } = require('express-validator');
 
+// Crear una nueva publicación
 exports.createPost = async (req, res) => {
   try {
-    console.log('=== CREATE POST DEBUG ===');
-    console.log('User ID:', req.user.id);
-    console.log('Body:', req.body);
-    console.log('File:', req.file);
-    
-    const { type, caption } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array()
+      });
+    }
+
+    const { type, caption, location, tags } = req.body;
     
     let postData = {
       user: req.user.id,
       type: type || 'image',
-      caption: caption || ''
+      caption: caption || '',
+      tags: tags ? tags.split(',').map(tag => tag.trim()) : []
     };
 
-    console.log('Post data before switch:', postData);
+    // Agregar ubicación si se proporciona
+    if (location) {
+      postData.location = { name: location };
+    }
 
     // Manejar diferentes tipos de contenido
     switch (type) {
       case 'image':
-        if (!req.file) {
-          console.log('ERROR: No file provided for image post');
-          return res.status(400).json({ message: 'La imagen es obligatoria para publicaciones de imagen' });
+        if (!req.files || !req.files.images) {
+          return res.status(400).json({
+            success: false,
+            message: 'La imagen es obligatoria para publicaciones de imagen'
+          });
         }
-        postData.content = { image: `/uploads/${req.file.filename}` };
-        console.log('Image post data:', postData);
+        
+        const images = Array.isArray(req.files.images) ? req.files.images : [req.files.images];
+        postData.content = {
+          images: images.map(file => ({
+            url: `/uploads/${file.filename}`,
+            alt: caption || '',
+            width: 0, // Se calcularía con sharp
+            height: 0
+          }))
+        };
         break;
 
       case 'video':
-        if (!req.file) {
-          console.log('ERROR: No file provided for video post');
-          return res.status(400).json({ message: 'El video es obligatorio para publicaciones de video' });
+        if (!req.files || !req.files.video) {
+          return res.status(400).json({
+            success: false,
+            message: 'El video es obligatorio para publicaciones de video'
+          });
         }
-        // Aquí podrías procesar el video para obtener duración y thumbnail
-        // Por ahora usamos valores por defecto
+        
         postData.content = {
           video: {
-            url: `/uploads/${req.file.filename}`,
+            url: `/uploads/${req.files.video[0].filename}`,
             duration: 0, // Se calcularía con ffmpeg
-            thumbnail: `/uploads/${req.file.filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`
+            thumbnail: `/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+            width: 0,
+            height: 0
           }
         };
-        console.log('Video post data:', postData);
+        break;
+
+      case 'text':
+        if (!req.body.text) {
+          return res.status(400).json({
+            success: false,
+            message: 'El texto es obligatorio para publicaciones de texto'
+          });
+        }
+        
+        postData.content = {
+          text: req.body.text
+        };
         break;
 
       default:
-        console.log('ERROR: Invalid post type:', type);
-        return res.status(400).json({ message: 'Tipo de publicación no válido' });
+        return res.status(400).json({
+          success: false,
+          message: 'Tipo de publicación no válido'
+        });
     }
 
-    console.log('Creating post with data:', postData);
     const post = new Post(postData);
     await post.save();
-    console.log('Post saved successfully:', post._id);
     
     // Populate user data for response
-    await post.populate('user', 'username avatar');
-    console.log('Post populated successfully');
+    await post.populate('user', 'username avatar fullName');
     
-    res.status(201).json({ message: 'Post creado correctamente', post });
+    res.status(201).json({
+      success: true,
+      message: 'Publicación creada exitosamente',
+      post
+    });
   } catch (error) {
-    console.error('ERROR in createPost:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ message: 'Error al crear el post', error: error.message });
+    console.error('Error en createPost:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
-exports.getPosts = async (req, res) => {
+// Obtener el feed de publicaciones
+exports.getFeed = async (req, res) => {
   try {
-    const { type } = req.query;
-    let query = {};
+    const userId = req.user.id;
+    const user = await User.findById(userId);
     
-    if (type && ['image', 'video'].includes(type)) {
-      query.type = type;
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
     }
 
-    const posts = await Post.find(query)
-      .populate('user', 'username avatar')
-      .sort({ createdAt: -1 });
-    res.json(posts);
+    // Usuarios a mostrar: seguidos + propio usuario
+    const usersToShow = [userId, ...(user.following || [])];
+
+    // Paginación
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find({ 
+      user: { $in: usersToShow },
+      isPublic: true,
+      isArchived: false,
+      isDeleted: false
+    })
+    .populate('user', 'username avatar fullName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+    const total = await Post.countDocuments({ 
+      user: { $in: usersToShow },
+      isPublic: true,
+      isArchived: false,
+      isDeleted: false
+    });
+
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener los posts', error: error.message });
+    console.error('Error en getFeed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener un post específico
+exports.getPost = async (req, res) => {
+  try {
+    const post = await Post.findOne({
+      _id: req.params.id,
+      isDeleted: false
+    })
+    .populate('user', 'username avatar fullName bio')
+    .populate('likes', 'username avatar');
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Publicación no encontrada'
+      });
+    }
+
+    // Incrementar vistas
+    await post.incrementViews();
+
+    res.json({
+      success: true,
+      post
+    });
+  } catch (error) {
+    console.error('Error en getPost:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
@@ -90,13 +205,22 @@ exports.getPosts = async (req, res) => {
 exports.toggleLike = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post no encontrado' });
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Publicación no encontrada'
+      });
+    }
+
     const userId = req.user.id;
-    const index = post.likes.indexOf(userId);
-    let liked;
-    if (index === -1) {
-      post.likes.push(userId);
-      liked = true;
+    const isLiked = post.isLikedBy(userId);
+    
+    if (isLiked) {
+      await post.removeLike(userId);
+    } else {
+      await post.addLike(userId);
+      
       // Notificar al dueño del post si no es el mismo usuario
       if (post.user.toString() !== userId) {
         await Notification.create({
@@ -107,93 +231,113 @@ exports.toggleLike = async (req, res) => {
           message: 'Le ha gustado tu publicación'
         });
       }
-    } else {
-      post.likes.splice(index, 1);
-      liked = false;
     }
-    await post.save();
-    res.json({ liked, likesCount: post.likes.length });
+
+    res.json({
+      success: true,
+      liked: !isLiked,
+      likesCount: post.likes.length
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al dar/quitar like', error: error.message });
+    console.error('Error en toggleLike:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
 // Listar usuarios que han dado like a un post
 exports.getLikes = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('likes', 'username avatar');
-    if (!post) return res.status(404).json({ message: 'Post no encontrado' });
-    res.json(post.likes);
+    const post = await Post.findById(req.params.id)
+      .populate('likes', 'username avatar fullName');
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Publicación no encontrada'
+      });
+    }
+
+    res.json({
+      success: true,
+      likes: post.likes
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener likes', error: error.message });
+    console.error('Error en getLikes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
-// Obtener el feed de publicaciones de usuarios seguidos y propio usuario
-exports.getFeed = async (req, res) => {
+// Obtener posts de un usuario específico
+exports.getUserPosts = async (req, res) => {
   try {
-    console.log('=== GET FEED DEBUG ===');
-    const userId = req.user.id;
-    console.log('User ID:', userId);
-    
-    const User = require('../models/User');
-    const user = await User.findById(userId);
-    console.log('User found:', user ? 'Yes' : 'No');
+    const { username } = req.params;
+    const user = await User.findOne({ username });
     
     if (!user) {
-      console.log('ERROR: User not found');
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
     }
 
-    console.log('User following:', user.following);
-    console.log('User following length:', user.following ? user.following.length : 'undefined');
-
-    // Usuarios a mostrar: seguidos + propio usuario
-    const usersToShow = [userId, ...(user.following || [])];
-    console.log('Users to show:', usersToShow);
-
-    // Paginación
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    console.log('Pagination:', { page, limit, skip });
 
-    const posts = await Post.find({ user: { $in: usersToShow } })
-      .populate('user', 'username avatar')
+    const posts = await Post.findByUser(user._id, { includeArchived: false })
+      .populate('user', 'username avatar fullName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-    console.log('Posts found:', posts.length);
 
-    const total = await Post.countDocuments({ user: { $in: usersToShow } });
-    console.log('Total posts:', total);
+    const total = await Post.countDocuments({ 
+      user: user._id,
+      isDeleted: false,
+      isArchived: false
+    });
 
-    res.json({ posts, total, page, pages: Math.ceil(total / limit) });
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    console.error('ERROR in getFeed:', error);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ message: 'Error al obtener el feed', error: error.message });
+    console.error('Error en getUserPosts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
-// Obtener un post específico
-exports.getPost = async (req, res) => {
+// Obtener posts trending
+exports.getTrendingPosts = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id)
-      .populate('user', 'username avatar')
-      .populate('likes', 'username avatar');
-    
-    if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
-    }
+    const limit = parseInt(req.query.limit) || 10;
+    const posts = await Post.findTrending(limit)
+      .populate('user', 'username avatar fullName');
 
-    // Incrementar vistas
-    post.views += 1;
-    await post.save();
-
-    res.json(post);
+    res.json({
+      success: true,
+      posts
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener el post', error: error.message });
+    console.error('Error en getTrendingPosts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
@@ -201,18 +345,84 @@ exports.getPost = async (req, res) => {
 exports.deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
+    
     if (!post) {
-      return res.status(404).json({ message: 'Post no encontrado' });
+      return res.status(404).json({
+        success: false,
+        message: 'Publicación no encontrada'
+      });
     }
 
     // Verificar que el usuario sea el dueño del post
     if (post.user.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'No tienes permisos para eliminar este post' });
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para eliminar esta publicación'
+      });
     }
 
-    await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Post eliminado correctamente' });
+    await post.softDelete();
+
+    res.json({
+      success: true,
+      message: 'Publicación eliminada exitosamente'
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar el post', error: error.message });
+    console.error('Error en deletePost:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar un post
+exports.updatePost = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array()
+      });
+    }
+
+    const { caption, location, tags } = req.body;
+    const post = await Post.findById(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Publicación no encontrada'
+      });
+    }
+
+    // Verificar que el usuario sea el dueño del post
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para editar esta publicación'
+      });
+    }
+
+    // Actualizar campos permitidos
+    if (caption !== undefined) post.caption = caption;
+    if (location !== undefined) post.location = { name: location };
+    if (tags !== undefined) post.tags = tags.split(',').map(tag => tag.trim());
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: 'Publicación actualizada exitosamente',
+      post
+    });
+  } catch (error) {
+    console.error('Error en updatePost:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };

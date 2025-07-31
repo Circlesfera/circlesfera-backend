@@ -1,36 +1,82 @@
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const { 
   createPost, 
-  getPosts, 
-  toggleLike, 
-  getLikes, 
   getFeed, 
   getPost, 
-  deletePost 
+  toggleLike, 
+  getLikes, 
+  getUserPosts,
+  getTrendingPosts,
+  deletePost,
+  updatePost
 } = require('../controllers/postController');
-const auth = require('../middlewares/auth');
-const upload = require('../middlewares/upload');
+const { auth } = require('../middlewares/auth');
+const { uploadFields, handleUploadError } = require('../middlewares/upload');
 
-// Crear post (protegido) - soporta texto, imagen y video
-router.post('/', auth, upload.single('file'), createPost);
+// Validaciones
+const createPostValidation = [
+  body('type')
+    .isIn(['image', 'video', 'text'])
+    .withMessage('El tipo debe ser image, video o text'),
+  body('caption')
+    .optional()
+    .isLength({ max: 2200 })
+    .withMessage('La descripción no puede exceder 2200 caracteres'),
+  body('location')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('La ubicación no puede exceder 100 caracteres'),
+  body('tags')
+    .optional()
+    .isString()
+    .withMessage('Los tags deben ser una cadena separada por comas'),
+  body('text')
+    .optional()
+    .isLength({ max: 5000 })
+    .withMessage('El texto no puede exceder 5000 caracteres')
+];
 
-// Listar posts (público) - soporta filtros por tipo
-router.get('/', getPosts);
+const updatePostValidation = [
+  body('caption')
+    .optional()
+    .isLength({ max: 2200 })
+    .withMessage('La descripción no puede exceder 2200 caracteres'),
+  body('location')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('La ubicación no puede exceder 100 caracteres'),
+  body('tags')
+    .optional()
+    .isString()
+    .withMessage('Los tags deben ser una cadena separada por comas')
+];
 
-// Feed de usuarios seguidos y propio usuario (protegido) - DEBE IR ANTES DE /:id
-router.get('/feed', auth, getFeed);
-
-// Obtener un post específico (público)
+// Rutas públicas
+router.get('/trending', getTrendingPosts);
+router.get('/user/:username', getUserPosts);
 router.get('/:id', getPost);
-
-// Like/unlike post (protegido)
-router.post('/:id/like', auth, toggleLike);
-
-// Listar usuarios que han dado like
 router.get('/:id/likes', getLikes);
 
-// Eliminar post (protegido)
+// Rutas protegidas
+router.get('/feed', auth, getFeed);
+
+router.post('/', 
+  auth, 
+  uploadFields,
+  createPostValidation,
+  createPost,
+  handleUploadError
+);
+
+router.put('/:id',
+  auth,
+  updatePostValidation,
+  updatePost
+);
+
+router.post('/:id/like', auth, toggleLike);
 router.delete('/:id', auth, deletePost);
 
 module.exports = router;
