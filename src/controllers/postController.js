@@ -427,3 +427,43 @@ exports.updatePost = async (req, res) => {
     });
   }
 };
+
+// Obtener posts recientes (públicos)
+exports.getRecentPosts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find({ 
+      isPublic: true, 
+      isDeleted: false 
+    })
+    .populate('user', 'username avatar fullName')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+    const total = await Post.countDocuments({ 
+      isPublic: true, 
+      isDeleted: false 
+    });
+
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error en getRecentPosts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};

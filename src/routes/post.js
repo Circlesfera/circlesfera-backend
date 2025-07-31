@@ -9,6 +9,7 @@ const {
   getLikes, 
   getUserPosts,
   getTrendingPosts,
+  getRecentPosts,
   deletePost,
   updatePost
 } = require('../controllers/postController');
@@ -55,6 +56,7 @@ const updatePostValidation = [
 
 // Rutas públicas
 router.get('/trending', getTrendingPosts);
+router.get('/recent', getRecentPosts);
 router.get('/user/:username', getUserPosts);
 
 // Rutas protegidas
