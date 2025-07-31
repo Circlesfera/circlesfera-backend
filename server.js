@@ -14,7 +14,7 @@ app.use(helmet());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Más permisivo en desarrollo
+  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Mucho más permisivo en desarrollo
   message: {
     error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo en 15 minutos.'
   },
