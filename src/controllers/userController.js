@@ -1,171 +1,492 @@
 const User = require('../models/User');
+const Post = require('../models/Post');
+const Story = require('../models/Story');
 const Notification = require('../models/Notification');
-const mongoose = require('mongoose');
+const { validationResult } = require('express-validator');
 
-// Seguir usuario
+// Obtener perfil de usuario público
+exports.getUserProfile = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username })
+      .select('-password -email -phone -preferences')
+      .populate('posts', 'caption content createdAt')
+      .populate('savedPosts', 'caption content createdAt');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Verificar si el usuario actual está siguiendo a este usuario
+    let isFollowing = false;
+    if (req.user) {
+      const currentUser = await User.findById(req.user.id);
+      isFollowing = currentUser.following.includes(user._id);
+    }
+
+    res.json({
+      success: true,
+      user: {
+        ...user.toObject(),
+        isFollowing
+      }
+    });
+  } catch (error) {
+    console.error('Error en getUserProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener posts de un usuario
+exports.getUserPosts = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const posts = await Post.findByUser(user._id, { includeArchived: false })
+      .populate('user', 'username avatar fullName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({
+      user: user._id,
+      isDeleted: false,
+      isArchived: false
+    });
+
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error en getUserPosts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener historias de un usuario
+exports.getUserStories = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const stories = await Story.findByUser(user._id, { includeExpired: false })
+      .populate('user', 'username avatar fullName')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      stories
+    });
+  } catch (error) {
+    console.error('Error en getUserStories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Seguir a un usuario
 exports.followUser = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const targetId = req.params.id;
-    if (userId === targetId) return res.status(400).json({ message: 'No puedes seguirte a ti mismo' });
-    const user = await User.findById(userId);
-    const target = await User.findById(targetId);
-    if (!target) return res.status(404).json({ message: 'Usuario no encontrado' });
-    if (target.followers.includes(userId)) return res.status(400).json({ message: 'Ya sigues a este usuario' });
-    target.followers.push(userId);
-    user.following.push(targetId);
-    await target.save();
-    await user.save();
-    // Notificar al usuario seguido
+    const { username } = req.params;
+    const userToFollow = await User.findOne({ username });
+    
+    if (!userToFollow) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    if (userToFollow._id.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes seguirte a ti mismo'
+      });
+    }
+
+    const currentUser = await User.findById(req.user.id);
+    
+    if (currentUser.following.includes(userToFollow._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya estás siguiendo a este usuario'
+      });
+    }
+
+    // Agregar a following
+    currentUser.following.push(userToFollow._id);
+    await currentUser.save();
+
+    // Agregar a followers del usuario seguido
+    userToFollow.followers.push(currentUser._id);
+    await userToFollow.save();
+
+    // Crear notificación
     await Notification.create({
-      user: targetId,
+      user: userToFollow._id,
+      from: currentUser._id,
       type: 'follow',
-      from: userId,
-      message: 'Ha comenzado a seguirte'
+      title: 'Nuevo seguidor',
+      message: `${currentUser.username} comenzó a seguirte`
     });
-    res.json({ message: 'Ahora sigues a ' + target.username });
+
+    res.json({
+      success: true,
+      message: 'Usuario seguido exitosamente',
+      following: true
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al seguir usuario', error: error.message });
+    console.error('Error en followUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
-// Dejar de seguir usuario
+// Dejar de seguir a un usuario
 exports.unfollowUser = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const targetId = req.params.id;
-    if (userId === targetId) return res.status(400).json({ message: 'No puedes dejar de seguirte a ti mismo' });
-    const user = await User.findById(userId);
-    const target = await User.findById(targetId);
-    if (!target) return res.status(404).json({ message: 'Usuario no encontrado' });
-    if (!target.followers.includes(userId)) return res.status(400).json({ message: 'No sigues a este usuario' });
-    target.followers = target.followers.filter(f => f.toString() !== userId);
-    user.following = user.following.filter(f => f.toString() !== targetId);
-    await target.save();
-    await user.save();
-    res.json({ message: 'Has dejado de seguir a ' + target.username });
+    const { username } = req.params;
+    const userToUnfollow = await User.findOne({ username });
+    
+    if (!userToUnfollow) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const currentUser = await User.findById(req.user.id);
+    
+    if (!currentUser.following.includes(userToUnfollow._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No estás siguiendo a este usuario'
+      });
+    }
+
+    // Remover de following
+    currentUser.following = currentUser.following.filter(
+      id => !id.equals(userToUnfollow._id)
+    );
+    await currentUser.save();
+
+    // Remover de followers del usuario
+    userToUnfollow.followers = userToUnfollow.followers.filter(
+      id => !id.equals(currentUser._id)
+    );
+    await userToUnfollow.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario dejado de seguir exitosamente',
+      following: false
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al dejar de seguir usuario', error: error.message });
+    console.error('Error en unfollowUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
-// Ver seguidores
+// Obtener seguidores de un usuario
 exports.getFollowers = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate('followers', 'username avatar');
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-    res.json(user.followers);
+    const { username } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findOne({ username })
+      .populate({
+        path: 'followers',
+        select: 'username avatar fullName bio',
+        options: { skip, limit }
+      });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const total = user.followers.length;
+
+    res.json({
+      success: true,
+      followers: user.followers,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener seguidores', error: error.message });
+    console.error('Error en getFollowers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
 
-// Ver seguidos
+// Obtener usuarios que sigue
 exports.getFollowing = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate('following', 'username avatar');
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-    res.json(user.following);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener seguidos', error: error.message });
-  }
-};
+    const { username } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-// Ver perfil por ID
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select('-password').populate('followers', 'username avatar').populate('following', 'username avatar');
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener perfil', error: error.message });
-  }
-};
-
-// Ver perfil por username
-exports.getProfileByUsername = async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.params.username })
-      .select('-password')
-      .populate('followers', 'username avatar')
-      .populate('following', 'username avatar');
+    const user = await User.findOne({ username })
+      .populate({
+        path: 'following',
+        select: 'username avatar fullName bio',
+        options: { skip, limit }
+      });
     
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-    
-    // Obtener los posts del usuario
-    const Post = require('../models/Post');
-    const posts = await Post.find({ user: user._id }).select('image caption createdAt likes');
-    
-    const profileData = {
-      ...user.toObject(),
-      posts: posts
-    };
-    
-    res.json(profileData);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener perfil', error: error.message });
-  }
-};
-
-// Sugerencias de usuarios a seguir (populares y aleatorios)
-exports.getSuggestions = async (req, res) => {
-  console.log('Entrando en getSuggestions');
-  try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-
-    // Excluir el propio usuario y los que ya sigue (convertir solo IDs válidos a ObjectId)
-    const excludeIds = [userId, ...user.following]
-      .filter(id => mongoose.Types.ObjectId.isValid(id))
-      .map(id => new mongoose.Types.ObjectId(id));
-    console.log('excludeIds:', excludeIds);
-
-    // 1. Buscar usuarios populares (más seguidores)
-    let populares = [];
-    try { // Added try-catch for aggregation
-      populares = await User.aggregate([
-        { $match: { _id: { $nin: excludeIds } } },
-        { $addFields: { followersCount: { $size: "$followers" } } },
-        { $sort: { followersCount: -1 } },
-        { $limit: 5 }
-      ]);
-      console.log('populares:', populares); // Added log
-    } catch (aggErr) {
-      console.error('Error en agregación de populares:', aggErr); // Added log
-      throw aggErr;
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
     }
 
-    // Si hay menos de 5, completar con aleatorios
-    let suggestions = populares;
-    if (populares.length < 5) {
-      const idsPopulares = populares.map(u => u._id);
-      const faltan = 5 - populares.length;
-      let aleatorios = [];
-      try { // Added try-catch for aggregation
-        aleatorios = await User.aggregate([
-          { $match: { _id: { $nin: [...excludeIds, ...idsPopulares].filter(id => mongoose.Types.ObjectId.isValid(id)).map(id => new mongoose.Types.ObjectId(id)) } } }, // Ensure all IDs are valid ObjectIds
-          { $sample: { size: faltan } }
-        ]);
-        console.log('aleatorios:', aleatorios); // Added log
-      } catch (aggErr) {
-        console.error('Error en agregación de aleatorios:', aggErr); // Added log
-        throw aggErr;
+    const total = user.following.length;
+
+    res.json({
+      success: true,
+      following: user.following,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
       }
-      suggestions = [...populares, ...aleatorios];
+    });
+  } catch (error) {
+    console.error('Error en getFollowing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Buscar usuarios
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'El término de búsqueda debe tener al menos 2 caracteres'
+      });
     }
 
-    // Solo devolver los campos necesarios
-    suggestions = suggestions.map(u => ({
-      _id: u._id,
-      username: u.username,
-      avatar: u.avatar,
-      bio: u.bio
-    }));
+    const users = await User.searchUsers(q, { skip, limit });
+    const total = await User.countDocuments({
+      $or: [
+        { username: { $regex: q, $options: 'i' } },
+        { fullName: { $regex: q, $options: 'i' } }
+      ],
+      isActive: true
+    });
 
-    res.json(suggestions);
+    res.json({
+      success: true,
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    console.error('Error en getSuggestions:', error); // Added log
-    res.status(500).json({ message: 'Error al obtener sugerencias', error: error.message });
+    console.error('Error en searchUsers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Bloquear usuario
+exports.blockUser = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const userToBlock = await User.findOne({ username });
+    
+    if (!userToBlock) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    if (userToBlock._id.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes bloquearte a ti mismo'
+      });
+    }
+
+    const currentUser = await User.findById(req.user.id);
+    
+    if (currentUser.blockedUsers.includes(userToBlock._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya tienes bloqueado a este usuario'
+      });
+    }
+
+    currentUser.blockedUsers.push(userToBlock._id);
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario bloqueado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error en blockUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Desbloquear usuario
+exports.unblockUser = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const userToUnblock = await User.findOne({ username });
+    
+    if (!userToUnblock) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    const currentUser = await User.findById(req.user.id);
+    
+    if (!currentUser.blockedUsers.includes(userToUnblock._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No tienes bloqueado a este usuario'
+      });
+    }
+
+    currentUser.blockedUsers = currentUser.blockedUsers.filter(
+      id => !id.equals(userToUnblock._id)
+    );
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario desbloqueado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error en unblockUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener usuarios bloqueados
+exports.getBlockedUsers = async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user.id)
+      .populate('blockedUsers', 'username avatar fullName');
+
+    res.json({
+      success: true,
+      blockedUsers: currentUser.blockedUsers
+    });
+  } catch (error) {
+    console.error('Error en getBlockedUsers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener sugerencias de usuarios
+exports.getUserSuggestions = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const currentUser = await User.findById(req.user.id);
+    
+    // Obtener usuarios que no sigue y no están bloqueados
+    const suggestions = await User.find({
+      _id: { 
+        $nin: [...currentUser.following, ...currentUser.blockedUsers, currentUser._id] 
+      },
+      isActive: true
+    })
+    .select('username avatar fullName bio followersCount')
+    .sort({ followersCount: -1 })
+    .limit(limit);
+
+    res.json({
+      success: true,
+      suggestions
+    });
+  } catch (error) {
+    console.error('Error en getUserSuggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
   }
 };
