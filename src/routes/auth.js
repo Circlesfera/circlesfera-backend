@@ -10,7 +10,7 @@ const {
   logout, 
   refreshToken 
 } = require('../controllers/authController');
-const auth = require('../middlewares/auth');
+const { auth } = require('../middlewares/auth');
 
 // Validaciones
 const registerValidation = [
