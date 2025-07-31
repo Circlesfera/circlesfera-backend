@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 const { 
   getMessages,
   sendTextMessage,
@@ -61,7 +61,7 @@ const forwardMessageValidation = [
 ];
 
 const searchMessagesValidation = [
-  body('query')
+  query('query')
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('El término de búsqueda debe tener entre 2 y 100 caracteres')
@@ -69,8 +69,8 @@ const searchMessagesValidation = [
 
 // Rutas protegidas
 router.get('/conversation/:conversationId', auth, getMessages);
-router.get('/conversation/:conversationId/search', auth, searchMessagesValidation, searchMessages);
 router.get('/conversation/:conversationId/stats', auth, getMessageStats);
+router.get('/conversation/:conversationId/search', auth, searchMessagesValidation, searchMessages);
 
 // Envío de mensajes
 router.post('/conversation/:conversationId/text', auth, sendTextMessageValidation, sendTextMessage);
