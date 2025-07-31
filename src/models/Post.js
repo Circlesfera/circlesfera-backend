@@ -15,26 +15,27 @@ const PostSchema = new mongoose.Schema({
   content: {
     image: {
       type: String,
-      required: function() { return this.type === 'image'; }
+      required: false
     },
     video: {
       url: {
         type: String,
-        required: function() { return this.type === 'video'; }
+        required: false
       },
       duration: {
-        type: Number, // duración en segundos
-        required: function() { return this.type === 'video'; }
+        type: Number,
+        default: 0
       },
       thumbnail: {
         type: String,
-        required: function() { return this.type === 'video'; }
+        required: false
       }
     }
   },
   caption: {
     type: String,
-    maxlength: 7200 // Aumentado para incluir texto + caption
+    maxlength: 7200,
+    default: ''
   },
   likes: [{
     type: mongoose.Schema.Types.ObjectId,

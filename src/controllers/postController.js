@@ -3,6 +3,11 @@ const Notification = require('../models/Notification');
 
 exports.createPost = async (req, res) => {
   try {
+    console.log('=== CREATE POST DEBUG ===');
+    console.log('User ID:', req.user.id);
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+    
     const { type, caption } = req.body;
     
     let postData = {
@@ -11,17 +16,22 @@ exports.createPost = async (req, res) => {
       caption: caption || ''
     };
 
+    console.log('Post data before switch:', postData);
+
     // Manejar diferentes tipos de contenido
     switch (type) {
       case 'image':
         if (!req.file) {
+          console.log('ERROR: No file provided for image post');
           return res.status(400).json({ message: 'La imagen es obligatoria para publicaciones de imagen' });
         }
         postData.content = { image: `/uploads/${req.file.filename}` };
+        console.log('Image post data:', postData);
         break;
 
       case 'video':
         if (!req.file) {
+          console.log('ERROR: No file provided for video post');
           return res.status(400).json({ message: 'El video es obligatorio para publicaciones de video' });
         }
         // Aquí podrías procesar el video para obtener duración y thumbnail
@@ -33,20 +43,27 @@ exports.createPost = async (req, res) => {
             thumbnail: `/uploads/${req.file.filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`
           }
         };
+        console.log('Video post data:', postData);
         break;
 
       default:
+        console.log('ERROR: Invalid post type:', type);
         return res.status(400).json({ message: 'Tipo de publicación no válido' });
     }
 
+    console.log('Creating post with data:', postData);
     const post = new Post(postData);
     await post.save();
+    console.log('Post saved successfully:', post._id);
     
     // Populate user data for response
     await post.populate('user', 'username avatar');
+    console.log('Post populated successfully');
     
     res.status(201).json({ message: 'Post creado correctamente', post });
   } catch (error) {
+    console.error('ERROR in createPost:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error al crear el post', error: error.message });
   }
 };
