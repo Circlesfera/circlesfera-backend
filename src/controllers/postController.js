@@ -132,29 +132,46 @@ exports.getLikes = async (req, res) => {
 // Obtener el feed de publicaciones de usuarios seguidos y propio usuario
 exports.getFeed = async (req, res) => {
   try {
+    console.log('=== GET FEED DEBUG ===');
     const userId = req.user.id;
+    console.log('User ID:', userId);
+    
     const User = require('../models/User');
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    console.log('User found:', user ? 'Yes' : 'No');
+    
+    if (!user) {
+      console.log('ERROR: User not found');
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    console.log('User following:', user.following);
+    console.log('User following length:', user.following ? user.following.length : 'undefined');
 
     // Usuarios a mostrar: seguidos + propio usuario
-    const usersToShow = [userId, ...user.following];
+    const usersToShow = [userId, ...(user.following || [])];
+    console.log('Users to show:', usersToShow);
 
     // Paginación
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    console.log('Pagination:', { page, limit, skip });
 
     const posts = await Post.find({ user: { $in: usersToShow } })
       .populate('user', 'username avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+    console.log('Posts found:', posts.length);
 
     const total = await Post.countDocuments({ user: { $in: usersToShow } });
+    console.log('Total posts:', total);
 
     res.json({ posts, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
+    console.error('ERROR in getFeed:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ message: 'Error al obtener el feed', error: error.message });
   }
 };
