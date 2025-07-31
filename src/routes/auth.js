@@ -58,6 +58,7 @@ const updateProfileValidation = [
     .withMessage('La biografía no puede exceder 160 caracteres'),
   body('website')
     .optional()
+    .if(body('website').notEmpty())
     .isURL()
     .withMessage('Por favor ingresa una URL válida'),
   body('location')
@@ -67,6 +68,7 @@ const updateProfileValidation = [
     .withMessage('La ubicación no puede exceder 100 caracteres'),
   body('phone')
     .optional()
+    .if(body('phone').notEmpty())
     .matches(/^\+?[\d\s\-\(\)]+$/)
     .withMessage('Por favor ingresa un número de teléfono válido'),
   body('gender')
@@ -75,6 +77,7 @@ const updateProfileValidation = [
     .withMessage('Género inválido'),
   body('birthDate')
     .optional()
+    .if(body('birthDate').notEmpty())
     .isISO8601()
     .withMessage('Fecha de nacimiento inválida'),
   body('isPrivate')
