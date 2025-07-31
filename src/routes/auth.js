@@ -8,7 +8,8 @@ const {
   updateProfile, 
   changePassword, 
   logout, 
-  refreshToken 
+  refreshToken,
+  checkUsernameAvailability
 } = require('../controllers/authController');
 const { auth } = require('../middlewares/auth');
 
@@ -107,6 +108,7 @@ const changePasswordValidation = [
 // Rutas públicas
 router.post('/register', registerValidation, register);
 router.post('/login', loginValidation, login);
+router.get('/check-username/:username', checkUsernameAvailability);
 
 // Rutas protegidas
 router.get('/profile', auth, getProfile);

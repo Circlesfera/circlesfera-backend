@@ -34,20 +34,21 @@ exports.register = async (req, res) => {
 
     const { username, email, password, fullName } = req.body;
 
-    // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username: username.toLowerCase() }
-      ]
-    });
-
-    if (existingUser) {
+    // Verificar si el username está disponible
+    const isUsernameAvailable = await User.isUsernameAvailable(username);
+    if (!isUsernameAvailable) {
       return res.status(400).json({
         success: false,
-        message: existingUser.email === email.toLowerCase() 
-          ? 'Este email ya está registrado' 
-          : 'Este nombre de usuario ya está en uso'
+        message: 'Este nombre de usuario ya está en uso o está bloqueado'
+      });
+    }
+
+    // Verificar si el email ya existe
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Este email ya está registrado'
       });
     }
 
@@ -60,6 +61,9 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+
+    // Bloquear el username para este usuario
+    await User.blockUsername(user._id, username);
 
     // Generar token
     const token = generateToken(user._id);
@@ -207,23 +211,29 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
-    // Si se está cambiando el username, verificar que no exista
+    // Si se está cambiando el username
     if (username && username !== user.username) {
-      const existingUser = await User.findOne({ 
-        username: username.toLowerCase(),
-        _id: { $ne: user._id } // Excluir el usuario actual
-      });
+      // Verificar si el nuevo username está disponible
+      const isAvailable = await User.isUsernameAvailable(username);
       
-      if (existingUser) {
+      if (!isAvailable) {
         return res.status(400).json({
           success: false,
-          message: 'Este nombre de usuario ya está en uso'
+          message: 'Este nombre de usuario ya está en uso o está bloqueado'
         });
       }
+
+      // Desbloquear el username anterior
+      await User.unblockUsername(user._id, user.username);
+      
+      // Bloquear el nuevo username
+      await User.blockUsername(user._id, username);
+      
+      // Actualizar el username del usuario
+      user.username = username.toLowerCase();
     }
 
-    // Actualizar campos permitidos
-    if (username !== undefined) user.username = username.toLowerCase();
+    // Actualizar otros campos permitidos
     if (fullName !== undefined) user.fullName = fullName;
     if (bio !== undefined) user.bio = bio;
     if (website !== undefined) user.website = website;
@@ -339,6 +349,35 @@ exports.refreshToken = async (req, res) => {
 
   } catch (error) {
     console.error('Error refrescando token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Verificar disponibilidad de username
+exports.checkUsernameAvailability = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username es requerido'
+      });
+    }
+
+    const isAvailable = await User.isUsernameAvailable(username);
+    
+    res.json({
+      success: true,
+      available: isAvailable,
+      username: username.toLowerCase()
+    });
+
+  } catch (error) {
+    console.error('Error verificando disponibilidad de username:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

@@ -4,66 +4,57 @@ const bcrypt = require('bcryptjs');
 const UserSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: [true, 'El nombre de usuario es requerido'],
+    required: true,
     unique: true,
+    lowercase: true,
     trim: true,
-    minlength: [3, 'El nombre de usuario debe tener al menos 3 caracteres'],
-    maxlength: [30, 'El nombre de usuario no puede exceder 30 caracteres'],
-    match: [/^[a-zA-Z0-9_]+$/, 'El nombre de usuario solo puede contener letras, números y guiones bajos']
+    index: true
   },
   email: {
     type: String,
-    required: [true, 'El email es requerido'],
+    required: true,
     unique: true,
-    trim: true,
     lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Por favor ingresa un email válido']
+    trim: true,
+    index: true
   },
   password: {
     type: String,
-    required: [true, 'La contraseña es requerida'],
-    minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
-    select: false
-  },
-  avatar: {
-    type: String,
-    default: ''
-  },
-  bio: {
-    type: String,
-    maxlength: [160, 'La biografía no puede exceder 160 caracteres'],
-    default: ''
+    required: true,
+    minlength: 6
   },
   fullName: {
     type: String,
     trim: true,
-    maxlength: [50, 'El nombre completo no puede exceder 50 caracteres']
+    maxlength: 50
+  },
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: 160
+  },
+  avatar: {
+    type: String
   },
   website: {
     type: String,
-    match: [/^https?:\/\/.+/, 'La URL debe comenzar con http:// o https://']
+    trim: true
   },
   location: {
     type: String,
-    maxlength: [100, 'La ubicación no puede exceder 100 caracteres']
+    trim: true,
+    maxlength: 100
   },
   phone: {
     type: String,
-    match: [/^\+?[\d\s\-\(\)]+$/, 'Por favor ingresa un número de teléfono válido']
+    trim: true
   },
   gender: {
     type: String,
-    enum: ['male', 'female', 'other', 'prefer-not-to-say'],
-    default: 'prefer-not-to-say'
+    enum: ['male', 'female', 'other', 'prefer-not-to-say']
   },
   birthDate: {
-    type: Date,
-    validate: {
-      validator: function(v) {
-        return !v || v < new Date();
-      },
-      message: 'La fecha de nacimiento no puede ser en el futuro'
-    }
+    type: Date
   },
   isPrivate: {
     type: Boolean,
@@ -81,15 +72,13 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  followers: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User',
-    index: true
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }],
-  following: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User',
-    index: true
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }],
   posts: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -116,7 +105,13 @@ const UserSchema = new mongoose.Schema({
       showPhone: { type: Boolean, default: false },
       showBirthDate: { type: Boolean, default: false }
     }
-  }
+  },
+  // Campo para rastrear usernames bloqueados
+  blockedUsernames: [{
+    type: String,
+    lowercase: true,
+    trim: true
+  }]
 }, { 
   timestamps: true,
   toJSON: { virtuals: true },
@@ -192,6 +187,44 @@ UserSchema.statics.searchUsers = function(query, limit = 10) {
     ],
     isActive: true
   }).limit(limit);
+};
+
+// Método para verificar si un username está disponible (no está en uso ni bloqueado)
+UserSchema.statics.isUsernameAvailable = async function(username) {
+  const normalizedUsername = username.toLowerCase().trim();
+  
+  // Verificar si el username está en uso
+  const existingUser = await this.findOne({ username: normalizedUsername });
+  if (existingUser) {
+    return false;
+  }
+  
+  // Verificar si el username está bloqueado por algún usuario
+  const userWithBlockedUsername = await this.findOne({ 
+    blockedUsernames: normalizedUsername 
+  });
+  
+  return !userWithBlockedUsername;
+};
+
+// Método para bloquear un username
+UserSchema.statics.blockUsername = async function(userId, username) {
+  const normalizedUsername = username.toLowerCase().trim();
+  return this.findByIdAndUpdate(
+    userId,
+    { $addToSet: { blockedUsernames: normalizedUsername } },
+    { new: true }
+  );
+};
+
+// Método para desbloquear un username
+UserSchema.statics.unblockUsername = async function(userId, username) {
+  const normalizedUsername = username.toLowerCase().trim();
+  return this.findByIdAndUpdate(
+    userId,
+    { $pull: { blockedUsernames: normalizedUsername } },
+    { new: true }
+  );
 };
 
 module.exports = mongoose.model('User', UserSchema);
