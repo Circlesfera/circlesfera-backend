@@ -18,6 +18,9 @@ router.post('/', auth, upload.single('file'), createPost);
 // Listar posts (público) - soporta filtros por tipo
 router.get('/', getPosts);
 
+// Feed de usuarios seguidos y propio usuario (protegido) - DEBE IR ANTES DE /:id
+router.get('/feed', auth, getFeed);
+
 // Obtener un post específico (público)
 router.get('/:id', getPost);
 
@@ -26,9 +29,6 @@ router.post('/:id/like', auth, toggleLike);
 
 // Listar usuarios que han dado like
 router.get('/:id/likes', getLikes);
-
-// Feed de usuarios seguidos y propio usuario (protegido)
-router.get('/feed', auth, getFeed);
 
 // Eliminar post (protegido)
 router.delete('/:id', auth, deletePost);
