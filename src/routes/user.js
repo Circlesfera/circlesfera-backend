@@ -6,7 +6,8 @@ const {
   unfollowUser,
   getFollowers,
   getFollowing,
-  getProfile
+  getProfile,
+  getProfileByUsername
 } = require('../controllers/userController');
 
 // Seguir usuario
@@ -17,7 +18,11 @@ router.post('/:id/unfollow', auth, unfollowUser);
 router.get('/:id/followers', getFollowers);
 // Ver seguidos
 router.get('/:id/following', getFollowing);
-// Ver perfil
+// Sugerencias de usuarios a seguir (debe ir antes de /:id)
+router.get('/suggestions', auth, require('../controllers/userController').getSuggestions);
+// Ver perfil por username (debe ir antes de /:id)
+router.get('/profile/:username', getProfileByUsername);
+// Ver perfil por ID
 router.get('/:id', getProfile);
 
 module.exports = router;

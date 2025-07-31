@@ -3,16 +3,48 @@ const Notification = require('../models/Notification');
 
 exports.createPost = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'La imagen es obligatoria' });
-    }
-    const { caption } = req.body;
-    const post = new Post({
+    const { type, caption } = req.body;
+    
+    let postData = {
       user: req.user.id,
-      image: `/uploads/${req.file.filename}`,
+      type: type || 'image',
       caption: caption || ''
-    });
+    };
+
+    // Manejar diferentes tipos de contenido
+    switch (type) {
+      case 'image':
+        if (!req.file) {
+          return res.status(400).json({ message: 'La imagen es obligatoria para publicaciones de imagen' });
+        }
+        postData.content = { image: `/uploads/${req.file.filename}` };
+        break;
+
+      case 'video':
+        if (!req.file) {
+          return res.status(400).json({ message: 'El video es obligatorio para publicaciones de video' });
+        }
+        // Aquí podrías procesar el video para obtener duración y thumbnail
+        // Por ahora usamos valores por defecto
+        postData.content = {
+          video: {
+            url: `/uploads/${req.file.filename}`,
+            duration: 0, // Se calcularía con ffmpeg
+            thumbnail: `/uploads/${req.file.filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`
+          }
+        };
+        break;
+
+      default:
+        return res.status(400).json({ message: 'Tipo de publicación no válido' });
+    }
+
+    const post = new Post(postData);
     await post.save();
+    
+    // Populate user data for response
+    await post.populate('user', 'username avatar');
+    
     res.status(201).json({ message: 'Post creado correctamente', post });
   } catch (error) {
     res.status(500).json({ message: 'Error al crear el post', error: error.message });
@@ -21,7 +53,14 @@ exports.createPost = async (req, res) => {
 
 exports.getPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    const { type } = req.query;
+    let query = {};
+    
+    if (type && ['image', 'video'].includes(type)) {
+      query.type = type;
+    }
+
+    const posts = await Post.find(query)
       .populate('user', 'username avatar')
       .sort({ createdAt: -1 });
     res.json(posts);
@@ -33,7 +72,6 @@ exports.getPosts = async (req, res) => {
 // Dar/quitar like a un post
 exports.toggleLike = async (req, res) => {
   try {
-    const Post = require('../models/Post');
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
     const userId = req.user.id;
@@ -66,10 +104,81 @@ exports.toggleLike = async (req, res) => {
 // Listar usuarios que han dado like a un post
 exports.getLikes = async (req, res) => {
   try {
-    const post = await require('../models/Post').findById(req.params.id).populate('likes', 'username avatar');
+    const post = await Post.findById(req.params.id).populate('likes', 'username avatar');
     if (!post) return res.status(404).json({ message: 'Post no encontrado' });
     res.json(post.likes);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener likes', error: error.message });
+  }
+};
+
+// Obtener el feed de publicaciones de usuarios seguidos y propio usuario
+exports.getFeed = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const User = require('../models/User');
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    // Usuarios a mostrar: seguidos + propio usuario
+    const usersToShow = [userId, ...user.following];
+
+    // Paginación
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find({ user: { $in: usersToShow } })
+      .populate('user', 'username avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({ user: { $in: usersToShow } });
+
+    res.json({ posts, total, page, pages: Math.ceil(total / limit) });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener el feed', error: error.message });
+  }
+};
+
+// Obtener un post específico
+exports.getPost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate('user', 'username avatar')
+      .populate('likes', 'username avatar');
+    
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Incrementar vistas
+    post.views += 1;
+    await post.save();
+
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener el post', error: error.message });
+  }
+};
+
+// Eliminar un post
+exports.deletePost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post no encontrado' });
+    }
+
+    // Verificar que el usuario sea el dueño del post
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'No tienes permisos para eliminar este post' });
+    }
+
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Post eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al eliminar el post', error: error.message });
   }
 };

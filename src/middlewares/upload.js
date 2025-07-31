@@ -12,19 +12,28 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-  if (extname && mimetype) {
+  // Tipos de archivo permitidos
+  const imageTypes = /jpeg|jpg|png|gif|webp/;
+  const videoTypes = /mp4|avi|mov|wmv|flv|webm|mkv/;
+  
+  const extname = path.extname(file.originalname).toLowerCase();
+  const isImage = imageTypes.test(extname) && file.mimetype.startsWith('image/');
+  const isVideo = videoTypes.test(extname) && file.mimetype.startsWith('video/');
+  
+  if (isImage || isVideo) {
     return cb(null, true);
   }
-  cb(new Error('Solo se permiten imágenes'));
+  
+  cb(new Error('Solo se permiten imágenes (JPEG, PNG, GIF, WebP) y videos (MP4, AVI, MOV, WMV, FLV, WebM, MKV)'));
 };
 
+// Configuración para diferentes tipos de archivo
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter
+  fileFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB máximo para todos los archivos
+  }
 });
 
 module.exports = upload;
