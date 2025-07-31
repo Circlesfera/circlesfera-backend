@@ -67,7 +67,7 @@ const searchMessagesValidation = [
     .withMessage('El término de búsqueda debe tener entre 2 y 100 caracteres')
 ];
 
-// Obtener mensajes de una conversación
+// Mensajes de conversacion
 router.get('/conversation/:conversationId', auth, getMessages);
 router.get('/conversation/:conversationId/stats', auth, getMessageStats);
 router.get('/conversation/:conversationId/search', auth, searchMessagesValidation, searchMessages);
@@ -78,7 +78,7 @@ router.post('/conversation/:conversationId/image', auth, uploadSingle, sendImage
 router.post('/conversation/:conversationId/video', auth, uploadSingle, sendVideoMessage, handleUploadError);
 router.post('/conversation/:conversationId/location', auth, sendLocationMessageValidation, sendLocationMessage);
 
-// Gestionar mensajes individuales
+// Mensajes individuales
 router.put('/message/:messageId', auth, editMessageValidation, editMessage);
 router.delete('/message/:messageId', auth, deleteMessage);
 router.post('/message/:messageId/forward', auth, forwardMessageValidation, forwardMessage);
