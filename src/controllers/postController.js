@@ -18,7 +18,7 @@ exports.createPost = async (req, res) => {
     const { type, caption, location, tags } = req.body;
     
     let postData = {
-      user: req.user.id,
+      user: req.userId,
       type: type || 'image',
       caption: caption || '',
       tags: tags ? tags.split(',').map(tag => tag.trim()) : []
@@ -113,7 +113,7 @@ exports.createPost = async (req, res) => {
 // Obtener el feed de publicaciones
 exports.getFeed = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     
     const user = await User.findById(userId);
     
@@ -214,7 +214,7 @@ exports.toggleLike = async (req, res) => {
       });
     }
 
-    const userId = req.user.id;
+    const userId = req.userId;
     const isLiked = post.isLikedBy(userId);
     
     if (isLiked) {
@@ -355,7 +355,7 @@ exports.deletePost = async (req, res) => {
     }
 
     // Verificar que el usuario sea el dueño del post
-    if (post.user.toString() !== req.user.id) {
+    if (post.user.toString() !== req.userId) {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para eliminar esta publicación'
@@ -400,7 +400,7 @@ exports.updatePost = async (req, res) => {
     }
 
     // Verificar que el usuario sea el dueño del post
-    if (post.user.toString() !== req.user.id) {
+    if (post.user.toString() !== req.userId) {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para editar esta publicación'
