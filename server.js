@@ -11,18 +11,28 @@ const app = express();
 // Configuración de seguridad
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting más permisivo en desarrollo
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Mucho más permisivo en desarrollo
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Mucho más permisivo en desarrollo
   message: {
     error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo en 15 minutos.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // No contar peticiones exitosas
+  skipFailedRequests: false, // Contar peticiones fallidas
 });
 
-app.use('/api/', limiter);
+// Aplicar rate limiting solo a rutas específicas, no a todo /api/
+app.use('/api/auth', limiter);
+app.use('/api/posts', limiter);
+app.use('/api/users', limiter);
+app.use('/api/comments', limiter);
+app.use('/api/stories', limiter);
+app.use('/api/notifications', limiter);
+app.use('/api/conversations', limiter);
+app.use('/api/messages', limiter);
 
 // Middlewares básicos
 app.use(express.json());
@@ -44,7 +54,7 @@ if (process.env.NODE_ENV === 'development') {
 // Conexión a la base de datos
 connectDB();
 
-// Health check endpoint
+// Health check endpoint (sin rate limiting)
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
