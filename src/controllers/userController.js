@@ -23,8 +23,16 @@ exports.getUserProfile = async (req, res) => {
     // Verificar si el usuario actual está siguiendo a este usuario
     let isFollowing = false;
     if (req.userId) {
-      const currentUser = await User.findById(req.userId);
-      isFollowing = currentUser.following.includes(user._id);
+      try {
+        const currentUser = await User.findById(req.userId);
+        if (currentUser) {
+          isFollowing = currentUser.following.includes(user._id);
+        }
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+        // Si hay error, asumir que no está siguiendo
+        isFollowing = false;
+      }
     }
 
     res.json({
