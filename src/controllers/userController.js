@@ -22,8 +22,8 @@ exports.getUserProfile = async (req, res) => {
 
     // Verificar si el usuario actual está siguiendo a este usuario
     let isFollowing = false;
-    if (req.user) {
-      const currentUser = await User.findById(req.user.id);
+    if (req.userId) {
+      const currentUser = await User.findById(req.userId);
       isFollowing = currentUser.following.includes(user._id);
     }
 
@@ -133,14 +133,14 @@ exports.followUser = async (req, res) => {
       });
     }
 
-    if (userToFollow._id.toString() === req.user.id) {
+    if (userToFollow._id.toString() === req.userId) {
       return res.status(400).json({
         success: false,
         message: 'No puedes seguirte a ti mismo'
       });
     }
 
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.userId);
     
     if (currentUser.following.includes(userToFollow._id)) {
       return res.status(400).json({
@@ -160,16 +160,14 @@ exports.followUser = async (req, res) => {
     // Crear notificación
     await Notification.create({
       user: userToFollow._id,
-      from: currentUser._id,
       type: 'follow',
-      title: 'Nuevo seguidor',
+      from: currentUser._id,
       message: `${currentUser.username} comenzó a seguirte`
     });
 
     res.json({
       success: true,
-      message: 'Usuario seguido exitosamente',
-      following: true
+      message: 'Usuario seguido exitosamente'
     });
   } catch (error) {
     console.error('Error en followUser:', error);
@@ -193,7 +191,7 @@ exports.unfollowUser = async (req, res) => {
       });
     }
 
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.userId);
     
     if (!currentUser.following.includes(userToUnfollow._id)) {
       return res.status(400).json({
@@ -204,20 +202,19 @@ exports.unfollowUser = async (req, res) => {
 
     // Remover de following
     currentUser.following = currentUser.following.filter(
-      id => !id.equals(userToUnfollow._id)
+      id => id.toString() !== userToUnfollow._id.toString()
     );
     await currentUser.save();
 
     // Remover de followers del usuario
     userToUnfollow.followers = userToUnfollow.followers.filter(
-      id => !id.equals(currentUser._id)
+      id => id.toString() !== currentUser._id.toString()
     );
     await userToUnfollow.save();
 
     res.json({
       success: true,
-      message: 'Usuario dejado de seguir exitosamente',
-      following: false
+      message: 'Usuario dejado de seguir exitosamente'
     });
   } catch (error) {
     console.error('Error en unfollowUser:', error);
@@ -370,14 +367,14 @@ exports.blockUser = async (req, res) => {
       });
     }
 
-    if (userToBlock._id.toString() === req.user.id) {
+    if (userToBlock._id.toString() === req.userId) {
       return res.status(400).json({
         success: false,
         message: 'No puedes bloquearte a ti mismo'
       });
     }
 
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.userId);
     
     if (currentUser.blockedUsers.includes(userToBlock._id)) {
       return res.status(400).json({
@@ -415,7 +412,7 @@ exports.unblockUser = async (req, res) => {
       });
     }
 
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.userId);
     
     if (!currentUser.blockedUsers.includes(userToUnblock._id)) {
       return res.status(400).json({
@@ -445,7 +442,7 @@ exports.unblockUser = async (req, res) => {
 // Obtener usuarios bloqueados
 exports.getBlockedUsers = async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user.id)
+    const currentUser = await User.findById(req.userId)
       .populate('blockedUsers', 'username avatar fullName');
 
     res.json({
@@ -465,7 +462,7 @@ exports.getBlockedUsers = async (req, res) => {
 exports.getUserSuggestions = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const currentUser = await User.findById(req.user.id);
+    const currentUser = await User.findById(req.userId);
     
     // Obtener usuarios que no sigue y no están bloqueados
     const suggestions = await User.find({
