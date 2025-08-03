@@ -32,6 +32,27 @@ router.get('/:username/followers', getFollowers);
 router.get('/:username/following', getFollowing);
 router.get('/search', searchValidation, searchUsers);
 
+// Ruta temporal para eliminar todos los usuarios (solo en desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  router.delete('/all', async (req, res) => {
+    try {
+      const User = require('../models/User');
+      await User.deleteMany({});
+      res.json({
+        success: true,
+        message: 'Todos los usuarios eliminados',
+        count: 0
+      });
+    } catch (error) {
+      console.error('Error eliminando usuarios:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error eliminando usuarios'
+      });
+    }
+  });
+}
+
 // Rutas protegidas
 router.post('/:username/follow', auth, followUser);
 router.delete('/:username/follow', auth, unfollowUser);
