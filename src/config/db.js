@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    // Usar MongoDB local por defecto
     const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/circlesfera';
+    
+    console.log('🔗 Intentando conectar a MongoDB...');
+    console.log(`📊 URI: ${mongoURI}`);
     
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
@@ -35,6 +39,7 @@ const connectDB = async () => {
   } catch (error) {
     console.error('❌ Error al conectar a MongoDB:', error.message);
     console.error('💡 Asegúrate de que MongoDB esté ejecutándose y la URI sea correcta');
+    console.error('💡 Si usas MongoDB local, ejecuta: brew services start mongodb-community');
     process.exit(1);
   }
 };
