@@ -41,6 +41,12 @@ exports.createStory = async (req, res) => {
           });
         }
         
+        console.log('Creating image story with:', {
+          filename: req.files.image[0].filename,
+          baseUrl: baseUrl,
+          fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`
+        });
+        
         storyData.content = {
           image: {
             url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
@@ -58,6 +64,12 @@ exports.createStory = async (req, res) => {
             message: 'El video es obligatorio para historias de video'
           });
         }
+        
+        console.log('Creating video story with:', {
+          filename: req.files.video[0].filename,
+          baseUrl: baseUrl,
+          fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`
+        });
         
         storyData.content = {
           video: {
