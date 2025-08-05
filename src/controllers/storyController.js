@@ -424,10 +424,7 @@ exports.getUsersWithStories = async (req, res) => {
       });
     }
 
-    // Obtener usuarios seguidos
-    const following = currentUser.following || [];
-    
-    // Buscar stories activas (no expiradas)
+    // Buscar stories activas (no expiradas) de TODOS los usuarios
     const activeStories = await Story.find({
       isDeleted: false,
       isPublic: true,
@@ -454,11 +451,8 @@ exports.getUsersWithStories = async (req, res) => {
       usersMap.get(userId).storiesCount++;
     });
 
-    // Convertir a array y filtrar por usuario actual y seguidos
+    // Convertir a array y ordenar por la story más reciente
     const usersWithStories = Array.from(usersMap.values())
-      .filter(user => 
-        user._id.toString() === userId || following.includes(user._id.toString())
-      )
       .sort((a, b) => new Date(b.latestStory.createdAt) - new Date(a.latestStory.createdAt));
 
     res.json({
