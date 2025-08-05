@@ -73,8 +73,7 @@ const PostSchema = new mongoose.Schema({
     coordinates: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
       },
       coordinates: {
         type: [Number],
@@ -166,7 +165,12 @@ PostSchema.virtual('engagement').get(function() {
 
 // Métodos de instancia
 PostSchema.methods.addLike = function(userId) {
-  if (!this.likes.includes(userId)) {
+  if (!this.likes) {
+    this.likes = [];
+  }
+  
+  const userIdStr = userId.toString();
+  if (!this.likes.some(id => id.toString() === userIdStr)) {
     this.likes.push(userId);
     return this.save();
   }
@@ -174,12 +178,22 @@ PostSchema.methods.addLike = function(userId) {
 };
 
 PostSchema.methods.removeLike = function(userId) {
-  this.likes = this.likes.filter(id => !id.equals(userId));
+  if (!this.likes) {
+    this.likes = [];
+  }
+  
+  const userIdStr = userId.toString();
+  this.likes = this.likes.filter(id => id.toString() !== userIdStr);
   return this.save();
 };
 
 PostSchema.methods.isLikedBy = function(userId) {
-  return this.likes.some(id => id.equals(userId));
+  if (!this.likes || this.likes.length === 0) {
+    return false;
+  }
+  
+  const userIdStr = userId.toString();
+  return this.likes.some(id => id.toString() === userIdStr);
 };
 
 PostSchema.methods.incrementViews = function() {
@@ -247,7 +261,7 @@ PostSchema.pre('save', function(next) {
     return next(new Error('Las publicaciones de video deben tener un video'));
   }
   
-  if (this.type === 'text' && !this.content.text) {
+  if (this.type === 'text' && (!this.content.text || this.content.text.trim() === '')) {
     return next(new Error('Las publicaciones de texto deben tener contenido'));
   }
   

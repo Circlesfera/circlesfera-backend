@@ -33,7 +33,7 @@ const NotificationSchema = new mongoose.Schema({
   title: {
     type: String,
     maxlength: [100, 'El título no puede exceder 100 caracteres'],
-    required: [true, 'El título es requerido']
+    // required: [true, 'El título es requerido']
   },
   message: {
     type: String,

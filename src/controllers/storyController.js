@@ -18,7 +18,7 @@ exports.createStory = async (req, res) => {
     const { type, caption, location, textContent, textStyle } = req.body;
     
     let storyData = {
-      user: req.user.id,
+      user: req.userId,
       type: type || 'image',
       caption: caption || ''
     };
@@ -42,7 +42,7 @@ exports.createStory = async (req, res) => {
           image: {
             url: `/uploads/${req.files.image[0].filename}`,
             alt: caption || '',
-            width: 0, // Se calcularía con sharp
+            width: 0,
             height: 0
           }
         };
@@ -59,7 +59,7 @@ exports.createStory = async (req, res) => {
         storyData.content = {
           video: {
             url: `/uploads/${req.files.video[0].filename}`,
-            duration: 0, // Se calcularía con ffmpeg
+            duration: 0,
             thumbnail: `/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
             width: 0,
             height: 0
@@ -75,13 +75,24 @@ exports.createStory = async (req, res) => {
           });
         }
         
+        // Parse textStyle si viene como JSON string
+        let parsedTextStyle = {};
+        if (textStyle) {
+          try {
+            parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle;
+          } catch (error) {
+            console.error('Error parsing textStyle:', error);
+            parsedTextStyle = {};
+          }
+        }
+        
         storyData.content = {
           text: {
             content: textContent,
-            backgroundColor: textStyle?.backgroundColor || '#000000',
-            textColor: textStyle?.textColor || '#ffffff',
-            fontSize: textStyle?.fontSize || 24,
-            fontFamily: textStyle?.fontFamily || 'Arial'
+            backgroundColor: parsedTextStyle.backgroundColor || '#000000',
+            textColor: parsedTextStyle.textColor || '#ffffff',
+            fontSize: parsedTextStyle.fontSize || 24,
+            fontFamily: parsedTextStyle.fontFamily || 'Arial'
           }
         };
         break;
@@ -95,6 +106,16 @@ exports.createStory = async (req, res) => {
 
     const story = new Story(storyData);
     await story.save();
+    
+    // Actualizar el array de stories del usuario (si existe)
+    try {
+      await User.findByIdAndUpdate(
+        req.userId,
+        { $push: { stories: story._id } }
+      );
+    } catch (error) {
+      console.log('No se pudo actualizar el array de stories del usuario:', error.message);
+    }
     
     // Populate user data for response
     await story.populate('user', 'username avatar fullName');
@@ -116,20 +137,15 @@ exports.createStory = async (req, res) => {
 // Obtener historias para el feed
 exports.getStoriesForFeed = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // Usuarios a mostrar: seguidos + propio usuario
-    const usersToShow = [userId, ...(user.following || [])];
-
-    const stories = await Story.findStoriesForFeed(usersToShow);
+    // Obtener todas las stories públicas que no han expirado
+    const stories = await Story.find({
+      isDeleted: false,
+      isPublic: true,
+      expiresAt: { $gt: new Date() }
+    })
+    .populate('user', 'username avatar fullName')
+    .sort({ createdAt: -1 })
+    .limit(20);
 
     res.json({
       success: true,
@@ -179,7 +195,8 @@ exports.getStory = async (req, res) => {
   try {
     const story = await Story.findOne({
       _id: req.params.id,
-      isDeleted: false
+      isDeleted: false,
+      isPublic: true
     })
     .populate('user', 'username avatar fullName')
     .populate('views.user', 'username avatar')
@@ -202,8 +219,8 @@ exports.getStory = async (req, res) => {
     }
 
     // Agregar vista si el usuario no es el dueño
-    if (story.user._id.toString() !== req.user.id) {
-      await story.addView(req.user.id);
+    if (story.user._id.toString() !== req.userId) {
+      await story.addView(req.userId);
     }
 
     res.json({
@@ -239,7 +256,7 @@ exports.addReaction = async (req, res) => {
       });
     }
 
-    await story.addReaction(req.user.id, reactionType);
+    await story.addReaction(req.userId, reactionType);
 
     res.json({
       success: true,
@@ -267,7 +284,7 @@ exports.removeReaction = async (req, res) => {
       });
     }
 
-    await story.removeReaction(req.user.id);
+    await story.removeReaction(req.userId);
 
     res.json({
       success: true,
@@ -312,14 +329,14 @@ exports.addReply = async (req, res) => {
       });
     }
 
-    await story.addReply(req.user.id, content);
+    await story.addReply(req.userId, content);
 
     // Notificar al dueño de la historia si no es el mismo usuario
-    if (story.user.toString() !== req.user.id) {
+    if (story.user.toString() !== req.userId) {
       await Notification.create({
         user: story.user,
         type: 'story_reply',
-        from: req.user.id,
+        from: req.userId,
         story: story._id,
         message: 'Respondió a tu historia'
       });
@@ -352,7 +369,7 @@ exports.deleteStory = async (req, res) => {
     }
 
     // Verificar que el usuario sea el dueño de la historia
-    if (story.user.toString() !== req.user.id) {
+    if (story.user.toString() !== req.userId) {
       return res.status(403).json({
         success: false,
         message: 'No tienes permisos para eliminar esta historia'
@@ -386,6 +403,83 @@ exports.cleanupExpiredStories = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en cleanupExpiredStories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener usuarios con stories para la barra de stories
+exports.getUsersWithStories = async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Obtener el usuario actual para incluir sus stories
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Obtener usuarios seguidos
+    const following = currentUser.following || [];
+    
+    // Buscar usuarios que tienen stories activas (no expiradas)
+    const usersWithStories = await Story.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          isPublic: true,
+          expiresAt: { $gt: new Date() }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          latestStory: { $first: '$$ROOT' },
+          storiesCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: '$userInfo'
+      },
+      {
+        $project: {
+          _id: '$userInfo._id',
+          username: '$userInfo.username',
+          avatar: '$userInfo.avatar',
+          fullName: '$userInfo.fullName',
+          latestStory: 1,
+          storiesCount: 1
+        }
+      },
+      {
+        $sort: { 'latestStory.createdAt': -1 }
+      }
+    ]);
+
+    // Filtrar para incluir solo el usuario actual y usuarios seguidos
+    const filteredUsers = usersWithStories.filter(user => 
+      user._id.toString() === userId || following.includes(user._id.toString())
+    );
+
+    res.json({
+      success: true,
+      users: filteredUsers
+    });
+  } catch (error) {
+    console.error('Error en getUsersWithStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

@@ -72,6 +72,37 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  // Configuraciones de privacidad
+  allowMessages: {
+    type: String,
+    enum: ['all', 'followers', 'none'],
+    default: 'all'
+  },
+  showEmail: {
+    type: Boolean,
+    default: false
+  },
+  showPhone: {
+    type: Boolean,
+    default: false
+  },
+  showBirthDate: {
+    type: Boolean,
+    default: false
+  },
+  // Configuraciones de seguridad
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+  loginNotifications: {
+    type: Boolean,
+    default: true
+  },
+  suspiciousActivityAlerts: {
+    type: Boolean,
+    default: true
+  },
   followers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -98,7 +129,9 @@ const UserSchema = new mongoose.Schema({
       comments: { type: Boolean, default: true },
       follows: { type: Boolean, default: true },
       mentions: { type: Boolean, default: true },
-      messages: { type: Boolean, default: true }
+      messages: { type: Boolean, default: true },
+      stories: { type: Boolean, default: true },
+      posts: { type: Boolean, default: true }
     },
     privacy: {
       showEmail: { type: Boolean, default: false },

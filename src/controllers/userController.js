@@ -10,7 +10,7 @@ exports.getUserProfile = async (req, res) => {
     const { username } = req.params;
     const user = await User.findOne({ username })
       .select('-password -email -phone -preferences')
-      .populate('posts', 'caption content createdAt')
+      .populate('posts', 'caption content createdAt type likes comments')
       .populate('savedPosts', 'caption content createdAt');
     
     if (!user) {
@@ -19,6 +19,42 @@ exports.getUserProfile = async (req, res) => {
         message: 'Usuario no encontrado'
       });
     }
+
+    // Obtener stories del usuario
+    const stories = await Story.find({
+      user: user._id,
+      isDeleted: false,
+      isPublic: true,
+      expiresAt: { $gt: new Date() }
+    })
+    .populate('user', 'username avatar fullName')
+    .sort({ createdAt: -1 });
+
+    // Calcular estadísticas directamente desde la base de datos
+    const postsCount = await Post.countDocuments({
+      user: user._id,
+      isDeleted: false,
+      isArchived: false
+    });
+    
+    const storiesCount = stories.length;
+    const followersCount = user.followers.length;
+    const followingCount = user.following.length;
+    
+    // Calcular likes y comentarios totales
+    const postsWithStats = await Post.find({
+      user: user._id,
+      isDeleted: false,
+      isArchived: false
+    }).select('likes comments');
+    
+    const totalLikes = postsWithStats.reduce((total, post) => {
+      return total + (post.likes ? post.likes.length : 0);
+    }, 0);
+    
+    const totalComments = postsWithStats.reduce((total, post) => {
+      return total + (post.comments ? post.comments.length : 0);
+    }, 0);
 
     // Verificar si el usuario actual está siguiendo a este usuario
     let isFollowing = false;
@@ -39,6 +75,13 @@ exports.getUserProfile = async (req, res) => {
       success: true,
       user: {
         ...user.toObject(),
+        stories,
+        postsCount,
+        storiesCount,
+        followersCount,
+        followingCount,
+        totalLikes,
+        totalComments,
         isFollowing
       }
     });
@@ -489,6 +532,262 @@ exports.getUserSuggestions = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en getUserSuggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Obtener configuraciones del usuario
+exports.getUserSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Configuraciones por defecto si no existen
+    const settings = {
+      privacy: {
+        isPrivate: user.isPrivate || false,
+        allowMessages: user.allowMessages || 'all',
+        showEmail: user.showEmail || false,
+        showPhone: user.showPhone || false,
+        showBirthDate: user.showBirthDate || false
+      },
+      notifications: {
+        likes: user.notifications?.likes ?? true,
+        comments: user.notifications?.comments ?? true,
+        follows: user.notifications?.follows ?? true,
+        mentions: user.notifications?.mentions ?? true,
+        messages: user.notifications?.messages ?? true,
+        stories: user.notifications?.stories ?? true,
+        posts: user.notifications?.posts ?? true
+      },
+      security: {
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        loginNotifications: user.loginNotifications ?? true,
+        suspiciousActivityAlerts: user.suspiciousActivityAlerts ?? true
+      }
+    };
+
+    res.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    console.error('Error getting user settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar configuraciones de privacidad
+exports.updatePrivacySettings = async (req, res) => {
+  try {
+    const { isPrivate, allowMessages, showEmail, showPhone, showBirthDate } = req.body;
+    
+    const updateData = {};
+    if (typeof isPrivate === 'boolean') updateData.isPrivate = isPrivate;
+    if (allowMessages) updateData.allowMessages = allowMessages;
+    if (typeof showEmail === 'boolean') updateData.showEmail = showEmail;
+    if (typeof showPhone === 'boolean') updateData.showPhone = showPhone;
+    if (typeof showBirthDate === 'boolean') updateData.showBirthDate = showBirthDate;
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Configuración de privacidad actualizada correctamente'
+    });
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar configuraciones de notificaciones
+exports.updateNotificationSettings = async (req, res) => {
+  try {
+    const { likes, comments, follows, mentions, messages, stories, posts } = req.body;
+    
+    const notificationSettings = {};
+    if (typeof likes === 'boolean') notificationSettings.likes = likes;
+    if (typeof comments === 'boolean') notificationSettings.comments = comments;
+    if (typeof follows === 'boolean') notificationSettings.follows = follows;
+    if (typeof mentions === 'boolean') notificationSettings.mentions = mentions;
+    if (typeof messages === 'boolean') notificationSettings.messages = messages;
+    if (typeof stories === 'boolean') notificationSettings.stories = stories;
+    if (typeof posts === 'boolean') notificationSettings.posts = posts;
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { notifications: notificationSettings },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Configuración de notificaciones actualizada correctamente'
+    });
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Actualizar configuraciones de seguridad
+exports.updateSecuritySettings = async (req, res) => {
+  try {
+    const { loginNotifications, suspiciousActivityAlerts } = req.body;
+    
+    const updateData = {};
+    if (typeof loginNotifications === 'boolean') updateData.loginNotifications = loginNotifications;
+    if (typeof suspiciousActivityAlerts === 'boolean') updateData.suspiciousActivityAlerts = suspiciousActivityAlerts;
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Configuración de seguridad actualizada correctamente'
+    });
+  } catch (error) {
+    console.error('Error updating security settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Cambiar contraseña
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Contraseña actual y nueva contraseña son requeridas'
+      });
+    }
+
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Verificar contraseña actual
+    const isPasswordValid = await user.comparePassword(currentPassword);
+    if (!isPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Contraseña actual incorrecta'
+      });
+    }
+
+    // Validar nueva contraseña
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'La nueva contraseña debe tener al menos 8 caracteres'
+      });
+    }
+
+    // Actualizar contraseña
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Contraseña cambiada correctamente'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+};
+
+// Habilitar/deshabilitar autenticación de dos factores
+exports.toggleTwoFactor = async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'El parámetro enabled es requerido'
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { twoFactorEnabled: enabled },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: enabled ? '2FA habilitado correctamente' : '2FA deshabilitado correctamente'
+    });
+  } catch (error) {
+    console.error('Error toggling 2FA:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

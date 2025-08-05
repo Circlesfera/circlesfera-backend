@@ -15,11 +15,11 @@ exports.createPost = async (req, res) => {
       });
     }
 
-    const { type, caption, location, tags } = req.body;
+    const { type, caption, location, tags, text } = req.body;
     
     let postData = {
       user: req.userId,
-      type: type || 'image',
+      type: type || 'text',
       caption: caption || '',
       tags: tags ? tags.split(',').map(tag => tag.trim()) : []
     };
@@ -44,7 +44,7 @@ exports.createPost = async (req, res) => {
           images: images.map(file => ({
             url: `/uploads/${file.filename}`,
             alt: caption || '',
-            width: 0, // Se calcularía con sharp
+            width: 0,
             height: 0
           }))
         };
@@ -61,7 +61,7 @@ exports.createPost = async (req, res) => {
         postData.content = {
           video: {
             url: `/uploads/${req.files.video[0].filename}`,
-            duration: 0, // Se calcularía con ffmpeg
+            duration: 0,
             thumbnail: `/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
             width: 0,
             height: 0
@@ -70,7 +70,7 @@ exports.createPost = async (req, res) => {
         break;
 
       case 'text':
-        if (!req.body.text) {
+        if (!text) {
           return res.status(400).json({
             success: false,
             message: 'El texto es obligatorio para publicaciones de texto'
@@ -78,7 +78,7 @@ exports.createPost = async (req, res) => {
         }
         
         postData.content = {
-          text: req.body.text
+          text: text
         };
         break;
 
@@ -91,6 +91,12 @@ exports.createPost = async (req, res) => {
 
     const post = new Post(postData);
     await post.save();
+    
+    // Actualizar el array de posts del usuario
+    await User.findByIdAndUpdate(
+      req.userId,
+      { $push: { posts: post._id } }
+    );
     
     // Populate user data for response
     await post.populate('user', 'username avatar fullName');
@@ -229,21 +235,26 @@ exports.toggleLike = async (req, res) => {
           type: 'like',
           from: userId,
           post: post._id,
+          title: 'Nuevo me gusta',
           message: 'Le ha gustado tu publicación'
         });
       }
     }
 
+    // Recargar el post para obtener los datos actualizados
+    const updatedPost = await Post.findById(req.params.id);
+    
     res.json({
       success: true,
       liked: !isLiked,
-      likesCount: post.likes.length
+      likesCount: updatedPost.likes.length
     });
   } catch (error) {
     console.error('Error en toggleLike:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: error.message || error.toString()
     });
   }
 };
