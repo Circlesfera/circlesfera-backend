@@ -427,62 +427,50 @@ exports.getUsersWithStories = async (req, res) => {
     // Obtener usuarios seguidos
     const following = currentUser.following || [];
     
-    // Buscar usuarios que tienen stories activas (no expiradas)
-    const usersWithStories = await Story.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          isPublic: true,
-          expiresAt: { $gt: new Date() }
-        }
-      },
-      {
-        $group: {
-          _id: '$user',
-          latestStory: { $first: '$$ROOT' },
-          storiesCount: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'userInfo'
-        }
-      },
-      {
-        $unwind: '$userInfo'
-      },
-      {
-        $project: {
-          _id: '$userInfo._id',
-          username: '$userInfo.username',
-          avatar: '$userInfo.avatar',
-          fullName: '$userInfo.fullName',
-          latestStory: 1,
-          storiesCount: 1
-        }
-      },
-      {
-        $sort: { 'latestStory.createdAt': -1 }
-      }
-    ]);
+    // Buscar stories activas (no expiradas)
+    const activeStories = await Story.find({
+      isDeleted: false,
+      isPublic: true,
+      expiresAt: { $gt: new Date() }
+    })
+    .populate('user', 'username avatar fullName')
+    .sort({ createdAt: -1 });
 
-    // Filtrar para incluir solo el usuario actual y usuarios seguidos
-    const filteredUsers = usersWithStories.filter(user => 
-      user._id.toString() === userId || following.includes(user._id.toString())
-    );
+    // Agrupar stories por usuario
+    const usersMap = new Map();
+    
+    activeStories.forEach(story => {
+      const userId = story.user._id.toString();
+      if (!usersMap.has(userId)) {
+        usersMap.set(userId, {
+          _id: story.user._id,
+          username: story.user.username,
+          avatar: story.user.avatar,
+          fullName: story.user.fullName,
+          latestStory: story,
+          storiesCount: 0
+        });
+      }
+      usersMap.get(userId).storiesCount++;
+    });
+
+    // Convertir a array y filtrar por usuario actual y seguidos
+    const usersWithStories = Array.from(usersMap.values())
+      .filter(user => 
+        user._id.toString() === userId || following.includes(user._id.toString())
+      )
+      .sort((a, b) => new Date(b.latestStory.createdAt) - new Date(a.latestStory.createdAt));
 
     res.json({
       success: true,
-      users: filteredUsers
+      users: usersWithStories
     });
   } catch (error) {
     console.error('Error en getUsersWithStories:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
