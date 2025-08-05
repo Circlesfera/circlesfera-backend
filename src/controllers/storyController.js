@@ -38,9 +38,12 @@ exports.createStory = async (req, res) => {
           });
         }
         
+        // Construir URL completa del servidor
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        
         storyData.content = {
           image: {
-            url: `/uploads/${req.files.image[0].filename}`,
+            url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
             alt: caption || '',
             width: 0,
             height: 0
@@ -56,11 +59,14 @@ exports.createStory = async (req, res) => {
           });
         }
         
+        // Construir URL completa del servidor
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        
         storyData.content = {
           video: {
-            url: `/uploads/${req.files.video[0].filename}`,
+            url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
             duration: 0,
-            thumbnail: `/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+            thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
             width: 0,
             height: 0
           }
