@@ -28,6 +28,9 @@ exports.createStory = async (req, res) => {
       storyData.location = { name: location };
     }
 
+    // Construir URL completa del servidor
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
     // Manejar diferentes tipos de contenido
     switch (type) {
       case 'image':
@@ -37,9 +40,6 @@ exports.createStory = async (req, res) => {
             message: 'La imagen es obligatoria para historias de imagen'
           });
         }
-        
-        // Construir URL completa del servidor
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
         
         storyData.content = {
           image: {
@@ -58,9 +58,6 @@ exports.createStory = async (req, res) => {
             message: 'El video es obligatorio para historias de video'
           });
         }
-        
-        // Construir URL completa del servidor
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
         
         storyData.content = {
           video: {
