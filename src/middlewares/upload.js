@@ -88,6 +88,7 @@ const uploadMultiple = upload.array('files', 10);
 const uploadFields = upload.fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'images', maxCount: 10 },
+  { name: 'image', maxCount: 1 },
   { name: 'video', maxCount: 1 }
 ]);
 
