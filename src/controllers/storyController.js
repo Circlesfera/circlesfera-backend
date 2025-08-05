@@ -424,11 +424,15 @@ exports.getUsersWithStories = async (req, res) => {
       });
     }
 
-    // Buscar stories activas (no expiradas) de TODOS los usuarios
+    // Obtener usuarios seguidos
+    const following = currentUser.following || [];
+    
+    // Buscar stories activas (no expiradas) de usuarios seguidos + propio usuario
     const activeStories = await Story.find({
       isDeleted: false,
       isPublic: true,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
+      user: { $in: [userId, ...following] }
     })
     .populate('user', 'username avatar fullName')
     .sort({ createdAt: -1 });
