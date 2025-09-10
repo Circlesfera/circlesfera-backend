@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
+const {
   getUserProfile,
   getUserPosts,
   getUserStories,
@@ -19,7 +19,7 @@ const {
   updateNotificationSettings,
   updateSecuritySettings,
   changePassword,
-  toggleTwoFactor
+  toggleTwoFactor,
 } = require('../controllers/userController');
 const { auth } = require('../middlewares/auth');
 
@@ -27,14 +27,14 @@ const { auth } = require('../middlewares/auth');
 const searchValidation = [
   body('q')
     .isLength({ min: 2 })
-    .withMessage('El término de búsqueda debe tener al menos 2 caracteres')
+    .withMessage('El término de búsqueda debe tener al menos 2 caracteres'),
 ];
 
 // Ruta temporal para eliminar todos los usuarios (solo en desarrollo) - DEBE IR PRIMERO
 router.get('/test-route', (req, res) => {
   res.json({
     success: true,
-    message: 'Ruta de prueba funcionando'
+    message: 'Ruta de prueba funcionando',
   });
 });
 
@@ -45,13 +45,13 @@ router.post('/clear-all-users', async (req, res) => {
     res.json({
       success: true,
       message: 'Todos los usuarios eliminados',
-      count: result.deletedCount
+      count: result.deletedCount,
     });
   } catch (error) {
     console.error('Error eliminando usuarios:', error);
     res.status(500).json({
       success: false,
-      message: 'Error eliminando usuarios'
+      message: 'Error eliminando usuarios',
     });
   }
 });

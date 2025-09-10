@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
-  createComment, 
-  getComments, 
+const {
+  createComment,
+  getComments,
   getReplies,
   toggleLike,
   updateComment,
   deleteComment,
-  getUserComments
+  getUserComments,
 } = require('../controllers/commentController');
 const { auth } = require('../middlewares/auth');
 
@@ -21,14 +21,14 @@ const createCommentValidation = [
   body('parentComment')
     .optional()
     .isMongoId()
-    .withMessage('ID de comentario padre inválido')
+    .withMessage('ID de comentario padre inválido'),
 ];
 
 const updateCommentValidation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 1000 })
-    .withMessage('El comentario debe tener entre 1 y 1000 caracteres')
+    .withMessage('El comentario debe tener entre 1 y 1000 caracteres'),
 ];
 
 // Rutas públicas
@@ -37,16 +37,16 @@ router.get('/post/:postId', getComments);
 router.get('/:commentId/replies', getReplies);
 
 // Rutas protegidas
-router.post('/post/:postId', 
-  auth, 
+router.post('/post/:postId',
+  auth,
   createCommentValidation,
-  createComment
+  createComment,
 );
 
 router.put('/:commentId',
   auth,
   updateCommentValidation,
-  updateComment
+  updateComment,
 );
 
 router.post('/:commentId/like', auth, toggleLike);

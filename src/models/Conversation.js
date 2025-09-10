@@ -4,114 +4,114 @@ const ConversationSchema = new mongoose.Schema({
   participants: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
   }],
   type: {
     type: String,
     enum: ['direct', 'group'],
-    default: 'direct'
+    default: 'direct',
   },
   name: {
     type: String,
     maxlength: [100, 'El nombre no puede exceder 100 caracteres'],
-    default: ''
+    default: '',
   },
   description: {
     type: String,
     maxlength: [500, 'La descripción no puede exceder 500 caracteres'],
-    default: ''
+    default: '',
   },
   avatar: {
     type: String,
-    default: ''
+    default: '',
   },
   // Para conversaciones grupales
   admins: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
   }],
   // Último mensaje para mostrar en la lista
   lastMessage: {
     content: {
       type: String,
-      maxlength: [1000, 'El contenido no puede exceder 1000 caracteres']
+      maxlength: [1000, 'El contenido no puede exceder 1000 caracteres'],
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
     },
     type: {
       type: String,
       enum: ['text', 'image', 'video', 'audio', 'file'],
-      default: 'text'
+      default: 'text',
     },
     timestamp: {
       type: Date,
-      default: Date.now
-    }
+      default: Date.now,
+    },
   },
   // Configuración de la conversación
   settings: {
     isActive: {
       type: Boolean,
-      default: true
+      default: true,
     },
     isArchived: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isDeleted: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // Configuraciones específicas por usuario
     userSettings: [{
       user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
       },
       isMuted: {
         type: Boolean,
-        default: false
+        default: false,
       },
       isPinned: {
         type: Boolean,
-        default: false
+        default: false,
       },
       lastRead: {
         type: Date,
-        default: Date.now
+        default: Date.now,
       },
       unreadCount: {
         type: Number,
-        default: 0
-      }
-    }]
+        default: 0,
+      },
+    }],
   },
   // Metadatos
   metadata: {
     createdAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
     },
     updatedAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
     },
     messageCount: {
       type: Number,
-      default: 0
+      default: 0,
     },
     participantCount: {
       type: Number,
-      default: 0
-    }
-  }
-}, { 
+      default: 0,
+    },
+  },
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 });
 
 // Índices para mejorar el rendimiento
@@ -164,7 +164,7 @@ ConversationSchema.methods.updateLastMessage = function(message) {
     content: message.content,
     sender: message.sender,
     type: message.type,
-    timestamp: new Date()
+    timestamp: new Date(),
   };
   this.metadata.messageCount += 1;
   this.metadata.updatedAt = new Date();
@@ -172,10 +172,10 @@ ConversationSchema.methods.updateLastMessage = function(message) {
 };
 
 ConversationSchema.methods.markAsRead = function(userId) {
-  const userSetting = this.settings.userSettings.find(setting => 
-    setting.user.toString() === userId
+  const userSetting = this.settings.userSettings.find(setting =>
+    setting.user.toString() === userId,
   );
-  
+
   if (userSetting) {
     userSetting.lastRead = new Date();
     userSetting.unreadCount = 0;
@@ -183,61 +183,61 @@ ConversationSchema.methods.markAsRead = function(userId) {
     this.settings.userSettings.push({
       user: userId,
       lastRead: new Date(),
-      unreadCount: 0
+      unreadCount: 0,
     });
   }
-  
+
   return this.save();
 };
 
 ConversationSchema.methods.incrementUnreadCount = function(userId) {
-  const userSetting = this.settings.userSettings.find(setting => 
-    setting.user.toString() === userId
+  const userSetting = this.settings.userSettings.find(setting =>
+    setting.user.toString() === userId,
   );
-  
+
   if (userSetting) {
     userSetting.unreadCount += 1;
   } else {
     this.settings.userSettings.push({
       user: userId,
-      unreadCount: 1
+      unreadCount: 1,
     });
   }
-  
+
   return this.save();
 };
 
 ConversationSchema.methods.toggleMute = function(userId) {
-  const userSetting = this.settings.userSettings.find(setting => 
-    setting.user.toString() === userId
+  const userSetting = this.settings.userSettings.find(setting =>
+    setting.user.toString() === userId,
   );
-  
+
   if (userSetting) {
     userSetting.isMuted = !userSetting.isMuted;
   } else {
     this.settings.userSettings.push({
       user: userId,
-      isMuted: true
+      isMuted: true,
     });
   }
-  
+
   return this.save();
 };
 
 ConversationSchema.methods.togglePin = function(userId) {
-  const userSetting = this.settings.userSettings.find(setting => 
-    setting.user.toString() === userId
+  const userSetting = this.settings.userSettings.find(setting =>
+    setting.user.toString() === userId,
   );
-  
+
   if (userSetting) {
     userSetting.isPinned = !userSetting.isPinned;
   } else {
     this.settings.userSettings.push({
       user: userId,
-      isPinned: true
+      isPinned: true,
     });
   }
-  
+
   return this.save();
 };
 
@@ -258,21 +258,21 @@ ConversationSchema.methods.softDelete = function() {
 
 // Métodos estáticos
 ConversationSchema.statics.findByUser = function(userId, options = {}) {
-  const query = { 
+  const query = {
     participants: userId,
-    'settings.isDeleted': false
+    'settings.isDeleted': false,
   };
-  
+
   if (options.activeOnly) {
     query['settings.isActive'] = true;
   }
-  
+
   if (options.archivedOnly) {
     query['settings.isArchived'] = true;
   } else if (options.excludeArchived) {
     query['settings.isArchived'] = false;
   }
-  
+
   return this.find(query)
     .populate('participants', 'username avatar fullName')
     .populate('lastMessage.sender', 'username avatar')
@@ -284,24 +284,24 @@ ConversationSchema.statics.findDirectConversation = function(userId1, userId2) {
   return this.findOne({
     type: 'direct',
     participants: { $all: [userId1, userId2] },
-    'settings.isDeleted': false
+    'settings.isDeleted': false,
   });
 };
 
 ConversationSchema.statics.findOrCreateDirectConversation = async function(userId1, userId2) {
   let conversation = await this.findDirectConversation(userId1, userId2);
-  
+
   if (!conversation) {
     conversation = new this({
       participants: [userId1, userId2],
       type: 'direct',
       metadata: {
-        participantCount: 2
-      }
+        participantCount: 2,
+      },
     });
     await conversation.save();
   }
-  
+
   return conversation;
 };
 
@@ -312,8 +312,8 @@ ConversationSchema.statics.getUnreadCount = function(userId) {
     { $match: { 'settings.userSettings.user': mongoose.Types.ObjectId(userId) } },
     { $group: {
       _id: null,
-      totalUnread: { $sum: '$settings.userSettings.unreadCount' }
-    }}
+      totalUnread: { $sum: '$settings.userSettings.unreadCount' },
+    }},
   ]);
 };
 
@@ -322,12 +322,12 @@ ConversationSchema.pre('save', function(next) {
   // Actualizar metadatos
   this.metadata.participantCount = this.participants.length;
   this.metadata.updatedAt = new Date();
-  
+
   // Para conversaciones directas, asegurar que solo hay 2 participantes
   if (this.type === 'direct' && this.participants.length !== 2) {
     return next(new Error('Las conversaciones directas deben tener exactamente 2 participantes'));
   }
-  
+
   next();
 });
 

@@ -5,185 +5,185 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Conversation',
     required: [true, 'La conversación es requerida'],
-    index: true
+    index: true,
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'El remitente es requerido'],
-    index: true
+    index: true,
   },
   type: {
     type: String,
     enum: ['text', 'image', 'video', 'audio', 'file', 'location', 'contact'],
-    default: 'text'
+    default: 'text',
   },
   content: {
     text: {
       type: String,
       maxlength: [5000, 'El texto no puede exceder 5000 caracteres'],
-      required: false
+      required: false,
     },
     image: {
       url: {
         type: String,
-        required: false
+        required: false,
       },
       alt: {
         type: String,
-        default: ''
+        default: '',
       },
       width: {
         type: Number,
-        default: 0
+        default: 0,
       },
       height: {
         type: Number,
-        default: 0
-      }
+        default: 0,
+      },
     },
     video: {
       url: {
         type: String,
-        required: false
+        required: false,
       },
       duration: {
         type: Number,
-        default: 0
+        default: 0,
       },
       thumbnail: {
         type: String,
-        required: false
+        required: false,
       },
       width: {
         type: Number,
-        default: 0
+        default: 0,
       },
       height: {
         type: Number,
-        default: 0
-      }
+        default: 0,
+      },
     },
     audio: {
       url: {
         type: String,
-        required: false
+        required: false,
       },
       duration: {
         type: Number,
-        default: 0
-      }
+        default: 0,
+      },
     },
     file: {
       url: {
         type: String,
-        required: false
+        required: false,
       },
       name: {
         type: String,
-        default: ''
+        default: '',
       },
       size: {
         type: Number,
-        default: 0
+        default: 0,
       },
       mimeType: {
         type: String,
-        default: ''
-      }
+        default: '',
+      },
     },
     location: {
       latitude: {
         type: Number,
-        required: false
+        required: false,
       },
       longitude: {
         type: Number,
-        required: false
+        required: false,
       },
       name: {
         type: String,
-        default: ''
+        default: '',
       },
       address: {
         type: String,
-        default: ''
-      }
+        default: '',
+      },
     },
     contact: {
       name: {
         type: String,
-        required: false
+        required: false,
       },
       phone: {
         type: String,
-        required: false
+        required: false,
       },
       email: {
         type: String,
-        required: false
-      }
-    }
+        required: false,
+      },
+    },
   },
   // Estado del mensaje
   status: {
     type: String,
     enum: ['sent', 'delivered', 'read'],
-    default: 'sent'
+    default: 'sent',
   },
   // Para mensajes editados
   isEdited: {
     type: Boolean,
-    default: false
+    default: false,
   },
   editedAt: {
     type: Date,
-    default: null
+    default: null,
   },
   // Para mensajes eliminados
   isDeleted: {
     type: Boolean,
-    default: false
+    default: false,
   },
   deletedAt: {
     type: Date,
-    default: null
+    default: null,
   },
   // Para mensajes reenviados
   isForwarded: {
     type: Boolean,
-    default: false
+    default: false,
   },
   originalMessage: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message',
-    default: null
+    default: null,
   },
   // Para mensajes con respuesta
   replyTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message',
-    default: null
+    default: null,
   },
   // Metadatos
   metadata: {
     fileSize: {
       type: Number,
-      default: 0
+      default: 0,
     },
     mimeType: {
       type: String,
-      default: ''
+      default: '',
     },
     originalName: {
       type: String,
-      default: ''
-    }
-  }
-}, { 
+      default: '',
+    },
+  },
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 });
 
 // Índices para mejorar el rendimiento
@@ -242,26 +242,26 @@ MessageSchema.methods.forward = function(targetConversationId) {
     type: this.type,
     content: this.content,
     isForwarded: true,
-    originalMessage: this._id
+    originalMessage: this._id,
   });
   return forwardedMessage.save();
 };
 
 // Métodos estáticos
 MessageSchema.statics.findByConversation = function(conversationId, options = {}) {
-  const query = { 
+  const query = {
     conversation: conversationId,
-    isDeleted: false
+    isDeleted: false,
   };
-  
+
   if (options.beforeId) {
     query._id = { $lt: options.beforeId };
   }
-  
+
   if (options.afterId) {
     query._id = { $gt: options.afterId };
   }
-  
+
   return this.find(query)
     .populate('sender', 'username avatar fullName')
     .populate('replyTo', 'content sender')
@@ -275,7 +275,7 @@ MessageSchema.statics.findUnreadMessages = function(conversationId, userId) {
     conversation: conversationId,
     sender: { $ne: userId },
     status: { $ne: 'read' },
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
@@ -285,9 +285,9 @@ MessageSchema.statics.markConversationAsRead = function(conversationId, userId) 
       conversation: conversationId,
       sender: { $ne: userId },
       status: { $ne: 'read' },
-      isDeleted: false
+      isDeleted: false,
     },
-    { $set: { status: 'read' } }
+    { $set: { status: 'read' } },
   );
 };
 
@@ -295,9 +295,9 @@ MessageSchema.statics.searchMessages = function(conversationId, query, options =
   const searchQuery = {
     conversation: conversationId,
     isDeleted: false,
-    'content.text': { $regex: query, $options: 'i' }
+    'content.text': { $regex: query, $options: 'i' },
   };
-  
+
   return this.find(searchQuery)
     .populate('sender', 'username avatar fullName')
     .sort({ createdAt: -1 })
@@ -309,9 +309,9 @@ MessageSchema.statics.getMessageStats = function(conversationId) {
     { $match: { conversation: mongoose.Types.ObjectId(conversationId), isDeleted: false } },
     { $group: {
       _id: '$type',
-      count: { $sum: 1 }
+      count: { $sum: 1 },
     }},
-    { $sort: { count: -1 } }
+    { $sort: { count: -1 } },
   ]);
 };
 
@@ -321,49 +321,49 @@ MessageSchema.pre('save', function(next) {
   if (this.type === 'text' && !this.content.text) {
     return next(new Error('Los mensajes de texto deben tener contenido'));
   }
-  
+
   if (this.type === 'image' && !this.content.image.url) {
     return next(new Error('Los mensajes de imagen deben tener una URL'));
   }
-  
+
   if (this.type === 'video' && !this.content.video.url) {
     return next(new Error('Los mensajes de video deben tener una URL'));
   }
-  
+
   if (this.type === 'audio' && !this.content.audio.url) {
     return next(new Error('Los mensajes de audio deben tener una URL'));
   }
-  
+
   if (this.type === 'file' && !this.content.file.url) {
     return next(new Error('Los mensajes de archivo deben tener una URL'));
   }
-  
+
   if (this.type === 'location' && (!this.content.location.latitude || !this.content.location.longitude)) {
     return next(new Error('Los mensajes de ubicación deben tener coordenadas'));
   }
-  
+
   if (this.type === 'contact' && (!this.content.contact.name || !this.content.contact.phone)) {
     return next(new Error('Los mensajes de contacto deben tener nombre y teléfono'));
   }
-  
+
   next();
 });
 
 // Middleware post-save para actualizar la conversación
 MessageSchema.post('save', async function() {
   const Conversation = require('./Conversation');
-  
+
   // Actualizar último mensaje de la conversación
   await Conversation.findByIdAndUpdate(this.conversation, {
     $set: {
       'lastMessage.content': this.content.text || this.content.image?.url || this.content.video?.url || 'Mensaje',
       'lastMessage.sender': this.sender,
       'lastMessage.type': this.type,
-      'lastMessage.timestamp': this.createdAt
+      'lastMessage.timestamp': this.createdAt,
     },
-    $inc: { 'metadata.messageCount': 1 }
+    $inc: { 'metadata.messageCount': 1 },
   });
-  
+
   // Incrementar contador de no leídos para otros participantes
   const conversation = await Conversation.findById(this.conversation);
   if (conversation) {

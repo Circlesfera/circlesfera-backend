@@ -17,14 +17,14 @@ exports.getMessages = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -35,7 +35,7 @@ exports.getMessages = async (req, res) => {
 
     const total = await Message.countDocuments({
       conversation: conversationId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     // Marcar mensajes como leídos
@@ -48,14 +48,14 @@ exports.getMessages = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getMessages:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -69,7 +69,7 @@ exports.sendTextMessage = async (req, res) => {
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'El contenido del mensaje no puede estar vacío'
+        message: 'El contenido del mensaje no puede estar vacío',
       });
     }
 
@@ -78,14 +78,14 @@ exports.sendTextMessage = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -95,9 +95,9 @@ exports.sendTextMessage = async (req, res) => {
       sender: req.user.id,
       type: 'text',
       content: {
-        text: content.trim()
+        text: content.trim(),
       },
-      replyTo: replyTo || undefined
+      replyTo: replyTo || undefined,
     });
 
     await message.save();
@@ -118,20 +118,20 @@ exports.sendTextMessage = async (req, res) => {
         message: `${req.user.username} te envió un mensaje`,
         data: {
           conversation: conversationId,
-          message: message._id
-        }
+          message: message._id,
+        },
       });
     }
 
     res.json({
       success: true,
-      message
+      message,
     });
   } catch (error) {
     console.error('Error en sendTextMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -146,7 +146,7 @@ exports.sendImageMessage = async (req, res) => {
     if (!imageFile) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere una imagen'
+        message: 'Se requiere una imagen',
       });
     }
 
@@ -155,14 +155,14 @@ exports.sendImageMessage = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -176,9 +176,9 @@ exports.sendImageMessage = async (req, res) => {
           url: imageFile.path,
           alt: caption || 'Imagen',
           width: imageFile.width,
-          height: imageFile.height
-        }
-      }
+          height: imageFile.height,
+        },
+      },
     });
 
     await message.save();
@@ -198,20 +198,20 @@ exports.sendImageMessage = async (req, res) => {
         message: `${req.user.username} te envió una imagen`,
         data: {
           conversation: conversationId,
-          message: message._id
-        }
+          message: message._id,
+        },
       });
     }
 
     res.json({
       success: true,
-      message
+      message,
     });
   } catch (error) {
     console.error('Error en sendImageMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -226,7 +226,7 @@ exports.sendVideoMessage = async (req, res) => {
     if (!videoFile) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere un video'
+        message: 'Se requiere un video',
       });
     }
 
@@ -235,14 +235,14 @@ exports.sendVideoMessage = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -257,9 +257,9 @@ exports.sendVideoMessage = async (req, res) => {
           duration: videoFile.duration || 0,
           thumbnail: videoFile.thumbnail || '',
           width: videoFile.width,
-          height: videoFile.height
-        }
-      }
+          height: videoFile.height,
+        },
+      },
     });
 
     await message.save();
@@ -279,20 +279,20 @@ exports.sendVideoMessage = async (req, res) => {
         message: `${req.user.username} te envió un video`,
         data: {
           conversation: conversationId,
-          message: message._id
-        }
+          message: message._id,
+        },
       });
     }
 
     res.json({
       success: true,
-      message
+      message,
     });
   } catch (error) {
     console.error('Error en sendVideoMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -306,7 +306,7 @@ exports.sendLocationMessage = async (req, res) => {
     if (!latitude || !longitude) {
       return res.status(400).json({
         success: false,
-        message: 'Se requieren coordenadas de ubicación'
+        message: 'Se requieren coordenadas de ubicación',
       });
     }
 
@@ -315,14 +315,14 @@ exports.sendLocationMessage = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -335,9 +335,9 @@ exports.sendLocationMessage = async (req, res) => {
         location: {
           coordinates: [parseFloat(longitude), parseFloat(latitude)],
           name: name || 'Ubicación',
-          address: address || ''
-        }
-      }
+          address: address || '',
+        },
+      },
     });
 
     await message.save();
@@ -357,20 +357,20 @@ exports.sendLocationMessage = async (req, res) => {
         message: `${req.user.username} compartió su ubicación`,
         data: {
           conversation: conversationId,
-          message: message._id
-        }
+          message: message._id,
+        },
       });
     }
 
     res.json({
       success: true,
-      message
+      message,
     });
   } catch (error) {
     console.error('Error en sendLocationMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -384,7 +384,7 @@ exports.editMessage = async (req, res) => {
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'El contenido del mensaje no puede estar vacío'
+        message: 'El contenido del mensaje no puede estar vacío',
       });
     }
 
@@ -392,7 +392,7 @@ exports.editMessage = async (req, res) => {
     if (!message) {
       return res.status(404).json({
         success: false,
-        message: 'Mensaje no encontrado'
+        message: 'Mensaje no encontrado',
       });
     }
 
@@ -400,7 +400,7 @@ exports.editMessage = async (req, res) => {
     if (message.sender.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'Solo puedes editar tus propios mensajes'
+        message: 'Solo puedes editar tus propios mensajes',
       });
     }
 
@@ -408,7 +408,7 @@ exports.editMessage = async (req, res) => {
     if (message.type !== 'text') {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden editar mensajes de texto'
+        message: 'Solo se pueden editar mensajes de texto',
       });
     }
 
@@ -417,7 +417,7 @@ exports.editMessage = async (req, res) => {
     if (messageAge > 15 * 60 * 1000) {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden editar mensajes de los últimos 15 minutos'
+        message: 'Solo se pueden editar mensajes de los últimos 15 minutos',
       });
     }
 
@@ -426,13 +426,13 @@ exports.editMessage = async (req, res) => {
 
     res.json({
       success: true,
-      message
+      message,
     });
   } catch (error) {
     console.error('Error en editMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -446,7 +446,7 @@ exports.deleteMessage = async (req, res) => {
     if (!message) {
       return res.status(404).json({
         success: false,
-        message: 'Mensaje no encontrado'
+        message: 'Mensaje no encontrado',
       });
     }
 
@@ -458,7 +458,7 @@ exports.deleteMessage = async (req, res) => {
     if (!isSender && !isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para eliminar este mensaje'
+        message: 'No tienes permisos para eliminar este mensaje',
       });
     }
 
@@ -466,13 +466,13 @@ exports.deleteMessage = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Mensaje eliminado'
+      message: 'Mensaje eliminado',
     });
   } catch (error) {
     console.error('Error en deleteMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -486,7 +486,7 @@ exports.forwardMessage = async (req, res) => {
     if (!conversationIds || !Array.isArray(conversationIds) || conversationIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Se requieren IDs de conversaciones válidos'
+        message: 'Se requieren IDs de conversaciones válidos',
       });
     }
 
@@ -494,20 +494,20 @@ exports.forwardMessage = async (req, res) => {
     if (!originalMessage) {
       return res.status(404).json({
         success: false,
-        message: 'Mensaje original no encontrado'
+        message: 'Mensaje original no encontrado',
       });
     }
 
     // Verificar que el usuario es participante de las conversaciones destino
     const conversations = await Conversation.find({
       _id: { $in: conversationIds },
-      participants: req.user.id
+      participants: req.user.id,
     });
 
     if (conversations.length !== conversationIds.length) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a todas las conversaciones especificadas'
+        message: 'No tienes acceso a todas las conversaciones especificadas',
       });
     }
 
@@ -520,7 +520,7 @@ exports.forwardMessage = async (req, res) => {
         type: originalMessage.type,
         content: originalMessage.content,
         isForwarded: true,
-        originalMessage: originalMessage._id
+        originalMessage: originalMessage._id,
       });
 
       await forwardedMessage.save();
@@ -540,8 +540,8 @@ exports.forwardMessage = async (req, res) => {
           message: `${req.user.username} reenvió un mensaje`,
           data: {
             conversation: conversation._id,
-            message: forwardedMessage._id
-          }
+            message: forwardedMessage._id,
+          },
         });
       }
 
@@ -550,13 +550,13 @@ exports.forwardMessage = async (req, res) => {
 
     res.json({
       success: true,
-      messages: forwardedMessages
+      messages: forwardedMessages,
     });
   } catch (error) {
     console.error('Error en forwardMessage:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -573,7 +573,7 @@ exports.searchMessages = async (req, res) => {
     if (!query || query.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'El término de búsqueda debe tener al menos 2 caracteres'
+        message: 'El término de búsqueda debe tener al menos 2 caracteres',
       });
     }
 
@@ -582,14 +582,14 @@ exports.searchMessages = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -601,8 +601,8 @@ exports.searchMessages = async (req, res) => {
       isDeleted: false,
       $or: [
         { 'content.text': { $regex: query, $options: 'i' } },
-        { 'content.image.alt': { $regex: query, $options: 'i' } }
-      ]
+        { 'content.image.alt': { $regex: query, $options: 'i' } },
+      ],
     });
 
     res.json({
@@ -612,14 +612,14 @@ exports.searchMessages = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en searchMessages:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -634,14 +634,14 @@ exports.getMessageStats = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -649,13 +649,13 @@ exports.getMessageStats = async (req, res) => {
 
     res.json({
       success: true,
-      stats
+      stats,
     });
   } catch (error) {
     console.error('Error en getMessageStats:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };

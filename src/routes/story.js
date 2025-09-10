@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
+const {
   createStory,
   getStoriesForFeed,
   getUserStories,
@@ -11,7 +11,7 @@ const {
   addReply,
   deleteStory,
   cleanupExpiredStories,
-  getUsersWithStories
+  getUsersWithStories,
 } = require('../controllers/storyController');
 const { auth } = require('../middlewares/auth');
 const { uploadFields, handleUploadError } = require('../middlewares/upload');
@@ -32,20 +32,20 @@ const createStoryValidation = [
   body('textContent')
     .optional()
     .isLength({ max: 500 })
-    .withMessage('El contenido de texto no puede exceder 500 caracteres')
+    .withMessage('El contenido de texto no puede exceder 500 caracteres'),
 ];
 
 const addReplyValidation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 200 })
-    .withMessage('La respuesta debe tener entre 1 y 200 caracteres')
+    .withMessage('La respuesta debe tener entre 1 y 200 caracteres'),
 ];
 
 const addReactionValidation = [
   body('reactionType')
     .isIn(['like', 'love', 'laugh', 'wow', 'sad', 'angry'])
-    .withMessage('Tipo de reacción no válido')
+    .withMessage('Tipo de reacción no válido'),
 ];
 
 // Rutas públicas
@@ -68,25 +68,25 @@ router.post('/test-create', auth, async (req, res) => {
           backgroundColor: '#000000',
           textColor: '#ffffff',
           fontSize: 24,
-          fontFamily: 'Arial'
-        }
-      }
+          fontFamily: 'Arial',
+        },
+      },
     });
-    
+
     await story.save();
     await story.populate('user', 'username avatar fullName');
-    
+
     res.json({
       success: true,
       message: 'Story de prueba creada',
-      story
+      story,
     });
   } catch (error) {
     console.error('Error creating test story:', error);
     res.status(500).json({
       success: false,
       message: 'Error al crear story de prueba',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -96,35 +96,35 @@ router.post('/clear-all-stories', async (req, res) => {
   try {
     const Story = require('../models/Story');
     const result = await Story.deleteMany({});
-    
+
     res.json({
       success: true,
       message: 'Todas las stories eliminadas',
-      count: result.deletedCount
+      count: result.deletedCount,
     });
   } catch (error) {
     console.error('Error clearing stories:', error);
     res.status(500).json({
       success: false,
       message: 'Error al limpiar stories',
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Rutas protegidas
-router.post('/', 
-  auth, 
+router.post('/',
+  auth,
   uploadFields,
   createStoryValidation,
   createStory,
-  handleUploadError
+  handleUploadError,
 );
 
 router.post('/:id/reaction',
   auth,
   addReactionValidation,
-  addReaction
+  addReaction,
 );
 
 router.delete('/:id/reaction', auth, removeReaction);

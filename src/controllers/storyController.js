@@ -6,22 +6,30 @@ const { validationResult } = require('express-validator');
 // Crear una nueva historia
 exports.createStory = async (req, res) => {
   try {
+    console.log('📝 createStory llamado con:', {
+      userId: req.userId,
+      body: req.body,
+      headers: req.headers,
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     const { type, caption, location, textContent, textStyle } = req.body;
-    
-    let storyData = {
+
+    const storyData = {
       user: req.userId,
       type: type || 'image',
-      caption: caption || ''
+      caption: caption || '',
     };
+
+    console.log('📝 Story data a crear:', storyData);
 
     // Agregar ubicación si se proporciona
     if (location) {
@@ -33,118 +41,118 @@ exports.createStory = async (req, res) => {
 
     // Manejar diferentes tipos de contenido
     switch (type) {
-      case 'image':
-        if (!req.files || !req.files.image) {
-          return res.status(400).json({
-            success: false,
-            message: 'La imagen es obligatoria para historias de imagen'
-          });
-        }
-        
-        console.log('Creating image story with:', {
-          filename: req.files.image[0].filename,
-          baseUrl: baseUrl,
-          fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`
-        });
-        
-        storyData.content = {
-          image: {
-            url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
-            alt: caption || '',
-            width: 0,
-            height: 0
-          }
-        };
-        break;
-
-      case 'video':
-        if (!req.files || !req.files.video) {
-          return res.status(400).json({
-            success: false,
-            message: 'El video es obligatorio para historias de video'
-          });
-        }
-        
-        console.log('Creating video story with:', {
-          filename: req.files.video[0].filename,
-          baseUrl: baseUrl,
-          fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`
-        });
-        
-        storyData.content = {
-          video: {
-            url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
-            duration: 0,
-            thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
-            width: 0,
-            height: 0
-          }
-        };
-        break;
-
-      case 'text':
-        if (!textContent) {
-          return res.status(400).json({
-            success: false,
-            message: 'El contenido de texto es obligatorio para historias de texto'
-          });
-        }
-        
-        // Parse textStyle si viene como JSON string
-        let parsedTextStyle = {};
-        if (textStyle) {
-          try {
-            parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle;
-          } catch (error) {
-            console.error('Error parsing textStyle:', error);
-            parsedTextStyle = {};
-          }
-        }
-        
-        storyData.content = {
-          text: {
-            content: textContent,
-            backgroundColor: parsedTextStyle.backgroundColor || '#000000',
-            textColor: parsedTextStyle.textColor || '#ffffff',
-            fontSize: parsedTextStyle.fontSize || 24,
-            fontFamily: parsedTextStyle.fontFamily || 'Arial'
-          }
-        };
-        break;
-
-      default:
+    case 'image':
+      if (!req.files || !req.files.image) {
         return res.status(400).json({
           success: false,
-          message: 'Tipo de historia no válido'
+          message: 'La imagen es obligatoria para historias de imagen',
         });
+      }
+
+      console.log('Creating image story with:', {
+        filename: req.files.image[0].filename,
+        baseUrl,
+        fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`,
+      });
+
+      storyData.content = {
+        image: {
+          url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
+          alt: caption || '',
+          width: 0,
+          height: 0,
+        },
+      };
+      break;
+
+    case 'video':
+      if (!req.files || !req.files.video) {
+        return res.status(400).json({
+          success: false,
+          message: 'El video es obligatorio para historias de video',
+        });
+      }
+
+      console.log('Creating video story with:', {
+        filename: req.files.video[0].filename,
+        baseUrl,
+        fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`,
+      });
+
+      storyData.content = {
+        video: {
+          url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
+          duration: 0,
+          thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+          width: 0,
+          height: 0,
+        },
+      };
+      break;
+
+    case 'text':
+      if (!textContent) {
+        return res.status(400).json({
+          success: false,
+          message: 'El contenido de texto es obligatorio para historias de texto',
+        });
+      }
+
+      // Parse textStyle si viene como JSON string
+      let parsedTextStyle = {};
+      if (textStyle) {
+        try {
+          parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle;
+        } catch (error) {
+          console.error('Error parsing textStyle:', error);
+          parsedTextStyle = {};
+        }
+      }
+
+      storyData.content = {
+        text: {
+          content: textContent,
+          backgroundColor: parsedTextStyle.backgroundColor || '#000000',
+          textColor: parsedTextStyle.textColor || '#ffffff',
+          fontSize: parsedTextStyle.fontSize || 24,
+          fontFamily: parsedTextStyle.fontFamily || 'Arial',
+        },
+      };
+      break;
+
+    default:
+      return res.status(400).json({
+        success: false,
+        message: 'Tipo de historia no válido',
+      });
     }
 
     const story = new Story(storyData);
     await story.save();
-    
+
     // Actualizar el array de stories del usuario (si existe)
     try {
       await User.findByIdAndUpdate(
         req.userId,
-        { $push: { stories: story._id } }
+        { $push: { stories: story._id } },
       );
     } catch (error) {
       console.log('No se pudo actualizar el array de stories del usuario:', error.message);
     }
-    
+
     // Populate user data for response
     await story.populate('user', 'username avatar fullName');
-    
+
     res.status(201).json({
       success: true,
       message: 'Historia creada exitosamente',
-      story
+      story,
     });
   } catch (error) {
     console.error('Error en createStory:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -156,21 +164,21 @@ exports.getStoriesForFeed = async (req, res) => {
     const stories = await Story.find({
       isDeleted: false,
       isPublic: true,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     })
-    .populate('user', 'username avatar fullName')
-    .sort({ createdAt: -1 })
-    .limit(20);
+      .populate('user', 'username avatar fullName')
+      .sort({ createdAt: -1 })
+      .limit(20);
 
     res.json({
       success: true,
-      stories
+      stories,
     });
   } catch (error) {
     console.error('Error en getStoriesForFeed:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -180,11 +188,11 @@ exports.getUserStories = async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -194,13 +202,13 @@ exports.getUserStories = async (req, res) => {
 
     res.json({
       success: true,
-      stories
+      stories,
     });
   } catch (error) {
     console.error('Error en getUserStories:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -211,17 +219,17 @@ exports.getStory = async (req, res) => {
     const story = await Story.findOne({
       _id: req.params.id,
       isDeleted: false,
-      isPublic: true
+      isPublic: true,
     })
-    .populate('user', 'username avatar fullName')
-    .populate('views.user', 'username avatar')
-    .populate('reactions.user', 'username avatar')
-    .populate('replies.user', 'username avatar');
-    
+      .populate('user', 'username avatar fullName')
+      .populate('views.user', 'username avatar')
+      .populate('reactions.user', 'username avatar')
+      .populate('replies.user', 'username avatar');
+
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada'
+        message: 'Historia no encontrada',
       });
     }
 
@@ -229,7 +237,7 @@ exports.getStory = async (req, res) => {
     if (story.isExpired) {
       return res.status(404).json({
         success: false,
-        message: 'Esta historia ha expirado'
+        message: 'Esta historia ha expirado',
       });
     }
 
@@ -240,13 +248,13 @@ exports.getStory = async (req, res) => {
 
     res.json({
       success: true,
-      story
+      story,
     });
   } catch (error) {
     console.error('Error en getStory:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -256,18 +264,18 @@ exports.addReaction = async (req, res) => {
   try {
     const { reactionType } = req.body;
     const story = await Story.findById(req.params.id);
-    
+
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada'
+        message: 'Historia no encontrada',
       });
     }
 
     if (story.isExpired) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes reaccionar a una historia expirada'
+        message: 'No puedes reaccionar a una historia expirada',
       });
     }
 
@@ -276,13 +284,13 @@ exports.addReaction = async (req, res) => {
     res.json({
       success: true,
       message: 'Reacción agregada exitosamente',
-      reactionsCount: story.reactions.length
+      reactionsCount: story.reactions.length,
     });
   } catch (error) {
     console.error('Error en addReaction:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -291,11 +299,11 @@ exports.addReaction = async (req, res) => {
 exports.removeReaction = async (req, res) => {
   try {
     const story = await Story.findById(req.params.id);
-    
+
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada'
+        message: 'Historia no encontrada',
       });
     }
 
@@ -304,13 +312,13 @@ exports.removeReaction = async (req, res) => {
     res.json({
       success: true,
       message: 'Reacción removida exitosamente',
-      reactionsCount: story.reactions.length
+      reactionsCount: story.reactions.length,
     });
   } catch (error) {
     console.error('Error en removeReaction:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -323,24 +331,24 @@ exports.addReply = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     const { content } = req.body;
     const story = await Story.findById(req.params.id);
-    
+
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada'
+        message: 'Historia no encontrada',
       });
     }
 
     if (story.isExpired) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes responder a una historia expirada'
+        message: 'No puedes responder a una historia expirada',
       });
     }
 
@@ -353,20 +361,20 @@ exports.addReply = async (req, res) => {
         type: 'story_reply',
         from: req.userId,
         story: story._id,
-        message: 'Respondió a tu historia'
+        message: 'Respondió a tu historia',
       });
     }
 
     res.json({
       success: true,
       message: 'Respuesta agregada exitosamente',
-      repliesCount: story.replies.length
+      repliesCount: story.replies.length,
     });
   } catch (error) {
     console.error('Error en addReply:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -374,34 +382,80 @@ exports.addReply = async (req, res) => {
 // Eliminar una historia
 exports.deleteStory = async (req, res) => {
   try {
+    console.log('🗑️ deleteStory llamado con:', {
+      storyId: req.params.id,
+      userId: req.userId,
+      headers: req.headers,
+    });
+
     const story = await Story.findById(req.params.id);
-    
+
     if (!story) {
+      console.log('❌ Story no encontrada:', req.params.id);
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada'
+        message: 'Historia no encontrada',
       });
     }
+
+    console.log('📖 Story encontrada:', {
+      storyId: story._id,
+      storyUserId: story.user,
+      requestUserId: req.userId,
+      storyUserType: typeof story.user,
+      requestUserIdType: typeof req.userId,
+    });
 
     // Verificar que el usuario sea el dueño de la historia
-    if (story.user.toString() !== req.userId) {
+    // Convertir ambos IDs a string para comparación correcta
+    const storyUserId = story.user.toString();
+    const requestUserId = req.userId.toString();
+
+    if (storyUserId !== requestUserId) {
+      console.log('❌ Permisos insuficientes:', {
+        storyUser: storyUserId,
+        requestUser: requestUserId,
+        match: storyUserId === requestUserId,
+      });
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para eliminar esta historia'
+        message: 'No tienes permisos para eliminar esta historia',
       });
     }
 
-    await story.softDelete();
+    console.log('✅ Permisos verificados correctamente:', {
+      storyUser: storyUserId,
+      requestUser: requestUserId,
+      match: storyUserId === requestUserId,
+    });
+
+    console.log('🗑️ Antes de softDelete - Story ID:', story._id);
+    console.log('🗑️ Antes de softDelete - isDeleted:', story.isDeleted);
+
+    // Ejecutar softDelete
+    const result = await story.softDelete();
+
+    console.log('🗑️ Después de softDelete - Resultado:', result);
+    console.log('🗑️ Después de softDelete - isDeleted:', result.isDeleted);
+    console.log('🗑️ Después de softDelete - Story guardada:', result._id);
+
+    // Verificar directamente en la base de datos si se guardó
+    const storyFromDB = await Story.findById(story._id);
+    console.log('🗑️ Verificación directa en BD:', {
+      id: storyFromDB._id,
+      isDeleted: storyFromDB.isDeleted,
+      updatedAt: storyFromDB.updatedAt,
+    });
 
     res.json({
       success: true,
-      message: 'Historia eliminada exitosamente'
+      message: 'Historia eliminada exitosamente',
     });
   } catch (error) {
     console.error('Error en deleteStory:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -410,17 +464,17 @@ exports.deleteStory = async (req, res) => {
 exports.cleanupExpiredStories = async (req, res) => {
   try {
     const result = await Story.cleanupExpiredStories();
-    
+
     res.json({
       success: true,
       message: 'Limpieza de historias expiradas completada',
-      result
+      result,
     });
   } catch (error) {
     console.error('Error en cleanupExpiredStories:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -429,32 +483,50 @@ exports.cleanupExpiredStories = async (req, res) => {
 exports.getUsersWithStories = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     // Obtener el usuario actual para incluir sus stories
     const currentUser = await User.findById(userId);
     if (!currentUser) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Obtener usuarios seguidos
     const following = currentUser.following || [];
-    
+
     // Buscar stories activas (no expiradas) de usuarios seguidos + propio usuario
-    const activeStories = await Story.find({
+    const query = {
       isDeleted: false,
       isPublic: true,
       expiresAt: { $gt: new Date() },
-      user: { $in: [userId, ...following] }
-    })
-    .populate('user', 'username avatar fullName')
-    .sort({ createdAt: -1 });
+      user: { $in: [userId, ...following] },
+    };
+
+    console.log('🔍 Query para buscar stories:', JSON.stringify(query, null, 2));
+    console.log('🔍 Usuario actual ID:', userId);
+    console.log('🔍 Usuarios seguidos:', following);
+
+    const activeStories = await Story.find(query)
+      .populate('user', 'username avatar fullName')
+      .sort({ createdAt: -1 });
+
+    console.log('📊 Stories encontradas:', activeStories.length);
+    activeStories.forEach((story, index) => {
+      console.log(`📖 Story ${index + 1}:`, {
+        id: story._id,
+        user: story.user.username,
+        isDeleted: story.isDeleted,
+        isPublic: story.isPublic,
+        expiresAt: story.expiresAt,
+        createdAt: story.createdAt,
+      });
+    });
 
     // Agrupar stories por usuario
     const usersMap = new Map();
-    
+
     activeStories.forEach(story => {
       const userId = story.user._id.toString();
       if (!usersMap.has(userId)) {
@@ -464,7 +536,7 @@ exports.getUsersWithStories = async (req, res) => {
           avatar: story.user.avatar,
           fullName: story.user.fullName,
           latestStory: story,
-          storiesCount: 0
+          storiesCount: 0,
         });
       }
       usersMap.get(userId).storiesCount++;
@@ -476,14 +548,14 @@ exports.getUsersWithStories = async (req, res) => {
 
     res.json({
       success: true,
-      users: usersWithStories
+      users: usersWithStories,
     });
   } catch (error) {
     console.error('Error en getUsersWithStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };

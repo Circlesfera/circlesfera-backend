@@ -1,17 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
-  createPost, 
-  getFeed, 
-  getPost, 
-  toggleLike, 
-  getLikes, 
+const {
+  createPost,
+  getFeed,
+  getPost,
+  toggleLike,
+  getLikes,
   getUserPosts,
   getTrendingPosts,
   getRecentPosts,
   deletePost,
-  updatePost
+  updatePost,
 } = require('../controllers/postController');
 const { auth } = require('../middlewares/auth');
 const { uploadFields, handleUploadError } = require('../middlewares/upload');
@@ -36,7 +36,7 @@ const createPostValidation = [
   body('text')
     .optional()
     .isLength({ max: 5000 })
-    .withMessage('El texto no puede exceder 5000 caracteres')
+    .withMessage('El texto no puede exceder 5000 caracteres'),
 ];
 
 const updatePostValidation = [
@@ -51,7 +51,7 @@ const updatePostValidation = [
   body('tags')
     .optional()
     .isString()
-    .withMessage('Los tags deben ser una cadena separada por comas')
+    .withMessage('Los tags deben ser una cadena separada por comas'),
 ];
 
 // Rutas públicas
@@ -64,7 +64,7 @@ router.post('/test', auth, (req, res) => {
   res.json({
     success: true,
     message: 'Ruta de prueba funcionando',
-    body: req.body
+    body: req.body,
   });
 });
 
@@ -77,24 +77,24 @@ router.post('/test-create', auth, async (req, res) => {
       type: 'text',
       caption: 'Test post',
       content: {
-        text: 'Este es un post de prueba'
-      }
+        text: 'Este es un post de prueba',
+      },
     });
-    
+
     await post.save();
     await post.populate('user', 'username avatar fullName');
-    
+
     res.json({
       success: true,
       message: 'Post de prueba creado',
-      post
+      post,
     });
   } catch (error) {
     console.error('Error creating test post:', error);
     res.status(500).json({
       success: false,
       message: 'Error al crear post de prueba',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -104,18 +104,18 @@ router.post('/clear-all-posts', async (req, res) => {
   try {
     const Post = require('../models/Post');
     const result = await Post.deleteMany({});
-    
+
     res.json({
       success: true,
       message: 'Todos los posts eliminados',
-      count: result.deletedCount
+      count: result.deletedCount,
     });
   } catch (error) {
     console.error('Error clearing posts:', error);
     res.status(500).json({
       success: false,
       message: 'Error al limpiar posts',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -128,25 +128,25 @@ router.get('/:id', getPost);
 router.get('/:id/likes', getLikes);
 
 // Ruta para posts con archivos (imagen/video)
-router.post('/media', 
-  auth, 
+router.post('/media',
+  auth,
   uploadFields,
   createPostValidation,
   createPost,
-  handleUploadError
+  handleUploadError,
 );
 
 // Ruta para posts de texto (sin archivos)
-router.post('/', 
-  auth, 
+router.post('/',
+  auth,
   createPostValidation,
-  createPost
+  createPost,
 );
 
 router.put('/:id',
   auth,
   updatePostValidation,
-  updatePost
+  updatePost,
 );
 
 router.post('/:id/like', auth, toggleLike);

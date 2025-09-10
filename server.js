@@ -12,19 +12,19 @@ const app = express();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "blob:"],
-      mediaSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'", "https:", "data:"],
-      objectSrc: ["'none'"],
+      defaultSrc: ['\'self\''],
+      styleSrc: ['\'self\'', '\'unsafe-inline\''],
+      scriptSrc: ['\'self\''],
+      imgSrc: ['\'self\'', 'data:', 'blob:'],
+      mediaSrc: ['\'self\'', 'data:', 'blob:'],
+      connectSrc: ['\'self\''],
+      fontSrc: ['\'self\'', 'https:', 'data:'],
+      objectSrc: ['\'none\''],
       upgradeInsecureRequests: [],
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 // Rate limiting más permisivo en desarrollo
@@ -32,7 +32,7 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Mucho más permisivo en desarrollo
   message: {
-    error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo en 15 minutos.'
+    error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo en 15 minutos.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -46,6 +46,7 @@ app.use('/api/posts', limiter);
 app.use('/api/users', limiter);
 app.use('/api/comments', limiter);
 app.use('/api/stories', limiter);
+app.use('/api/reels', limiter);
 app.use('/api/notifications', limiter);
 app.use('/api/conversations', limiter);
 app.use('/api/messages', limiter);
@@ -60,7 +61,7 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range'],
-  exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges']
+  exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges'],
 }));
 
 // Logging
@@ -77,7 +78,7 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'CircleSfera API funcionando correctamente',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
@@ -90,6 +91,7 @@ app.use('/api/posts', require('./src/routes/post'));
 app.use('/api/users', require('./src/routes/user'));
 app.use('/api/comments', require('./src/routes/comment'));
 app.use('/api/stories', require('./src/routes/story'));
+app.use('/api/reels', require('./src/routes/reel'));
 app.use('/api/notifications', require('./src/routes/notification'));
 app.use('/api/conversations', require('./src/routes/conversation'));
 app.use('/api/messages', require('./src/routes/message'));
@@ -97,32 +99,32 @@ app.use('/api/messages', require('./src/routes/message'));
 // Middleware de manejo de errores global
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  
+
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
       message: 'Error de validación',
-      errors: Object.values(err.errors).map(e => e.message)
+      errors: Object.values(err.errors).map(e => e.message),
     });
   }
-  
+
   if (err.name === 'CastError') {
     return res.status(400).json({
       success: false,
-      message: 'ID inválido'
+      message: 'ID inválido',
     });
   }
-  
+
   if (err.code === 11000) {
     return res.status(400).json({
       success: false,
-      message: 'Este valor ya existe en la base de datos'
+      message: 'Este valor ya existe en la base de datos',
     });
   }
-  
+
   res.status(500).json({
     success: false,
-    message: 'Error interno del servidor'
+    message: 'Error interno del servidor',
   });
 });
 
@@ -130,7 +132,7 @@ app.use((err, req, res, next) => {
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Ruta no encontrada'
+    message: 'Ruta no encontrada',
   });
 });
 

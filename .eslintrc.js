@@ -1,13 +1,14 @@
 module.exports = {
   env: {
     node: true,
-    es2021: true,
+    es2022: true,
+    jest: true,
   },
   extends: [
     'eslint:recommended',
   ],
   parserOptions: {
-    ecmaVersion: 12,
+    ecmaVersion: 2022,
     sourceType: 'module',
   },
   rules: {
@@ -15,11 +16,41 @@ module.exports = {
     'linebreak-style': ['error', 'unix'],
     'quotes': ['error', 'single'],
     'semi': ['error', 'always'],
-    'no-unused-vars': ['warn', { 'argsIgnorePattern': '^_' }],
-    'no-console': 'off',
+    'no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+    'no-console': ['warn', { 'allow': ['warn', 'error'] }],
     'prefer-const': 'error',
     'no-var': 'error',
     'object-shorthand': 'error',
     'prefer-template': 'error',
+    'no-trailing-spaces': 'error',
+    'eol-last': 'error',
+    'comma-dangle': ['error', 'always-multiline'],
+    'no-multiple-empty-lines': ['error', { 'max': 2, 'maxEOF': 1 }],
+    'no-extra-semi': 'error',
+    'no-duplicate-imports': 'error',
+    'no-useless-return': 'error',
+    'prefer-arrow-callback': 'error',
+    'arrow-spacing': 'error',
+    'no-confusing-arrow': 'error',
+    'no-useless-constructor': 'error',
+    'no-useless-rename': 'error',
+    'rest-spread-spacing': 'error',
+    'template-curly-spacing': 'error',
+    'yield-star-spacing': 'error',
+    'no-await-in-loop': 'warn',
+    'no-return-await': 'error',
+    'prefer-promise-reject-errors': 'error',
+    'require-atomic-updates': 'error',
   },
-}; 
+  overrides: [
+    {
+      files: ['**/*.test.js', '**/*.spec.js'],
+      env: {
+        jest: true,
+      },
+      rules: {
+        'no-console': 'off',
+      },
+    },
+  ],
+};

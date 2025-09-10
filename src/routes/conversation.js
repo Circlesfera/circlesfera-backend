@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
+const {
   getConversations,
   getConversation,
   createDirectConversation,
@@ -14,7 +14,7 @@ const {
   archiveConversation,
   unarchiveConversation,
   deleteConversation,
-  getConversationStats
+  getConversationStats,
 } = require('../controllers/conversationController');
 const { auth } = require('../middlewares/auth');
 
@@ -31,7 +31,7 @@ const createGroupValidation = [
     .withMessage('La descripción no puede exceder 200 caracteres'),
   body('participantIds')
     .isArray({ min: 1 })
-    .withMessage('Debe incluir al menos un participante')
+    .withMessage('Debe incluir al menos un participante'),
 ];
 
 const updateConversationValidation = [
@@ -44,19 +44,19 @@ const updateConversationValidation = [
     .optional()
     .trim()
     .isLength({ max: 200 })
-    .withMessage('La descripción no puede exceder 200 caracteres')
+    .withMessage('La descripción no puede exceder 200 caracteres'),
 ];
 
 const participantValidation = [
   body('participantId')
     .isMongoId()
-    .withMessage('ID de participante inválido')
+    .withMessage('ID de participante inválido'),
 ];
 
 const adminValidation = [
   body('adminId')
     .isMongoId()
-    .withMessage('ID de administrador inválido')
+    .withMessage('ID de administrador inválido'),
 ];
 
 // Rutas protegidas

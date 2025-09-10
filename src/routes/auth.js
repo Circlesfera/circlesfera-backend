@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
-  register, 
-  login, 
-  getProfile, 
-  updateProfile, 
-  changePassword, 
-  logout, 
+const {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  changePassword,
+  logout,
   refreshToken,
-  checkUsernameAvailability
+  checkUsernameAvailability,
 } = require('../controllers/authController');
 const { auth } = require('../middlewares/auth');
 
@@ -34,7 +34,7 @@ const registerValidation = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('El nombre completo no puede exceder 50 caracteres')
+    .withMessage('El nombre completo no puede exceder 50 caracteres'),
 ];
 
 const loginValidation = [
@@ -43,7 +43,7 @@ const loginValidation = [
     .withMessage('El email es requerido'),
   body('password')
     .notEmpty()
-    .withMessage('La contraseña es requerida')
+    .withMessage('La contraseña es requerida'),
 ];
 
 const updateProfileValidation = [
@@ -91,7 +91,7 @@ const updateProfileValidation = [
   body('isPrivate')
     .optional()
     .isBoolean()
-    .withMessage('El valor de privacidad debe ser true o false')
+    .withMessage('El valor de privacidad debe ser true o false'),
 ];
 
 const changePasswordValidation = [
@@ -102,7 +102,7 @@ const changePasswordValidation = [
     .isLength({ min: 6 })
     .withMessage('La nueva contraseña debe tener al menos 6 caracteres')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('La contraseña debe contener al menos una letra mayúscula, una minúscula y un número')
+    .withMessage('La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'),
 ];
 
 // Rutas públicas

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, query } = require('express-validator');
-const { 
+const {
   getMessages,
   sendTextMessage,
   sendImageMessage,
@@ -11,7 +11,7 @@ const {
   deleteMessage,
   forwardMessage,
   searchMessages,
-  getMessageStats
+  getMessageStats,
 } = require('../controllers/messageController');
 const { auth } = require('../middlewares/auth');
 const { uploadSingle, uploadMultiple, handleUploadError } = require('../middlewares/upload');
@@ -25,14 +25,14 @@ const sendTextMessageValidation = [
   body('replyTo')
     .optional()
     .isMongoId()
-    .withMessage('ID de mensaje de respuesta inválido')
+    .withMessage('ID de mensaje de respuesta inválido'),
 ];
 
 const editMessageValidation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 1000 })
-    .withMessage('El mensaje debe tener entre 1 y 1000 caracteres')
+    .withMessage('El mensaje debe tener entre 1 y 1000 caracteres'),
 ];
 
 const sendLocationMessageValidation = [
@@ -51,20 +51,20 @@ const sendLocationMessageValidation = [
     .optional()
     .trim()
     .isLength({ max: 200 })
-    .withMessage('La dirección no puede exceder 200 caracteres')
+    .withMessage('La dirección no puede exceder 200 caracteres'),
 ];
 
 const forwardMessageValidation = [
   body('conversationIds')
     .isArray({ min: 1 })
-    .withMessage('Debe especificar al menos una conversación')
+    .withMessage('Debe especificar al menos una conversación'),
 ];
 
 const searchMessagesValidation = [
   query('query')
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('El término de búsqueda debe tener entre 2 y 100 caracteres')
+    .withMessage('El término de búsqueda debe tener entre 2 y 100 caracteres'),
 ];
 
 // Mensajes de conversacion

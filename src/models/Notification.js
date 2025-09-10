@@ -5,30 +5,31 @@ const NotificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'El usuario es requerido'],
-    index: true
   },
   from: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'El usuario que genera la notificación es requerido'],
-    index: true
   },
   type: {
     type: String,
     enum: [
       'follow',
-      'unfollow', 
+      'unfollow',
       'like',
       'comment',
       'comment_like',
       'story',
       'story_reply',
+      'reel',
+      'reel_like',
+      'reel_comment',
       'mention',
       'post_share',
       'account_update',
-      'security_alert'
+      'security_alert',
     ],
-    required: [true, 'El tipo de notificación es requerido']
+    required: [true, 'El tipo de notificación es requerido'],
   },
   title: {
     type: String,
@@ -38,59 +39,62 @@ const NotificationSchema = new mongoose.Schema({
   message: {
     type: String,
     maxlength: [500, 'El mensaje no puede exceder 500 caracteres'],
-    required: [true, 'El mensaje es requerido']
+    required: [true, 'El mensaje es requerido'],
   },
   data: {
     post: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Post'
+      ref: 'Post',
     },
     comment: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comment'
+      ref: 'Comment',
     },
     story: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Story'
+      ref: 'Story',
+    },
+    reel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Reel',
     },
     conversation: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Conversation'
+      ref: 'Conversation',
     },
     message: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message'
+      ref: 'Message',
     },
     // Datos adicionales específicos del tipo
     extra: {
-      type: mongoose.Schema.Types.Mixed
-    }
+      type: mongoose.Schema.Types.Mixed,
+    },
   },
   isRead: {
     type: Boolean,
     default: false,
-    index: true
   },
   isDeleted: {
     type: Boolean,
-    default: false
+    default: false,
   },
   priority: {
     type: String,
     enum: ['low', 'normal', 'high', 'urgent'],
-    default: 'normal'
+    default: 'normal',
   },
   expiresAt: {
     type: Date,
-    default: function() {
+    default() {
       // Las notificaciones expiran en 30 días por defecto
       return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    }
-  }
-}, { 
+    },
+  },
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 });
 
 // Índices para mejorar el rendimiento
@@ -110,7 +114,7 @@ NotificationSchema.virtual('timeAgo').get(function() {
   const now = new Date();
   const createdAt = new Date(this.createdAt);
   const diffInSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return 'ahora';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
@@ -136,19 +140,19 @@ NotificationSchema.methods.softDelete = function() {
 
 // Métodos estáticos
 NotificationSchema.statics.findByUser = function(userId, options = {}) {
-  const query = { 
-    user: userId, 
-    isDeleted: false 
+  const query = {
+    user: userId,
+    isDeleted: false,
   };
-  
+
   if (options.unreadOnly) {
     query.isRead = false;
   }
-  
+
   if (options.type) {
     query.type = options.type;
   }
-  
+
   return this.find(query)
     .populate('from', 'username avatar fullName')
     .populate('data.post', 'caption content')
@@ -161,14 +165,14 @@ NotificationSchema.statics.getUnreadCount = function(userId) {
   return this.countDocuments({
     user: userId,
     isRead: false,
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
 NotificationSchema.statics.markAllAsRead = function(userId) {
   return this.updateMany(
     { user: userId, isRead: false, isDeleted: false },
-    { $set: { isRead: true } }
+    { $set: { isRead: true } },
   );
 };
 
@@ -176,7 +180,7 @@ NotificationSchema.statics.deleteOldNotifications = function(days = 30) {
   const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   return this.updateMany(
     { createdAt: { $lt: cutoffDate }, isRead: true },
-    { $set: { isDeleted: true } }
+    { $set: { isDeleted: true } },
   );
 };
 
@@ -191,10 +195,13 @@ NotificationSchema.pre('save', function(next) {
       comment_like: 'Me gusta en comentario',
       story: 'Nueva historia',
       story_reply: 'Respuesta a historia',
+      reel: 'Nuevo reel',
+      reel_like: 'Me gusta en reel',
+      reel_comment: 'Comentario en reel',
       mention: 'Mencionado en publicación',
       post_share: 'Publicación compartida',
       account_update: 'Actualización de cuenta',
-      security_alert: 'Alerta de seguridad'
+      security_alert: 'Alerta de seguridad',
     };
 
     const messages = {
@@ -205,21 +212,24 @@ NotificationSchema.pre('save', function(next) {
       comment_like: 'le gustó tu comentario',
       story: 'subió una nueva historia',
       story_reply: 'respondió a tu historia',
+      reel: 'subió un nuevo reel',
+      reel_like: 'le gustó tu reel',
+      reel_comment: 'comentó en tu reel',
       mention: 'te mencionó en una publicación',
       post_share: 'compartió tu publicación',
       account_update: 'tu cuenta fue actualizada',
-      security_alert: 'actividad sospechosa detectada'
+      security_alert: 'actividad sospechosa detectada',
     };
 
     if (!this.title) {
       this.title = titles[this.type] || 'Nueva notificación';
     }
-    
+
     if (!this.message) {
       this.message = messages[this.type] || 'Tienes una nueva notificación';
     }
   }
-  
+
   next();
 });
 

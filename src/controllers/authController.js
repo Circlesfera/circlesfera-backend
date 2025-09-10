@@ -7,7 +7,7 @@ const generateToken = (userId) => {
   return jwt.sign(
     { id: userId },
     process.env.JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '30d' },
   );
 };
 
@@ -28,7 +28,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
     if (!isUsernameAvailable) {
       return res.status(400).json({
         success: false,
-        message: 'Este nombre de usuario ya está en uso o está bloqueado'
+        message: 'Este nombre de usuario ya está en uso o está bloqueado',
       });
     }
 
@@ -48,7 +48,7 @@ exports.register = async (req, res) => {
     if (existingEmail) {
       return res.status(400).json({
         success: false,
-        message: 'Este email ya está registrado'
+        message: 'Este email ya está registrado',
       });
     }
 
@@ -57,7 +57,7 @@ exports.register = async (req, res) => {
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       password,
-      fullName: fullName || username
+      fullName: fullName || username,
     });
 
     await user.save();
@@ -72,7 +72,7 @@ exports.register = async (req, res) => {
       success: true,
       message: 'Usuario registrado exitosamente',
       token,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user),
     });
 
   } catch (error) {
@@ -80,7 +80,7 @@ exports.register = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -93,7 +93,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -103,14 +103,14 @@ exports.login = async (req, res) => {
     const user = await User.findOne({
       $or: [
         { email: email.toLowerCase() },
-        { username: email.toLowerCase() }
-      ]
+        { username: email.toLowerCase() },
+      ],
     }).select('+password');
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Credenciales inválidas'
+        message: 'Credenciales inválidas',
       });
     }
 
@@ -118,7 +118,7 @@ exports.login = async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Tu cuenta ha sido desactivada'
+        message: 'Tu cuenta ha sido desactivada',
       });
     }
 
@@ -127,7 +127,7 @@ exports.login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Credenciales inválidas'
+        message: 'Credenciales inválidas',
       });
     }
 
@@ -141,7 +141,7 @@ exports.login = async (req, res) => {
       success: true,
       message: 'Inicio de sesión exitoso',
       token,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user),
     });
 
   } catch (error) {
@@ -149,7 +149,7 @@ exports.login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -157,24 +157,24 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user),
     });
 
   } catch (error) {
     console.error('Error obteniendo perfil:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -186,7 +186,7 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -199,15 +199,15 @@ exports.updateProfile = async (req, res) => {
       phone,
       gender,
       birthDate,
-      isPrivate
+      isPrivate,
     } = req.body;
 
     const user = await User.findById(req.user.id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -215,20 +215,20 @@ exports.updateProfile = async (req, res) => {
     if (username && username !== user.username) {
       // Verificar si el nuevo username está disponible
       const isAvailable = await User.isUsernameAvailable(username);
-      
+
       if (!isAvailable) {
         return res.status(400).json({
           success: false,
-          message: 'Este nombre de usuario ya está en uso o está bloqueado'
+          message: 'Este nombre de usuario ya está en uso o está bloqueado',
         });
       }
 
       // Desbloquear el username anterior
       await User.unblockUsername(user._id, user.username);
-      
+
       // Bloquear el nuevo username
       await User.blockUsername(user._id, username);
-      
+
       // Actualizar el username del usuario
       user.username = username.toLowerCase();
     }
@@ -248,14 +248,14 @@ exports.updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Perfil actualizado exitosamente',
-      user: sanitizeUser(user)
+      user: sanitizeUser(user),
     });
 
   } catch (error) {
     console.error('Error actualizando perfil:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -267,18 +267,18 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     const { currentPassword, newPassword } = req.body;
 
     const user = await User.findById(req.user.id).select('+password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -287,7 +287,7 @@ exports.changePassword = async (req, res) => {
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: 'La contraseña actual es incorrecta'
+        message: 'La contraseña actual es incorrecta',
       });
     }
 
@@ -297,14 +297,14 @@ exports.changePassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Contraseña actualizada exitosamente'
+      message: 'Contraseña actualizada exitosamente',
     });
 
   } catch (error) {
     console.error('Error cambiando contraseña:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -313,17 +313,17 @@ exports.logout = async (req, res) => {
   try {
     // En una implementación más avanzada, podrías invalidar el token
     // agregándolo a una lista negra en Redis
-    
+
     res.json({
       success: true,
-      message: 'Sesión cerrada exitosamente'
+      message: 'Sesión cerrada exitosamente',
     });
 
   } catch (error) {
     console.error('Error en logout:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -331,11 +331,11 @@ exports.logout = async (req, res) => {
 exports.refreshToken = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -344,14 +344,14 @@ exports.refreshToken = async (req, res) => {
     res.json({
       success: true,
       token,
-      user: sanitizeUser(user)
+      user: sanitizeUser(user),
     });
 
   } catch (error) {
     console.error('Error refrescando token:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -360,27 +360,27 @@ exports.refreshToken = async (req, res) => {
 exports.checkUsernameAvailability = async (req, res) => {
   try {
     const { username } = req.params;
-    
+
     if (!username) {
       return res.status(400).json({
         success: false,
-        message: 'Username es requerido'
+        message: 'Username es requerido',
       });
     }
 
     const isAvailable = await User.isUsernameAvailable(username);
-    
+
     res.json({
       success: true,
       available: isAvailable,
-      username: username.toLowerCase()
+      username: username.toLowerCase(),
     });
 
   } catch (error) {
     console.error('Error verificando disponibilidad de username:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };

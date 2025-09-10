@@ -5,140 +5,133 @@ const PostSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'El usuario es requerido'],
-    index: true
   },
   type: {
     type: String,
-    enum: ['image', 'video', 'text'],
+    enum: ['image', 'video'],
     required: [true, 'El tipo de contenido es requerido'],
-    default: 'image'
+    default: 'image',
   },
   content: {
     images: [{
       url: {
         type: String,
-        required: false
+        required: false,
       },
       alt: {
         type: String,
-        default: ''
+        default: '',
       },
       width: {
         type: Number,
-        default: 0
+        default: 0,
       },
       height: {
         type: Number,
-        default: 0
-      }
+        default: 0,
+      },
     }],
     video: {
       url: {
         type: String,
-        required: false
+        required: false,
       },
       duration: {
         type: Number,
-        default: 0
+        default: 0,
       },
       thumbnail: {
         type: String,
-        required: false
+        required: false,
       },
       width: {
         type: Number,
-        default: 0
+        default: 0,
       },
       height: {
         type: Number,
-        default: 0
-      }
+        default: 0,
+      },
     },
-    text: {
-      type: String,
-      maxlength: [5000, 'El texto no puede exceder 5000 caracteres'],
-      required: false
-    }
   },
   caption: {
     type: String,
     maxlength: [2200, 'La descripción no puede exceder 2200 caracteres'],
-    default: ''
+    default: '',
   },
   location: {
     name: {
       type: String,
-      maxlength: [100, 'El nombre de la ubicación no puede exceder 100 caracteres']
+      maxlength: [100, 'El nombre de la ubicación no puede exceder 100 caracteres'],
     },
     coordinates: {
       type: {
         type: String,
-        enum: ['Point']
+        enum: ['Point'],
       },
       coordinates: {
         type: [Number],
         validate: {
-          validator: function(v) {
+          validator(v) {
             return v.length === 2 && v[0] >= -180 && v[0] <= 180 && v[1] >= -90 && v[1] <= 90;
           },
-          message: 'Coordenadas inválidas'
-        }
-      }
-    }
+          message: 'Coordenadas inválidas',
+        },
+      },
+    },
   },
   tags: [{
     type: String,
-    maxlength: [50, 'Cada tag no puede exceder 50 caracteres']
+    maxlength: [50, 'Cada tag no puede exceder 50 caracteres'],
   }],
   likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    index: true
   }],
   comments: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Comment'
+    ref: 'Comment',
   }],
   views: {
     type: Number,
     default: 0,
-    min: [0, 'Las vistas no pueden ser negativas']
+    min: [0, 'Las vistas no pueden ser negativas'],
   },
   shares: {
     type: Number,
     default: 0,
-    min: [0, 'Los shares no pueden ser negativos']
+    min: [0, 'Los shares no pueden ser negativos'],
   },
   isPublic: {
     type: Boolean,
-    default: true
+    default: true,
   },
   isArchived: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isDeleted: {
     type: Boolean,
-    default: false
+    default: false,
   },
   metadata: {
     fileSize: {
       type: Number,
-      default: 0
+      default: 0,
     },
     mimeType: {
       type: String,
-      default: ''
+      default: '',
     },
     originalName: {
       type: String,
-      default: ''
-    }
-  }
-}, { 
+      default: '',
+    },
+  },
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 });
 
 // Índices para mejorar el rendimiento
@@ -168,7 +161,7 @@ PostSchema.methods.addLike = function(userId) {
   if (!this.likes) {
     this.likes = [];
   }
-  
+
   const userIdStr = userId.toString();
   if (!this.likes.some(id => id.toString() === userIdStr)) {
     this.likes.push(userId);
@@ -181,7 +174,7 @@ PostSchema.methods.removeLike = function(userId) {
   if (!this.likes) {
     this.likes = [];
   }
-  
+
   const userIdStr = userId.toString();
   this.likes = this.likes.filter(id => id.toString() !== userIdStr);
   return this.save();
@@ -191,7 +184,7 @@ PostSchema.methods.isLikedBy = function(userId) {
   if (!this.likes || this.likes.length === 0) {
     return false;
   }
-  
+
   const userIdStr = userId.toString();
   return this.likes.some(id => id.toString() === userIdStr);
 };
@@ -221,17 +214,17 @@ PostSchema.statics.findPublicPosts = function() {
   return this.find({
     isPublic: true,
     isArchived: false,
-    isDeleted: false
+    isDeleted: false,
   });
 };
 
 PostSchema.statics.findByUser = function(userId, options = {}) {
   const query = { user: userId, isDeleted: false };
-  
+
   if (options.includeArchived === false) {
     query.isArchived = false;
   }
-  
+
   return this.find(query).sort({ createdAt: -1 });
 };
 
@@ -239,10 +232,10 @@ PostSchema.statics.findTrending = function(limit = 10) {
   return this.find({
     isPublic: true,
     isArchived: false,
-    isDeleted: false
+    isDeleted: false,
   })
-  .sort({ engagement: -1, createdAt: -1 })
-  .limit(limit);
+    .sort({ engagement: -1, createdAt: -1 })
+    .limit(limit);
 };
 
 // Middleware pre-save
@@ -251,20 +244,17 @@ PostSchema.pre('save', function(next) {
   if (this.tags) {
     this.tags = [...new Set(this.tags.filter(tag => tag.trim()))];
   }
-  
+
   // Validar que hay contenido
   if (this.type === 'image' && (!this.content.images || this.content.images.length === 0)) {
     return next(new Error('Las publicaciones de imagen deben tener al menos una imagen'));
   }
-  
+
   if (this.type === 'video' && !this.content.video.url) {
     return next(new Error('Las publicaciones de video deben tener un video'));
   }
-  
-  if (this.type === 'text' && (!this.content.text || this.content.text.trim() === '')) {
-    return next(new Error('Las publicaciones de texto deben tener contenido'));
-  }
-  
+
+
   next();
 });
 

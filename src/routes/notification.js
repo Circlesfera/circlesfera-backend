@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { 
+const {
   getNotifications,
   getUnreadCount,
   markAsRead,
@@ -10,7 +10,7 @@ const {
   deleteReadNotifications,
   createNotification,
   getNotificationStats,
-  cleanupOldNotifications
+  cleanupOldNotifications,
 } = require('../controllers/notificationController');
 const { auth } = require('../middlewares/auth');
 
@@ -25,8 +25,8 @@ const createNotificationValidation = [
   body('type')
     .isIn([
       'follow', 'unfollow', 'like', 'comment', 'comment_like',
-      'story', 'story_reply', 'mention', 'post_share',
-      'account_update', 'security_alert'
+      'story', 'story_reply', 'reel', 'reel_like', 'reel_comment',
+      'mention', 'post_share', 'account_update', 'security_alert',
     ])
     .withMessage('Tipo de notificación no válido'),
   body('title')
@@ -36,7 +36,7 @@ const createNotificationValidation = [
   body('message')
     .optional()
     .isLength({ max: 500 })
-    .withMessage('El mensaje no puede exceder 500 caracteres')
+    .withMessage('El mensaje no puede exceder 500 caracteres'),
 ];
 
 // Rutas protegidas

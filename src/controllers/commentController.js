@@ -11,7 +11,7 @@ exports.createComment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -23,14 +23,14 @@ exports.createComment = async (req, res) => {
     if (!post) {
       return res.status(404).json({
         success: false,
-        message: 'Publicación no encontrada'
+        message: 'Publicación no encontrada',
       });
     }
 
     const commentData = {
       user: req.user.id,
       post: postId,
-      content: content.trim()
+      content: content.trim(),
     };
 
     // Si es una respuesta a otro comentario
@@ -39,7 +39,7 @@ exports.createComment = async (req, res) => {
       if (!parent) {
         return res.status(404).json({
           success: false,
-          message: 'Comentario padre no encontrado'
+          message: 'Comentario padre no encontrado',
         });
       }
       commentData.parentComment = parentComment;
@@ -59,20 +59,20 @@ exports.createComment = async (req, res) => {
         from: req.user.id,
         post: postId,
         comment: comment._id,
-        message: 'Comentó en tu publicación'
+        message: 'Comentó en tu publicación',
       });
     }
 
     res.status(201).json({
       success: true,
       message: 'Comentario creado exitosamente',
-      comment
+      comment,
     });
   } catch (error) {
     console.error('Error en createComment:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -90,7 +90,7 @@ exports.getComments = async (req, res) => {
     if (!post) {
       return res.status(404).json({
         success: false,
-        message: 'Publicación no encontrada'
+        message: 'Publicación no encontrada',
       });
     }
 
@@ -101,7 +101,7 @@ exports.getComments = async (req, res) => {
     const total = await Comment.countDocuments({
       post: postId,
       isDeleted: false,
-      parentComment: null
+      parentComment: null,
     });
 
     res.json({
@@ -111,14 +111,14 @@ exports.getComments = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getComments:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -136,7 +136,7 @@ exports.getReplies = async (req, res) => {
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: 'Comentario no encontrado'
+        message: 'Comentario no encontrado',
       });
     }
 
@@ -146,7 +146,7 @@ exports.getReplies = async (req, res) => {
 
     const total = await Comment.countDocuments({
       parentComment: commentId,
-      isDeleted: false
+      isDeleted: false,
     });
 
     res.json({
@@ -156,14 +156,14 @@ exports.getReplies = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getReplies:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -172,22 +172,22 @@ exports.getReplies = async (req, res) => {
 exports.toggleLike = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
-    
+
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: 'Comentario no encontrado'
+        message: 'Comentario no encontrado',
       });
     }
 
     const userId = req.user.id;
     const isLiked = comment.isLikedBy(userId);
-    
+
     if (isLiked) {
       await comment.removeLike(userId);
     } else {
       await comment.addLike(userId);
-      
+
       // Notificar al dueño del comentario si no es el mismo usuario
       if (comment.user.toString() !== userId) {
         await Notification.create({
@@ -196,7 +196,7 @@ exports.toggleLike = async (req, res) => {
           from: userId,
           post: comment.post,
           comment: comment._id,
-          message: 'Le ha gustado tu comentario'
+          message: 'Le ha gustado tu comentario',
         });
       }
     }
@@ -204,13 +204,13 @@ exports.toggleLike = async (req, res) => {
     res.json({
       success: true,
       liked: !isLiked,
-      likesCount: comment.likes.length
+      likesCount: comment.likes.length,
     });
   } catch (error) {
     console.error('Error en toggleLike:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -223,17 +223,17 @@ exports.updateComment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
     const { content } = req.body;
     const comment = await Comment.findById(req.params.commentId);
-    
+
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: 'Comentario no encontrado'
+        message: 'Comentario no encontrado',
       });
     }
 
@@ -241,7 +241,7 @@ exports.updateComment = async (req, res) => {
     if (comment.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para editar este comentario'
+        message: 'No tienes permisos para editar este comentario',
       });
     }
 
@@ -254,13 +254,13 @@ exports.updateComment = async (req, res) => {
     res.json({
       success: true,
       message: 'Comentario actualizado exitosamente',
-      comment
+      comment,
     });
   } catch (error) {
     console.error('Error en updateComment:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -269,11 +269,11 @@ exports.updateComment = async (req, res) => {
 exports.deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
-    
+
     if (!comment) {
       return res.status(404).json({
         success: false,
-        message: 'Comentario no encontrado'
+        message: 'Comentario no encontrado',
       });
     }
 
@@ -285,7 +285,7 @@ exports.deleteComment = async (req, res) => {
     if (!isOwner && !isPostOwner) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para eliminar este comentario'
+        message: 'No tienes permisos para eliminar este comentario',
       });
     }
 
@@ -293,13 +293,13 @@ exports.deleteComment = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Comentario eliminado exitosamente'
+      message: 'Comentario eliminado exitosamente',
     });
   } catch (error) {
     console.error('Error en deleteComment:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -314,29 +314,29 @@ exports.getUserComments = async (req, res) => {
 
     const User = require('../models/User');
     const user = await User.findOne({ username });
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     const comments = await Comment.find({
       user: user._id,
       isDeleted: false,
-      parentComment: null
+      parentComment: null,
     })
-    .populate('user', 'username avatar fullName')
-    .populate('post', 'caption content')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+      .populate('user', 'username avatar fullName')
+      .populate('post', 'caption content')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     const total = await Comment.countDocuments({
       user: user._id,
       isDeleted: false,
-      parentComment: null
+      parentComment: null,
     });
 
     res.json({
@@ -346,14 +346,14 @@ exports.getUserComments = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getUserComments:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };

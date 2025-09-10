@@ -18,7 +18,7 @@ exports.getConversations = async (req, res) => {
 
     const total = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false
+      isDeleted: false,
     });
 
     res.json({
@@ -28,14 +28,14 @@ exports.getConversations = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getConversations:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -44,7 +44,7 @@ exports.getConversations = async (req, res) => {
 exports.getConversation = async (req, res) => {
   try {
     const { conversationId } = req.params;
-    
+
     const conversation = await Conversation.findById(conversationId)
       .populate('participants', 'username avatar fullName')
       .populate('lastMessage')
@@ -53,7 +53,7 @@ exports.getConversation = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -61,19 +61,19 @@ exports.getConversation = async (req, res) => {
     if (!conversation.participants.some(p => p._id.toString() === req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en getConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -82,18 +82,18 @@ exports.getConversation = async (req, res) => {
 exports.createDirectConversation = async (req, res) => {
   try {
     const { participantId } = req.body;
-    
+
     if (!participantId) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere el ID del participante'
+        message: 'Se requiere el ID del participante',
       });
     }
 
     if (participantId === req.user.id) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes crear una conversación contigo mismo'
+        message: 'No puedes crear una conversación contigo mismo',
       });
     }
 
@@ -102,25 +102,25 @@ exports.createDirectConversation = async (req, res) => {
     if (!participant) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Buscar o crear conversación directa
     let conversation = await Conversation.findOrCreateDirectConversation(req.user.id, participantId);
-    
+
     // Populate participantes
     conversation = await conversation.populate('participants', 'username avatar fullName');
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en createDirectConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -129,11 +129,11 @@ exports.createDirectConversation = async (req, res) => {
 exports.createGroupConversation = async (req, res) => {
   try {
     const { name, description, participantIds } = req.body;
-    
+
     if (!name || !participantIds || participantIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere nombre y al menos un participante'
+        message: 'Se requiere nombre y al menos un participante',
       });
     }
 
@@ -142,7 +142,7 @@ exports.createGroupConversation = async (req, res) => {
     if (participants.length !== participantIds.length) {
       return res.status(400).json({
         success: false,
-        message: 'Algunos usuarios no existen'
+        message: 'Algunos usuarios no existen',
       });
     }
 
@@ -152,7 +152,7 @@ exports.createGroupConversation = async (req, res) => {
       name,
       description,
       participants: [req.user.id, ...participantIds],
-      admins: [req.user.id]
+      admins: [req.user.id],
     });
 
     await conversation.save();
@@ -160,13 +160,13 @@ exports.createGroupConversation = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en createGroupConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -181,7 +181,7 @@ exports.addParticipant = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -189,7 +189,7 @@ exports.addParticipant = async (req, res) => {
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden agregar participantes a conversaciones grupales'
+        message: 'Solo se pueden agregar participantes a conversaciones grupales',
       });
     }
 
@@ -197,7 +197,7 @@ exports.addParticipant = async (req, res) => {
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden agregar participantes'
+        message: 'Solo los administradores pueden agregar participantes',
       });
     }
 
@@ -206,13 +206,13 @@ exports.addParticipant = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en addParticipant:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -227,7 +227,7 @@ exports.removeParticipant = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -235,7 +235,7 @@ exports.removeParticipant = async (req, res) => {
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden remover participantes de conversaciones grupales'
+        message: 'Solo se pueden remover participantes de conversaciones grupales',
       });
     }
 
@@ -243,7 +243,7 @@ exports.removeParticipant = async (req, res) => {
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden remover participantes'
+        message: 'Solo los administradores pueden remover participantes',
       });
     }
 
@@ -252,13 +252,13 @@ exports.removeParticipant = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en removeParticipant:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -273,7 +273,7 @@ exports.addAdmin = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -281,7 +281,7 @@ exports.addAdmin = async (req, res) => {
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo las conversaciones grupales tienen administradores'
+        message: 'Solo las conversaciones grupales tienen administradores',
       });
     }
 
@@ -289,7 +289,7 @@ exports.addAdmin = async (req, res) => {
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden agregar otros administradores'
+        message: 'Solo los administradores pueden agregar otros administradores',
       });
     }
 
@@ -298,13 +298,13 @@ exports.addAdmin = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en addAdmin:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -319,7 +319,7 @@ exports.removeAdmin = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -327,7 +327,7 @@ exports.removeAdmin = async (req, res) => {
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo las conversaciones grupales tienen administradores'
+        message: 'Solo las conversaciones grupales tienen administradores',
       });
     }
 
@@ -335,7 +335,7 @@ exports.removeAdmin = async (req, res) => {
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden remover otros administradores'
+        message: 'Solo los administradores pueden remover otros administradores',
       });
     }
 
@@ -344,13 +344,13 @@ exports.removeAdmin = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en removeAdmin:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -365,7 +365,7 @@ exports.updateConversation = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -373,7 +373,7 @@ exports.updateConversation = async (req, res) => {
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -381,7 +381,7 @@ exports.updateConversation = async (req, res) => {
     if (conversation.type === 'group' && !conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden actualizar la conversación'
+        message: 'Solo los administradores pueden actualizar la conversación',
       });
     }
 
@@ -395,13 +395,13 @@ exports.updateConversation = async (req, res) => {
 
     res.json({
       success: true,
-      conversation
+      conversation,
     });
   } catch (error) {
     console.error('Error en updateConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -415,7 +415,7 @@ exports.archiveConversation = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -423,7 +423,7 @@ exports.archiveConversation = async (req, res) => {
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -431,13 +431,13 @@ exports.archiveConversation = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Conversación archivada'
+      message: 'Conversación archivada',
     });
   } catch (error) {
     console.error('Error en archiveConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -451,7 +451,7 @@ exports.unarchiveConversation = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -459,7 +459,7 @@ exports.unarchiveConversation = async (req, res) => {
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -467,13 +467,13 @@ exports.unarchiveConversation = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Conversación desarchivada'
+      message: 'Conversación desarchivada',
     });
   } catch (error) {
     console.error('Error en unarchiveConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -487,7 +487,7 @@ exports.deleteConversation = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada'
+        message: 'Conversación no encontrada',
       });
     }
 
@@ -495,7 +495,7 @@ exports.deleteConversation = async (req, res) => {
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación'
+        message: 'No tienes acceso a esta conversación',
       });
     }
 
@@ -503,13 +503,13 @@ exports.deleteConversation = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Conversación eliminada'
+      message: 'Conversación eliminada',
     });
   } catch (error) {
     console.error('Error en deleteConversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -519,7 +519,7 @@ exports.getConversationStats = async (req, res) => {
   try {
     const totalConversations = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false
+      isDeleted: false,
     });
 
     const unreadCount = await Conversation.getUnreadCount(req.user.id);
@@ -533,14 +533,14 @@ exports.getConversationStats = async (req, res) => {
       stats: {
         totalConversations,
         unreadCount,
-        recentConversations
-      }
+        recentConversations,
+      },
     });
   } catch (error) {
     console.error('Error en getConversationStats:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };

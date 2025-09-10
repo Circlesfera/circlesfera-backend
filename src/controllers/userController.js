@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Story = require('../models/Story');
+const Reel = require('../models/Reel');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 
@@ -10,13 +11,17 @@ exports.getUserProfile = async (req, res) => {
     const { username } = req.params;
     const user = await User.findOne({ username })
       .select('-password -email -phone -preferences')
-      .populate('posts', 'caption content createdAt type likes comments')
+      .populate({
+        path: 'posts',
+        match: { isDeleted: false, isArchived: false },
+        select: 'caption content createdAt type likes comments',
+      })
       .populate('savedPosts', 'caption content createdAt');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -25,33 +30,39 @@ exports.getUserProfile = async (req, res) => {
       user: user._id,
       isDeleted: false,
       isPublic: true,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     })
-    .populate('user', 'username avatar fullName')
-    .sort({ createdAt: -1 });
+      .populate('user', 'username avatar fullName')
+      .sort({ createdAt: -1 });
 
     // Calcular estadísticas directamente desde la base de datos
     const postsCount = await Post.countDocuments({
       user: user._id,
       isDeleted: false,
-      isArchived: false
+      isArchived: false,
     });
-    
+
     const storiesCount = stories.length;
+    const reelsCount = await Reel.countDocuments({
+      user: user._id,
+      isDeleted: false,
+    });
+
+
     const followersCount = user.followers.length;
     const followingCount = user.following.length;
-    
+
     // Calcular likes y comentarios totales
     const postsWithStats = await Post.find({
       user: user._id,
       isDeleted: false,
-      isArchived: false
+      isArchived: false,
     }).select('likes comments');
-    
+
     const totalLikes = postsWithStats.reduce((total, post) => {
       return total + (post.likes ? post.likes.length : 0);
     }, 0);
-    
+
     const totalComments = postsWithStats.reduce((total, post) => {
       return total + (post.comments ? post.comments.length : 0);
     }, 0);
@@ -78,18 +89,19 @@ exports.getUserProfile = async (req, res) => {
         stories,
         postsCount,
         storiesCount,
+        reelsCount,
         followersCount,
         followingCount,
         totalLikes,
         totalComments,
-        isFollowing
-      }
+        isFollowing,
+      },
     });
   } catch (error) {
     console.error('Error en getUserProfile:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -106,7 +118,7 @@ exports.getUserPosts = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -119,7 +131,7 @@ exports.getUserPosts = async (req, res) => {
     const total = await Post.countDocuments({
       user: user._id,
       isDeleted: false,
-      isArchived: false
+      isArchived: false,
     });
 
     res.json({
@@ -129,14 +141,14 @@ exports.getUserPosts = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getUserPosts:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -146,11 +158,11 @@ exports.getUserStories = async (req, res) => {
   try {
     const { username } = req.params;
     const user = await User.findOne({ username });
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -160,13 +172,13 @@ exports.getUserStories = async (req, res) => {
 
     res.json({
       success: true,
-      stories
+      stories,
     });
   } catch (error) {
     console.error('Error en getUserStories:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -176,27 +188,27 @@ exports.followUser = async (req, res) => {
   try {
     const { username } = req.params;
     const userToFollow = await User.findOne({ username });
-    
+
     if (!userToFollow) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     if (userToFollow._id.toString() === req.userId) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes seguirte a ti mismo'
+        message: 'No puedes seguirte a ti mismo',
       });
     }
 
     const currentUser = await User.findById(req.userId);
-    
+
     if (currentUser.following.includes(userToFollow._id)) {
       return res.status(400).json({
         success: false,
-        message: 'Ya estás siguiendo a este usuario'
+        message: 'Ya estás siguiendo a este usuario',
       });
     }
 
@@ -213,18 +225,18 @@ exports.followUser = async (req, res) => {
       user: userToFollow._id,
       type: 'follow',
       from: currentUser._id,
-      message: `${currentUser.username} comenzó a seguirte`
+      message: `${currentUser.username} comenzó a seguirte`,
     });
 
     res.json({
       success: true,
-      message: 'Usuario seguido exitosamente'
+      message: 'Usuario seguido exitosamente',
     });
   } catch (error) {
     console.error('Error en followUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -234,44 +246,44 @@ exports.unfollowUser = async (req, res) => {
   try {
     const { username } = req.params;
     const userToUnfollow = await User.findOne({ username });
-    
+
     if (!userToUnfollow) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     const currentUser = await User.findById(req.userId);
-    
+
     if (!currentUser.following.includes(userToUnfollow._id)) {
       return res.status(400).json({
         success: false,
-        message: 'No estás siguiendo a este usuario'
+        message: 'No estás siguiendo a este usuario',
       });
     }
 
     // Remover de following
     currentUser.following = currentUser.following.filter(
-      id => id.toString() !== userToUnfollow._id.toString()
+      id => id.toString() !== userToUnfollow._id.toString(),
     );
     await currentUser.save();
 
     // Remover de followers del usuario
     userToUnfollow.followers = userToUnfollow.followers.filter(
-      id => id.toString() !== currentUser._id.toString()
+      id => id.toString() !== currentUser._id.toString(),
     );
     await userToUnfollow.save();
 
     res.json({
       success: true,
-      message: 'Usuario dejado de seguir exitosamente'
+      message: 'Usuario dejado de seguir exitosamente',
     });
   } catch (error) {
     console.error('Error en unfollowUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -288,13 +300,13 @@ exports.getFollowers = async (req, res) => {
       .populate({
         path: 'followers',
         select: 'username avatar fullName bio',
-        options: { skip, limit }
+        options: { skip, limit },
       });
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -307,14 +319,14 @@ exports.getFollowers = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getFollowers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -331,13 +343,13 @@ exports.getFollowing = async (req, res) => {
       .populate({
         path: 'following',
         select: 'username avatar fullName bio',
-        options: { skip, limit }
+        options: { skip, limit },
       });
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -350,14 +362,14 @@ exports.getFollowing = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en getFollowing:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -373,7 +385,7 @@ exports.searchUsers = async (req, res) => {
     if (!q || q.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'El término de búsqueda debe tener al menos 2 caracteres'
+        message: 'El término de búsqueda debe tener al menos 2 caracteres',
       });
     }
 
@@ -381,9 +393,9 @@ exports.searchUsers = async (req, res) => {
     const total = await User.countDocuments({
       $or: [
         { username: { $regex: q, $options: 'i' } },
-        { fullName: { $regex: q, $options: 'i' } }
+        { fullName: { $regex: q, $options: 'i' } },
       ],
-      isActive: true
+      isActive: true,
     });
 
     res.json({
@@ -393,14 +405,14 @@ exports.searchUsers = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error('Error en searchUsers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -410,27 +422,27 @@ exports.blockUser = async (req, res) => {
   try {
     const { username } = req.params;
     const userToBlock = await User.findOne({ username });
-    
+
     if (!userToBlock) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     if (userToBlock._id.toString() === req.userId) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes bloquearte a ti mismo'
+        message: 'No puedes bloquearte a ti mismo',
       });
     }
 
     const currentUser = await User.findById(req.userId);
-    
+
     if (currentUser.blockedUsers.includes(userToBlock._id)) {
       return res.status(400).json({
         success: false,
-        message: 'Ya tienes bloqueado a este usuario'
+        message: 'Ya tienes bloqueado a este usuario',
       });
     }
 
@@ -439,13 +451,13 @@ exports.blockUser = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Usuario bloqueado exitosamente'
+      message: 'Usuario bloqueado exitosamente',
     });
   } catch (error) {
     console.error('Error en blockUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -455,37 +467,37 @@ exports.unblockUser = async (req, res) => {
   try {
     const { username } = req.params;
     const userToUnblock = await User.findOne({ username });
-    
+
     if (!userToUnblock) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     const currentUser = await User.findById(req.userId);
-    
+
     if (!currentUser.blockedUsers.includes(userToUnblock._id)) {
       return res.status(400).json({
         success: false,
-        message: 'No tienes bloqueado a este usuario'
+        message: 'No tienes bloqueado a este usuario',
       });
     }
 
     currentUser.blockedUsers = currentUser.blockedUsers.filter(
-      id => !id.equals(userToUnblock._id)
+      id => !id.equals(userToUnblock._id),
     );
     await currentUser.save();
 
     res.json({
       success: true,
-      message: 'Usuario desbloqueado exitosamente'
+      message: 'Usuario desbloqueado exitosamente',
     });
   } catch (error) {
     console.error('Error en unblockUser:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -498,13 +510,13 @@ exports.getBlockedUsers = async (req, res) => {
 
     res.json({
       success: true,
-      blockedUsers: currentUser.blockedUsers
+      blockedUsers: currentUser.blockedUsers,
     });
   } catch (error) {
     console.error('Error en getBlockedUsers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -514,27 +526,27 @@ exports.getUserSuggestions = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const currentUser = await User.findById(req.userId);
-    
+
     // Obtener usuarios que no sigue y no están bloqueados
     const suggestions = await User.find({
-      _id: { 
-        $nin: [...currentUser.following, ...currentUser.blockedUsers, currentUser._id] 
+      _id: {
+        $nin: [...currentUser.following, ...currentUser.blockedUsers, currentUser._id],
       },
-      isActive: true
+      isActive: true,
     })
-    .select('username avatar fullName bio followersCount')
-    .sort({ followersCount: -1 })
-    .limit(limit);
+      .select('username avatar fullName bio followersCount')
+      .sort({ followersCount: -1 })
+      .limit(limit);
 
     res.json({
       success: true,
-      suggestions
+      suggestions,
     });
   } catch (error) {
     console.error('Error en getUserSuggestions:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -543,11 +555,11 @@ exports.getUserSuggestions = async (req, res) => {
 exports.getUserSettings = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -558,7 +570,7 @@ exports.getUserSettings = async (req, res) => {
         allowMessages: user.allowMessages || 'all',
         showEmail: user.showEmail || false,
         showPhone: user.showPhone || false,
-        showBirthDate: user.showBirthDate || false
+        showBirthDate: user.showBirthDate || false,
       },
       notifications: {
         likes: user.notifications?.likes ?? true,
@@ -567,24 +579,24 @@ exports.getUserSettings = async (req, res) => {
         mentions: user.notifications?.mentions ?? true,
         messages: user.notifications?.messages ?? true,
         stories: user.notifications?.stories ?? true,
-        posts: user.notifications?.posts ?? true
+        posts: user.notifications?.posts ?? true,
       },
       security: {
         twoFactorEnabled: user.twoFactorEnabled || false,
         loginNotifications: user.loginNotifications ?? true,
-        suspiciousActivityAlerts: user.suspiciousActivityAlerts ?? true
-      }
+        suspiciousActivityAlerts: user.suspiciousActivityAlerts ?? true,
+      },
     };
 
     res.json({
       success: true,
-      settings
+      settings,
     });
   } catch (error) {
     console.error('Error getting user settings:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -593,7 +605,7 @@ exports.getUserSettings = async (req, res) => {
 exports.updatePrivacySettings = async (req, res) => {
   try {
     const { isPrivate, allowMessages, showEmail, showPhone, showBirthDate } = req.body;
-    
+
     const updateData = {};
     if (typeof isPrivate === 'boolean') updateData.isPrivate = isPrivate;
     if (allowMessages) updateData.allowMessages = allowMessages;
@@ -604,25 +616,25 @@ exports.updatePrivacySettings = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.userId,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      message: 'Configuración de privacidad actualizada correctamente'
+      message: 'Configuración de privacidad actualizada correctamente',
     });
   } catch (error) {
     console.error('Error updating privacy settings:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -631,7 +643,7 @@ exports.updatePrivacySettings = async (req, res) => {
 exports.updateNotificationSettings = async (req, res) => {
   try {
     const { likes, comments, follows, mentions, messages, stories, posts } = req.body;
-    
+
     const notificationSettings = {};
     if (typeof likes === 'boolean') notificationSettings.likes = likes;
     if (typeof comments === 'boolean') notificationSettings.comments = comments;
@@ -644,25 +656,25 @@ exports.updateNotificationSettings = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.userId,
       { notifications: notificationSettings },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      message: 'Configuración de notificaciones actualizada correctamente'
+      message: 'Configuración de notificaciones actualizada correctamente',
     });
   } catch (error) {
     console.error('Error updating notification settings:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -671,7 +683,7 @@ exports.updateNotificationSettings = async (req, res) => {
 exports.updateSecuritySettings = async (req, res) => {
   try {
     const { loginNotifications, suspiciousActivityAlerts } = req.body;
-    
+
     const updateData = {};
     if (typeof loginNotifications === 'boolean') updateData.loginNotifications = loginNotifications;
     if (typeof suspiciousActivityAlerts === 'boolean') updateData.suspiciousActivityAlerts = suspiciousActivityAlerts;
@@ -679,25 +691,25 @@ exports.updateSecuritySettings = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.userId,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      message: 'Configuración de seguridad actualizada correctamente'
+      message: 'Configuración de seguridad actualizada correctamente',
     });
   } catch (error) {
     console.error('Error updating security settings:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -706,20 +718,20 @@ exports.updateSecuritySettings = async (req, res) => {
 exports.changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Contraseña actual y nueva contraseña son requeridas'
+        message: 'Contraseña actual y nueva contraseña son requeridas',
       });
     }
 
     const user = await User.findById(req.userId);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -728,7 +740,7 @@ exports.changePassword = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: 'Contraseña actual incorrecta'
+        message: 'Contraseña actual incorrecta',
       });
     }
 
@@ -736,7 +748,7 @@ exports.changePassword = async (req, res) => {
     if (newPassword.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'La nueva contraseña debe tener al menos 8 caracteres'
+        message: 'La nueva contraseña debe tener al menos 8 caracteres',
       });
     }
 
@@ -746,13 +758,13 @@ exports.changePassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Contraseña cambiada correctamente'
+      message: 'Contraseña cambiada correctamente',
     });
   } catch (error) {
     console.error('Error changing password:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -761,36 +773,36 @@ exports.changePassword = async (req, res) => {
 exports.toggleTwoFactor = async (req, res) => {
   try {
     const { enabled } = req.body;
-    
+
     if (typeof enabled !== 'boolean') {
       return res.status(400).json({
         success: false,
-        message: 'El parámetro enabled es requerido'
+        message: 'El parámetro enabled es requerido',
       });
     }
 
     const user = await User.findByIdAndUpdate(
       req.userId,
       { twoFactorEnabled: enabled },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      message: enabled ? '2FA habilitado correctamente' : '2FA deshabilitado correctamente'
+      message: enabled ? '2FA habilitado correctamente' : '2FA deshabilitado correctamente',
     });
   } catch (error) {
     console.error('Error toggling 2FA:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };

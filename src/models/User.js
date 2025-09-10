@@ -8,7 +8,6 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    index: true
   },
   email: {
     type: String,
@@ -16,112 +15,111 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    index: true
   },
   password: {
     type: String,
     required: true,
-    minlength: 6
+    minlength: 6,
   },
   fullName: {
     type: String,
     trim: true,
-    maxlength: 50
+    maxlength: 50,
   },
   bio: {
     type: String,
     trim: true,
-    maxlength: 160
+    maxlength: 160,
   },
   avatar: {
-    type: String
+    type: String,
   },
   website: {
     type: String,
-    trim: true
+    trim: true,
   },
   location: {
     type: String,
     trim: true,
-    maxlength: 100
+    maxlength: 100,
   },
   phone: {
     type: String,
-    trim: true
+    trim: true,
   },
   gender: {
     type: String,
-    enum: ['male', 'female', 'other', 'prefer-not-to-say']
+    enum: ['male', 'female', 'other', 'prefer-not-to-say'],
   },
   birthDate: {
-    type: Date
+    type: Date,
   },
   isPrivate: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isVerified: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: true,
   },
   lastSeen: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   // Configuraciones de privacidad
   allowMessages: {
     type: String,
     enum: ['all', 'followers', 'none'],
-    default: 'all'
+    default: 'all',
   },
   showEmail: {
     type: Boolean,
-    default: false
+    default: false,
   },
   showPhone: {
     type: Boolean,
-    default: false
+    default: false,
   },
   showBirthDate: {
     type: Boolean,
-    default: false
+    default: false,
   },
   // Configuraciones de seguridad
   twoFactorEnabled: {
     type: Boolean,
-    default: false
+    default: false,
   },
   loginNotifications: {
     type: Boolean,
-    default: true
+    default: true,
   },
   suspiciousActivityAlerts: {
     type: Boolean,
-    default: true
+    default: true,
   },
   followers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
   }],
   following: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
   }],
   posts: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Post'
+    ref: 'Post',
   }],
   savedPosts: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Post'
+    ref: 'Post',
   }],
   blockedUsers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
   }],
   preferences: {
     notifications: {
@@ -131,24 +129,24 @@ const UserSchema = new mongoose.Schema({
       mentions: { type: Boolean, default: true },
       messages: { type: Boolean, default: true },
       stories: { type: Boolean, default: true },
-      posts: { type: Boolean, default: true }
+      posts: { type: Boolean, default: true },
     },
     privacy: {
       showEmail: { type: Boolean, default: false },
       showPhone: { type: Boolean, default: false },
-      showBirthDate: { type: Boolean, default: false }
-    }
+      showBirthDate: { type: Boolean, default: false },
+    },
   },
   // Campo para rastrear usernames bloqueados
   blockedUsernames: [{
     type: String,
     lowercase: true,
-    trim: true
-  }]
-}, { 
+    trim: true,
+  }],
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
 });
 
 // Índices para mejorar el rendimiento
@@ -169,7 +167,7 @@ UserSchema.virtual('postsCount').get(function() {
   return this.posts ? this.posts.length : 0;
 });
 
-UserSchema.virtual('isFollowing').get(function() {
+UserSchema.virtual('isFollowing').get(() => {
   return false; // Se calculará dinámicamente
 });
 
@@ -197,7 +195,7 @@ UserSchema.methods.updateLastSeen = function() {
 // Middleware pre-save para encriptar contraseña
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -216,27 +214,27 @@ UserSchema.statics.searchUsers = function(query, limit = 10) {
   return this.find({
     $or: [
       { username: { $regex: query, $options: 'i' } },
-      { fullName: { $regex: query, $options: 'i' } }
+      { fullName: { $regex: query, $options: 'i' } },
     ],
-    isActive: true
+    isActive: true,
   }).limit(limit);
 };
 
 // Método para verificar si un username está disponible (no está en uso ni bloqueado)
 UserSchema.statics.isUsernameAvailable = async function(username) {
   const normalizedUsername = username.toLowerCase().trim();
-  
+
   // Verificar si el username está en uso
   const existingUser = await this.findOne({ username: normalizedUsername });
   if (existingUser) {
     return false;
   }
-  
+
   // Verificar si el username está bloqueado por algún usuario
-  const userWithBlockedUsername = await this.findOne({ 
-    blockedUsernames: normalizedUsername 
+  const userWithBlockedUsername = await this.findOne({
+    blockedUsernames: normalizedUsername,
   });
-  
+
   return !userWithBlockedUsername;
 };
 
@@ -246,7 +244,7 @@ UserSchema.statics.blockUsername = async function(userId, username) {
   return this.findByIdAndUpdate(
     userId,
     { $addToSet: { blockedUsernames: normalizedUsername } },
-    { new: true }
+    { new: true },
   );
 };
 
@@ -256,7 +254,7 @@ UserSchema.statics.unblockUsername = async function(userId, username) {
   return this.findByIdAndUpdate(
     userId,
     { $pull: { blockedUsernames: normalizedUsername } },
-    { new: true }
+    { new: true },
   );
 };
 
