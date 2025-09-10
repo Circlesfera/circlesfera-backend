@@ -3,6 +3,7 @@ const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const socketService = require('../services/socketService');
 
 // Obtener mensajes de una conversación
 exports.getMessages = async (req, res) => {
@@ -122,6 +123,25 @@ exports.sendTextMessage = async (req, res) => {
         },
       });
     }
+
+    // Emitir evento de nuevo mensaje via WebSocket
+    socketService.emitNewMessage(conversationId, {
+      _id: message._id,
+      conversation: conversationId,
+      sender: {
+        _id: req.user.id,
+        username: req.user.username,
+        avatar: req.user.avatar,
+        fullName: req.user.fullName,
+      },
+      type: 'text',
+      content: {
+        text: content.trim(),
+      },
+      replyTo: replyTo || null,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+    });
 
     res.json({
       success: true,

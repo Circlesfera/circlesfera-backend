@@ -2,6 +2,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const socketService = require('../services/socketService');
 
 // Crear una nueva publicación
 exports.createPost = async (req, res) => {

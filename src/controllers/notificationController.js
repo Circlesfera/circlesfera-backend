@@ -2,6 +2,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const mongoose = require('mongoose');
+const socketService = require('../services/socketService');
 
 // Obtener notificaciones del usuario
 exports.getNotifications = async (req, res) => {

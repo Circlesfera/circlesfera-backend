@@ -2,6 +2,7 @@ const Reel = require('../models/Reel');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const socketService = require('../services/socketService');
 
 // Crear un nuevo reel
 exports.createReel = async (req, res) => {

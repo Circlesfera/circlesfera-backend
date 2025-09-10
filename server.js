@@ -4,7 +4,9 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
 const connectDB = require('./src/config/db');
+const socketService = require('./src/services/socketService');
 
 const app = express();
 
@@ -138,6 +140,12 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
+// Crear servidor HTTP
+const server = http.createServer(app);
+
+// Inicializar WebSockets
+socketService.initialize(server);
+
 // Manejo de errores no capturados
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
@@ -149,8 +157,9 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Servidor CircleSfera corriendo en puerto ${PORT}`);
   console.log(`📊 Ambiente: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🔌 WebSockets habilitados en ws://localhost:${PORT}`);
 });
