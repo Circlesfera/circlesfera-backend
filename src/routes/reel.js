@@ -4,10 +4,6 @@ const { auth } = require('../middlewares/auth');
 const { uploadFields } = require('../middlewares/upload');
 const reelController = require('../controllers/reelController');
 
-// Ruta de prueba simple
-router.get('/test', (req, res) => {
-  res.json({ message: 'Reel routes funcionando' });
-});
 
 // Rutas públicas (sin autenticación)
 router.get('/feed', reelController.getReelsForFeed);

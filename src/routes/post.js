@@ -59,66 +59,7 @@ router.get('/trending', getTrendingPosts);
 router.get('/recent', getRecentPosts);
 router.get('/user/:username', getUserPosts);
 
-// Ruta de prueba
-router.post('/test', auth, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Ruta de prueba funcionando',
-    body: req.body,
-  });
-});
 
-// Ruta de prueba para crear post
-router.post('/test-create', auth, async (req, res) => {
-  try {
-    const Post = require('../models/Post');
-    const post = new Post({
-      user: req.userId,
-      type: 'text',
-      caption: 'Test post',
-      content: {
-        text: 'Este es un post de prueba',
-      },
-    });
-
-    await post.save();
-    await post.populate('user', 'username avatar fullName');
-
-    res.json({
-      success: true,
-      message: 'Post de prueba creado',
-      post,
-    });
-  } catch (error) {
-    console.error('Error creating test post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al crear post de prueba',
-      error: error.message,
-    });
-  }
-});
-
-// Ruta para limpiar todos los posts
-router.post('/clear-all-posts', async (req, res) => {
-  try {
-    const Post = require('../models/Post');
-    const result = await Post.deleteMany({});
-
-    res.json({
-      success: true,
-      message: 'Todos los posts eliminados',
-      count: result.deletedCount,
-    });
-  } catch (error) {
-    console.error('Error clearing posts:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al limpiar posts',
-      error: error.message,
-    });
-  }
-});
 
 // Rutas protegidas
 router.get('/feed', auth, getFeed);

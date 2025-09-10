@@ -30,31 +30,6 @@ const searchValidation = [
     .withMessage('El término de búsqueda debe tener al menos 2 caracteres'),
 ];
 
-// Ruta temporal para eliminar todos los usuarios (solo en desarrollo) - DEBE IR PRIMERO
-router.get('/test-route', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Ruta de prueba funcionando',
-  });
-});
-
-router.post('/clear-all-users', async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const result = await User.deleteMany({});
-    res.json({
-      success: true,
-      message: 'Todos los usuarios eliminados',
-      count: result.deletedCount,
-    });
-  } catch (error) {
-    console.error('Error eliminando usuarios:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error eliminando usuarios',
-    });
-  }
-});
 
 // Rutas públicas
 router.get('/profile/:username', getUserProfile);
