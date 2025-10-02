@@ -12,6 +12,7 @@ const {
   checkUsernameAvailability,
 } = require('../controllers/authController');
 const { auth } = require('../middlewares/auth');
+const { uploadFields, handleUploadError } = require('../middlewares/upload');
 
 // Validaciones
 const registerValidation = [
@@ -77,7 +78,7 @@ const updateProfileValidation = [
   body('phone')
     .optional()
     .if(body('phone').notEmpty())
-    .matches(/^\+?[\d\s\-\(\)]+$/)
+    .matches(/^\+?[\d\s\-()]+$/u)
     .withMessage('Por favor ingresa un número de teléfono válido'),
   body('gender')
     .optional()
@@ -112,7 +113,7 @@ router.get('/check-username/:username', checkUsernameAvailability);
 
 // Rutas protegidas
 router.get('/profile', auth, getProfile);
-router.put('/profile', auth, updateProfileValidation, updateProfile);
+router.put('/profile', auth, uploadFields, handleUploadError, updateProfileValidation, updateProfile);
 router.put('/change-password', auth, changePasswordValidation, changePassword);
 router.post('/logout', auth, logout);
 router.post('/refresh-token', auth, refreshToken);

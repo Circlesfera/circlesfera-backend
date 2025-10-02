@@ -1,13 +1,15 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const { config } = require('../utils/config');
+const logger = require('../utils/logger');
 
 // Generar token JWT
 const generateToken = (userId) => {
   return jwt.sign(
     { id: userId },
-    process.env.JWT_SECRET,
-    { expiresIn: '30d' },
+    config.jwtSecret,
+    { expiresIn: config.jwtExpiresIn },
   );
 };
 
@@ -76,11 +78,11 @@ exports.register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en registro:', error);
+    logger.error('Error en registro:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      error: config.isDevelopment ? error.message : undefined,
     });
   }
 };
@@ -145,11 +147,11 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en login:', error);
+    logger.error('Error en login:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      error: config.isDevelopment ? error.message : undefined,
     });
   }
 };
@@ -171,7 +173,7 @@ exports.getProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error obteniendo perfil:', error);
+    logger.error('Error obteniendo perfil:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -209,6 +211,18 @@ exports.updateProfile = async (req, res) => {
         success: false,
         message: 'Usuario no encontrado',
       });
+    }
+
+    // Manejar archivo de avatar si se subió
+    if (req.files && req.files.avatar && req.files.avatar.length > 0) {
+      const avatarFile = req.files.avatar[0];
+      const { config } = require('../utils/config');
+      
+      // Construir la URL del avatar
+      const avatarUrl = `${config.baseUrl}/uploads/${avatarFile.filename}`;
+      user.avatar = avatarUrl;
+      
+      logger.info(`Avatar actualizado para usuario ${user.username}: ${avatarUrl}`);
     }
 
     // Si se está cambiando el username
@@ -252,7 +266,7 @@ exports.updateProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error actualizando perfil:', error);
+    logger.error('Error actualizando perfil:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -301,7 +315,7 @@ exports.changePassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error cambiando contraseña:', error);
+    logger.error('Error cambiando contraseña:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -320,7 +334,7 @@ exports.logout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en logout:', error);
+    logger.error('Error en logout:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -348,7 +362,7 @@ exports.refreshToken = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error refrescando token:', error);
+    logger.error('Error refrescando token:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -377,7 +391,7 @@ exports.checkUsernameAvailability = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error verificando disponibilidad de username:', error);
+    logger.error('Error verificando disponibilidad de username:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
