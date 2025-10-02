@@ -88,6 +88,20 @@ app.use('/api/messages', limiter);
 const requestId = require('./src/middlewares/requestId');
 app.use(requestId);
 
+// Middleware de debugging temporal para identificar el problema con req.query
+app.use((req, res, next) => {
+  // Solo para peticiones OPTIONS que están causando problemas
+  if (req.method === 'OPTIONS' && req.path === '/api/notifications/unread/count') {
+    logger.info('Debugging OPTIONS request:', {
+      method: req.method,
+      path: req.path,
+      query: req.query,
+      headers: req.headers,
+    });
+  }
+  next();
+});
+
 // Sanitización
 const { sanitizeMongo, sanitizeBody } = require('./src/middlewares/sanitize');
 app.use(sanitizeMongo);
@@ -95,7 +109,13 @@ app.use(sanitizeBody);
 
 // Middlewares básicos
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Configuración compatible con Express 5
+app.use(express.urlencoded({ 
+  extended: true,
+  // Prevenir que modifique req.query en Express 5
+  parameterLimit: 1000,
+  limit: '10mb'
+}));
 
 // CORS configurado para permitir el frontend
 app.use(cors({
@@ -108,11 +128,13 @@ app.use(cors({
 
 // Logging HTTP con Morgan solo en desarrollo
 if (config.isDevelopment) {
-  app.use(morgan('dev'));
+  app.use(morgan('dev', {
+    skip: (req, res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
+  }));
 } else {
   // En producción, logging mínimo
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode < 400,
+    skip: (req, res) => res.statusCode < 400 || req.method === 'OPTIONS',
   }));
 }
 
