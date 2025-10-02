@@ -1,25 +1,57 @@
-const mongoSanitize = require('express-mongo-sanitize');
 const logger = require('../utils/logger');
+
+/**
+ * Función para sanitizar objetos recursivamente
+ * Previene NoSQL Injection y XSS básico
+ * Compatible con Express 5
+ */
+const sanitizeObject = (obj, replaceWith = '_') => {
+  if (!obj || typeof obj !== 'object') return obj;
+
+  const sanitized = Array.isArray(obj) ? [] : {};
+  
+  for (const [key, value] of Object.entries(obj)) {
+    // Sanitizar claves que contengan caracteres peligrosos
+    const sanitizedKey = key.replace(/[$]/g, replaceWith);
+    
+    if (typeof value === 'string') {
+      // Sanitizar strings
+      sanitized[sanitizedKey] = value
+        .replace(/[<>]/g, '') // Remover < y >
+        .trim();
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursivamente sanitizar objetos anidados
+      sanitized[sanitizedKey] = sanitizeObject(value, replaceWith);
+    } else {
+      sanitized[sanitizedKey] = value;
+    }
+  }
+  
+  return sanitized;
+};
 
 /**
  * Middleware para sanitizar MongoDB queries
  * Previene NoSQL Injection
- * Compatible con Express 5
+ * Compatible con Express 5 - no modifica req.query
  */
-const sanitizeMongo = mongoSanitize({
-  replaceWith: '_',
-  onSanitize: ({ req, key }) => {
-    logger.warn(`Sanitized potentially malicious key: ${key}`, {
-      ip: req.ip,
-      path: req.path,
-    });
-  },
-  // Configuración específica para Express 5 - no modificar req.query
-  dryRun: false,
-  allowDots: false,
-  // Solo sanitizar body y params, no query
-  sanitizeKeys: ['body', 'params'],
-});
+const sanitizeMongo = (req, res, next) => {
+  try {
+    // Solo sanitizar body y params, no query (que es de solo lectura en Express 5)
+    if (req.body) {
+      req.body = sanitizeObject(req.body);
+    }
+    
+    if (req.params) {
+      req.params = sanitizeObject(req.params);
+    }
+    
+    next();
+  } catch (error) {
+    logger.error('Error en sanitización:', error);
+    next();
+  }
+};
 
 /**
  * Sanitizar strings de caracteres peligrosos
@@ -31,27 +63,6 @@ const sanitizeString = (str) => {
   return str
     .replace(/[<>]/g, '') // Remover < y >
     .trim();
-};
-
-/**
- * Sanitizar objeto recursivamente
- */
-const sanitizeObject = (obj) => {
-  if (!obj || typeof obj !== 'object') return obj;
-
-  const sanitized = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
-      sanitized[key] = sanitizeString(value);
-    } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeObject(value);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-
-  return sanitized;
 };
 
 /**

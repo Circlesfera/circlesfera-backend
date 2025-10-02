@@ -88,21 +88,8 @@ app.use('/api/messages', limiter);
 const requestId = require('./src/middlewares/requestId');
 app.use(requestId);
 
-// Middleware de debugging temporal para identificar el problema con req.query
-app.use((req, res, next) => {
-  // Solo para peticiones OPTIONS que están causando problemas
-  if (req.method === 'OPTIONS' && req.path === '/api/notifications/unread/count') {
-    logger.info('Debugging OPTIONS request:', {
-      method: req.method,
-      path: req.path,
-      query: req.query,
-      headers: req.headers,
-    });
-  }
-  next();
-});
 
-// Sanitización
+// Sanitización - Compatible con Express 5
 const { sanitizeMongo, sanitizeBody } = require('./src/middlewares/sanitize');
 app.use(sanitizeMongo);
 app.use(sanitizeBody);
@@ -126,7 +113,7 @@ app.use(cors({
   exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges'],
 }));
 
-// Logging HTTP con Morgan solo en desarrollo
+// Logging HTTP con Morgan
 if (config.isDevelopment) {
   app.use(morgan('dev', {
     skip: (req, res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
