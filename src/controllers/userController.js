@@ -3,7 +3,8 @@ const Post = require('../models/Post');
 const Story = require('../models/Story');
 const Reel = require('../models/Reel');
 const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
+const { config } = require('../utils/config');
+const logger = require('../utils/logger');
 
 // Obtener perfil de usuario público
 exports.getUserProfile = async (req, res) => {
@@ -76,7 +77,7 @@ exports.getUserProfile = async (req, res) => {
           isFollowing = currentUser.following.includes(user._id);
         }
       } catch (error) {
-        console.error('Error checking follow status:', error);
+        logger.error('Error checking follow status:', error);
         // Si hay error, asumir que no está siguiendo
         isFollowing = false;
       }
@@ -98,7 +99,7 @@ exports.getUserProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getUserProfile:', error);
+    logger.error('Error en getUserProfile:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -111,7 +112,7 @@ exports.getUserPosts = async (req, res) => {
   try {
     const { username } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = config.getPaginationLimit(req.query.limit);
     const skip = (page - 1) * limit;
 
     const user = await User.findOne({ username });
@@ -145,7 +146,7 @@ exports.getUserPosts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getUserPosts:', error);
+    logger.error('Error en getUserPosts:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -175,7 +176,7 @@ exports.getUserStories = async (req, res) => {
       stories,
     });
   } catch (error) {
-    console.error('Error en getUserStories:', error);
+    logger.error('Error en getUserStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -186,8 +187,8 @@ exports.getUserStories = async (req, res) => {
 // Seguir a un usuario
 exports.followUser = async (req, res) => {
   try {
-    const { username } = req.params;
-    const userToFollow = await User.findOne({ username });
+    const { userId } = req.params;
+    const userToFollow = await User.findById(userId);
 
     if (!userToFollow) {
       return res.status(404).json({
@@ -233,7 +234,7 @@ exports.followUser = async (req, res) => {
       message: 'Usuario seguido exitosamente',
     });
   } catch (error) {
-    console.error('Error en followUser:', error);
+    logger.error('Error en followUser:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -244,8 +245,8 @@ exports.followUser = async (req, res) => {
 // Dejar de seguir a un usuario
 exports.unfollowUser = async (req, res) => {
   try {
-    const { username } = req.params;
-    const userToUnfollow = await User.findOne({ username });
+    const { userId } = req.params;
+    const userToUnfollow = await User.findById(userId);
 
     if (!userToUnfollow) {
       return res.status(404).json({
@@ -280,7 +281,7 @@ exports.unfollowUser = async (req, res) => {
       message: 'Usuario dejado de seguir exitosamente',
     });
   } catch (error) {
-    console.error('Error en unfollowUser:', error);
+    logger.error('Error en unfollowUser:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -323,7 +324,7 @@ exports.getFollowers = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getFollowers:', error);
+    logger.error('Error en getFollowers:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -366,7 +367,7 @@ exports.getFollowing = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getFollowing:', error);
+    logger.error('Error en getFollowing:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -379,24 +380,32 @@ exports.searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const limit = config.getPaginationLimit(req.query.limit || 20);
 
-    if (!q || q.trim().length < 2) {
+    if (!q || q.trim().length < config.minSearchLength) {
       return res.status(400).json({
         success: false,
-        message: 'El término de búsqueda debe tener al menos 2 caracteres',
+        message: `El término de búsqueda debe tener al menos ${config.minSearchLength} caracteres`,
       });
     }
 
-    const users = await User.searchUsers(q, { skip, limit });
-    const total = await User.countDocuments({
+    // Query optimizada con lean() y select
+    const query = {
       $or: [
         { username: { $regex: q, $options: 'i' } },
         { fullName: { $regex: q, $options: 'i' } },
       ],
       isActive: true,
-    });
+    };
+
+    const [users, total] = await Promise.all([
+      User.find(query)
+        .select('username avatar fullName bio isVerified')
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(query),
+    ]);
 
     res.json({
       success: true,
@@ -409,7 +418,7 @@ exports.searchUsers = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en searchUsers:', error);
+    logger.error('Error en searchUsers:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -420,8 +429,8 @@ exports.searchUsers = async (req, res) => {
 // Bloquear usuario
 exports.blockUser = async (req, res) => {
   try {
-    const { username } = req.params;
-    const userToBlock = await User.findOne({ username });
+    const { userId } = req.params;
+    const userToBlock = await User.findById(userId);
 
     if (!userToBlock) {
       return res.status(404).json({
@@ -454,7 +463,7 @@ exports.blockUser = async (req, res) => {
       message: 'Usuario bloqueado exitosamente',
     });
   } catch (error) {
-    console.error('Error en blockUser:', error);
+    logger.error('Error en blockUser:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -465,8 +474,8 @@ exports.blockUser = async (req, res) => {
 // Desbloquear usuario
 exports.unblockUser = async (req, res) => {
   try {
-    const { username } = req.params;
-    const userToUnblock = await User.findOne({ username });
+    const { userId } = req.params;
+    const userToUnblock = await User.findById(userId);
 
     if (!userToUnblock) {
       return res.status(404).json({
@@ -494,7 +503,7 @@ exports.unblockUser = async (req, res) => {
       message: 'Usuario desbloqueado exitosamente',
     });
   } catch (error) {
-    console.error('Error en unblockUser:', error);
+    logger.error('Error en unblockUser:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -513,7 +522,7 @@ exports.getBlockedUsers = async (req, res) => {
       blockedUsers: currentUser.blockedUsers,
     });
   } catch (error) {
-    console.error('Error en getBlockedUsers:', error);
+    logger.error('Error en getBlockedUsers:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -524,26 +533,40 @@ exports.getBlockedUsers = async (req, res) => {
 // Obtener sugerencias de usuarios
 exports.getUserSuggestions = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    const currentUser = await User.findById(req.userId);
+    const limit = config.getPaginationLimit(req.query.limit || 10);
+    const currentUser = await User.findById(req.userId)
+      .select('following blockedUsers')
+      .lean();
 
-    // Obtener usuarios que no sigue y no están bloqueados
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    // Query optimizada con lean() para mejor rendimiento
     const suggestions = await User.find({
       _id: {
-        $nin: [...currentUser.following, ...currentUser.blockedUsers, currentUser._id],
+        $nin: [
+          ...(currentUser.following || []),
+          ...(currentUser.blockedUsers || []),
+          currentUser._id,
+        ],
       },
       isActive: true,
     })
-      .select('username avatar fullName bio followersCount')
-      .sort({ followersCount: -1 })
-      .limit(limit);
+      .select('username avatar fullName bio')
+      .sort({ 'followers.length': -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
 
     res.json({
       success: true,
       suggestions,
     });
   } catch (error) {
-    console.error('Error en getUserSuggestions:', error);
+    logger.error('Error en getUserSuggestions:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -593,7 +616,7 @@ exports.getUserSettings = async (req, res) => {
       settings,
     });
   } catch (error) {
-    console.error('Error getting user settings:', error);
+    logger.error('Error getting user settings:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -631,7 +654,7 @@ exports.updatePrivacySettings = async (req, res) => {
       message: 'Configuración de privacidad actualizada correctamente',
     });
   } catch (error) {
-    console.error('Error updating privacy settings:', error);
+    logger.error('Error updating privacy settings:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -671,7 +694,7 @@ exports.updateNotificationSettings = async (req, res) => {
       message: 'Configuración de notificaciones actualizada correctamente',
     });
   } catch (error) {
-    console.error('Error updating notification settings:', error);
+    logger.error('Error updating notification settings:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -706,7 +729,7 @@ exports.updateSecuritySettings = async (req, res) => {
       message: 'Configuración de seguridad actualizada correctamente',
     });
   } catch (error) {
-    console.error('Error updating security settings:', error);
+    logger.error('Error updating security settings:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -761,7 +784,7 @@ exports.changePassword = async (req, res) => {
       message: 'Contraseña cambiada correctamente',
     });
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error('Error changing password:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -799,7 +822,7 @@ exports.toggleTwoFactor = async (req, res) => {
       message: enabled ? '2FA habilitado correctamente' : '2FA deshabilitado correctamente',
     });
   } catch (error) {
-    console.error('Error toggling 2FA:', error);
+    logger.error('Error toggling 2FA:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

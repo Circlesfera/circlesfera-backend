@@ -2,11 +2,12 @@ const Story = require('../models/Story');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 
 // Crear una nueva historia
 exports.createStory = async (req, res) => {
   try {
-    console.log('📝 createStory llamado con:', {
+    logger.info('📝 createStory llamado con:', {
       userId: req.userId,
       body: req.body,
       headers: req.headers,
@@ -29,7 +30,7 @@ exports.createStory = async (req, res) => {
       caption: caption || '',
     };
 
-    console.log('📝 Story data a crear:', storyData);
+    logger.info('📝 Story data a crear:', storyData);
 
     // Agregar ubicación si se proporciona
     if (location) {
@@ -49,7 +50,7 @@ exports.createStory = async (req, res) => {
         });
       }
 
-      console.log('Creating image story with:', {
+      logger.info('Creating image story with:', {
         filename: req.files.image[0].filename,
         baseUrl,
         fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`,
@@ -73,7 +74,7 @@ exports.createStory = async (req, res) => {
         });
       }
 
-      console.log('Creating video story with:', {
+      logger.info('Creating video story with:', {
         filename: req.files.video[0].filename,
         baseUrl,
         fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`,
@@ -90,7 +91,7 @@ exports.createStory = async (req, res) => {
       };
       break;
 
-    case 'text':
+    case 'text': {
       if (!textContent) {
         return res.status(400).json({
           success: false,
@@ -104,7 +105,7 @@ exports.createStory = async (req, res) => {
         try {
           parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle;
         } catch (error) {
-          console.error('Error parsing textStyle:', error);
+          logger.error('Error parsing textStyle:', error);
           parsedTextStyle = {};
         }
       }
@@ -119,6 +120,7 @@ exports.createStory = async (req, res) => {
         },
       };
       break;
+    }
 
     default:
       return res.status(400).json({
@@ -137,7 +139,7 @@ exports.createStory = async (req, res) => {
         { $push: { stories: story._id } },
       );
     } catch (error) {
-      console.log('No se pudo actualizar el array de stories del usuario:', error.message);
+      logger.info('No se pudo actualizar el array de stories del usuario:', error.message);
     }
 
     // Populate user data for response
@@ -149,7 +151,7 @@ exports.createStory = async (req, res) => {
       story,
     });
   } catch (error) {
-    console.error('Error en createStory:', error);
+    logger.error('Error en createStory:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -175,7 +177,7 @@ exports.getStoriesForFeed = async (req, res) => {
       stories,
     });
   } catch (error) {
-    console.error('Error en getStoriesForFeed:', error);
+    logger.error('Error en getStoriesForFeed:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -205,7 +207,7 @@ exports.getUserStories = async (req, res) => {
       stories,
     });
   } catch (error) {
-    console.error('Error en getUserStories:', error);
+    logger.error('Error en getUserStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -251,7 +253,7 @@ exports.getStory = async (req, res) => {
       story,
     });
   } catch (error) {
-    console.error('Error en getStory:', error);
+    logger.error('Error en getStory:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -287,7 +289,7 @@ exports.addReaction = async (req, res) => {
       reactionsCount: story.reactions.length,
     });
   } catch (error) {
-    console.error('Error en addReaction:', error);
+    logger.error('Error en addReaction:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -315,7 +317,7 @@ exports.removeReaction = async (req, res) => {
       reactionsCount: story.reactions.length,
     });
   } catch (error) {
-    console.error('Error en removeReaction:', error);
+    logger.error('Error en removeReaction:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -371,7 +373,7 @@ exports.addReply = async (req, res) => {
       repliesCount: story.replies.length,
     });
   } catch (error) {
-    console.error('Error en addReply:', error);
+    logger.error('Error en addReply:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -382,7 +384,7 @@ exports.addReply = async (req, res) => {
 // Eliminar una historia
 exports.deleteStory = async (req, res) => {
   try {
-    console.log('🗑️ deleteStory llamado con:', {
+    logger.info('🗑️ deleteStory llamado con:', {
       storyId: req.params.id,
       userId: req.userId,
       headers: req.headers,
@@ -391,14 +393,14 @@ exports.deleteStory = async (req, res) => {
     const story = await Story.findById(req.params.id);
 
     if (!story) {
-      console.log('❌ Story no encontrada:', req.params.id);
+      logger.info('❌ Story no encontrada:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Historia no encontrada',
       });
     }
 
-    console.log('📖 Story encontrada:', {
+    logger.info('📖 Story encontrada:', {
       storyId: story._id,
       storyUserId: story.user,
       requestUserId: req.userId,
@@ -412,7 +414,7 @@ exports.deleteStory = async (req, res) => {
     const requestUserId = req.userId.toString();
 
     if (storyUserId !== requestUserId) {
-      console.log('❌ Permisos insuficientes:', {
+      logger.info('❌ Permisos insuficientes:', {
         storyUser: storyUserId,
         requestUser: requestUserId,
         match: storyUserId === requestUserId,
@@ -423,25 +425,25 @@ exports.deleteStory = async (req, res) => {
       });
     }
 
-    console.log('✅ Permisos verificados correctamente:', {
+    logger.info('✅ Permisos verificados correctamente:', {
       storyUser: storyUserId,
       requestUser: requestUserId,
       match: storyUserId === requestUserId,
     });
 
-    console.log('🗑️ Antes de softDelete - Story ID:', story._id);
-    console.log('🗑️ Antes de softDelete - isDeleted:', story.isDeleted);
+    logger.info('🗑️ Antes de softDelete - Story ID:', story._id);
+    logger.info('🗑️ Antes de softDelete - isDeleted:', story.isDeleted);
 
     // Ejecutar softDelete
     const result = await story.softDelete();
 
-    console.log('🗑️ Después de softDelete - Resultado:', result);
-    console.log('🗑️ Después de softDelete - isDeleted:', result.isDeleted);
-    console.log('🗑️ Después de softDelete - Story guardada:', result._id);
+    logger.info('🗑️ Después de softDelete - Resultado:', result);
+    logger.info('🗑️ Después de softDelete - isDeleted:', result.isDeleted);
+    logger.info('🗑️ Después de softDelete - Story guardada:', result._id);
 
     // Verificar directamente en la base de datos si se guardó
     const storyFromDB = await Story.findById(story._id);
-    console.log('🗑️ Verificación directa en BD:', {
+    logger.info('🗑️ Verificación directa en BD:', {
       id: storyFromDB._id,
       isDeleted: storyFromDB.isDeleted,
       updatedAt: storyFromDB.updatedAt,
@@ -452,7 +454,7 @@ exports.deleteStory = async (req, res) => {
       message: 'Historia eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Error en deleteStory:', error);
+    logger.error('Error en deleteStory:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -471,7 +473,7 @@ exports.cleanupExpiredStories = async (req, res) => {
       result,
     });
   } catch (error) {
-    console.error('Error en cleanupExpiredStories:', error);
+    logger.error('Error en cleanupExpiredStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -484,8 +486,16 @@ exports.getUsersWithStories = async (req, res) => {
   try {
     const userId = req.userId;
 
+    // Validar que el userId existe
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado',
+      });
+    }
+
     // Obtener el usuario actual para incluir sus stories
-    const currentUser = await User.findById(userId);
+    const currentUser = await User.findById(userId).select('following').lean();
     if (!currentUser) {
       return res.status(404).json({
         success: false,
@@ -504,25 +514,21 @@ exports.getUsersWithStories = async (req, res) => {
       user: { $in: [userId, ...following] },
     };
 
-    console.log('🔍 Query para buscar stories:', JSON.stringify(query, null, 2));
-    console.log('🔍 Usuario actual ID:', userId);
-    console.log('🔍 Usuarios seguidos:', following);
+    // Logging optimizado - solo en desarrollo y con menos detalle
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('🔍 Query para buscar stories:', JSON.stringify(query, null, 2));
+      logger.debug('🔍 Usuario actual ID:', userId);
+      logger.debug('🔍 Usuarios seguidos:', following);
+    }
 
     const activeStories = await Story.find(query)
       .populate('user', 'username avatar fullName')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean(); // Usar lean() para mejor rendimiento
 
-    console.log('📊 Stories encontradas:', activeStories.length);
-    activeStories.forEach((story, index) => {
-      console.log(`📖 Story ${index + 1}:`, {
-        id: story._id,
-        user: story.user.username,
-        isDeleted: story.isDeleted,
-        isPublic: story.isPublic,
-        expiresAt: story.expiresAt,
-        createdAt: story.createdAt,
-      });
-    });
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('📊 Stories encontradas:', activeStories.length);
+    }
 
     // Agrupar stories por usuario
     const usersMap = new Map();
@@ -551,7 +557,7 @@ exports.getUsersWithStories = async (req, res) => {
       users: usersWithStories,
     });
   } catch (error) {
-    console.error('Error en getUsersWithStories:', error);
+    logger.error('Error en getUsersWithStories:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

@@ -40,10 +40,10 @@ router.get('/:username/following', getFollowing);
 router.get('/search', searchValidation, searchUsers);
 
 // Rutas protegidas
-router.post('/:username/follow', auth, followUser);
-router.delete('/:username/follow', auth, unfollowUser);
-router.post('/:username/block', auth, blockUser);
-router.delete('/:username/block', auth, unblockUser);
+router.post('/:userId/follow', auth, followUser);
+router.delete('/:userId/follow', auth, unfollowUser);
+router.post('/:userId/block', auth, blockUser);
+router.delete('/:userId/block', auth, unblockUser);
 router.get('/blocked/list', auth, getBlockedUsers);
 router.get('/suggestions', auth, getUserSuggestions);
 
