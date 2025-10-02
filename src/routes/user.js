@@ -35,8 +35,8 @@ const searchValidation = [
 router.get('/profile/:username', getUserProfile);
 router.get('/:username/posts', getUserPosts);
 router.get('/:username/stories', getUserStories);
-router.get('/:username/followers', getFollowers);
-router.get('/:username/following', getFollowing);
+router.get('/:userId/followers', getFollowers);
+router.get('/:userId/following', getFollowing);
 router.get('/search', searchValidation, searchUsers);
 
 // Rutas protegidas

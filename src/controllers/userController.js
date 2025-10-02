@@ -292,12 +292,12 @@ exports.unfollowUser = async (req, res) => {
 // Obtener seguidores de un usuario
 exports.getFollowers = async (req, res) => {
   try {
-    const { username } = req.params;
+    const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const user = await User.findOne({ username })
+    const user = await User.findById(userId)
       .populate({
         path: 'followers',
         select: 'username avatar fullName bio',
@@ -335,12 +335,12 @@ exports.getFollowers = async (req, res) => {
 // Obtener usuarios que sigue
 exports.getFollowing = async (req, res) => {
   try {
-    const { username } = req.params;
+    const { userId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const user = await User.findOne({ username })
+    const user = await User.findById(userId)
       .populate({
         path: 'following',
         select: 'username avatar fullName bio',
