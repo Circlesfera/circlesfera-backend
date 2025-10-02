@@ -216,10 +216,10 @@ exports.updateProfile = async (req, res) => {
     // Manejar archivo de avatar si se subió
     if (req.files && req.files.avatar && req.files.avatar.length > 0) {
       const avatarFile = req.files.avatar[0];
-      const { config } = require('../utils/config');
       
-      // Construir la URL del avatar
-      const avatarUrl = `${config.baseUrl}/uploads/${avatarFile.filename}`;
+      // Construir la URL del avatar usando la misma lógica que otros controladores
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const avatarUrl = `${baseUrl}/uploads/${avatarFile.filename}`;
       user.avatar = avatarUrl;
       
       logger.info(`Avatar actualizado para usuario ${user.username}: ${avatarUrl}`);
