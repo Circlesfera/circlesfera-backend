@@ -313,9 +313,20 @@ exports.getFollowers = async (req, res) => {
 
     const total = user.followers.length;
 
+    // Añadir información de si el usuario actual está siguiendo a cada seguidor
+    const followersWithStatus = user.followers.map(follower => {
+      const userObj = follower.toObject();
+      // Si hay un usuario autenticado, verificar si está siguiendo
+      if (req.userId) {
+        // Verificar si el usuario actual está siguiendo a este seguidor
+        userObj.isFollowing = req.userId && user.following && user.following.includes(follower._id);
+      }
+      return userObj;
+    });
+
     res.json({
       success: true,
-      followers: user.followers,
+      followers: followersWithStatus,
       pagination: {
         page,
         limit,
@@ -356,9 +367,19 @@ exports.getFollowing = async (req, res) => {
 
     const total = user.following.length;
 
+    // Añadir información de si el usuario actual está siguiendo a cada usuario
+    const followingWithStatus = user.following.map(followedUser => {
+      const userObj = followedUser.toObject();
+      // Si hay un usuario autenticado, verificar si está siguiendo
+      if (req.userId) {
+        userObj.isFollowing = true; // En getFollowing, todos los usuarios ya están siendo seguidos
+      }
+      return userObj;
+    });
+
     res.json({
       success: true,
-      following: user.following,
+      following: followingWithStatus,
       pagination: {
         page,
         limit,
