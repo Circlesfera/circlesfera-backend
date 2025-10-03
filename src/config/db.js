@@ -2,8 +2,12 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    // Usar MongoDB Atlas por defecto según las preferencias del usuario
-    const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb+srv://username:password@cluster.mongodb.net/circlesfera?retryWrites=true&w=majority';
+    // Verificar que la URI de MongoDB esté configurada
+    const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
+    
+    if (!mongoURI) {
+      throw new Error('MONGODB_URI no está configurada en las variables de entorno');
+    }
 
     console.log('🔗 Intentando conectar a MongoDB...');
     console.log(`📊 URI: ${mongoURI}`);
