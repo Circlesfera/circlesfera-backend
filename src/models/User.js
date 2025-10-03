@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { config } = require('../utils/config');
 
 const UserSchema = new mongoose.Schema({
   username: {
@@ -172,6 +173,25 @@ UserSchema.virtual('isFollowing').get(() => {
 });
 
 // Métodos de instancia
+// Middleware pre-save para validar auto-acciones
+UserSchema.pre('save', function(next) {
+  // Validar que no se siga a sí mismo
+  if (this.following && this.following.includes(this._id)) {
+    const error = new Error('Un usuario no puede seguirse a sí mismo');
+    error.name = 'ValidationError';
+    return next(error);
+  }
+  
+  // Validar que no se bloquee a sí mismo
+  if (this.blockedUsers && this.blockedUsers.includes(this._id)) {
+    const error = new Error('Un usuario no puede bloquearse a sí mismo');
+    error.name = 'ValidationError';
+    return next(error);
+  }
+  
+  next();
+});
+
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
@@ -197,7 +217,7 @@ UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
 
   try {
-    const salt = await bcrypt.genSalt(12);
+    const salt = await bcrypt.genSalt(config.bcryptSaltRounds);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {

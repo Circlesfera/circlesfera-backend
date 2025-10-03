@@ -255,6 +255,13 @@ exports.unfollowUser = async (req, res) => {
       });
     }
 
+    if (userToUnfollow._id.toString() === req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes dejar de seguirte a ti mismo',
+      });
+    }
+
     const currentUser = await User.findById(req.userId);
 
     if (!currentUser.following.includes(userToUnfollow._id)) {
@@ -502,6 +509,13 @@ exports.unblockUser = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado',
+      });
+    }
+
+    if (userToUnblock._id.toString() === req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes desbloquearte a ti mismo',
       });
     }
 
