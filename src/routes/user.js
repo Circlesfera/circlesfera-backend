@@ -25,7 +25,7 @@ const {
   restrictUser,
   unrestrictUser,
 } = require('../controllers/userController');
-const { auth } = require('../middlewares/auth');
+const { auth, optionalAuth } = require('../middlewares/auth');
 
 // Validaciones
 const searchValidation = [
@@ -36,12 +36,14 @@ const searchValidation = [
 
 
 // Rutas públicas
-router.get('/profile/:username', getUserProfile);
 router.get('/:username/posts', getUserPosts);
 router.get('/:username/stories', getUserStories);
-router.get('/:userId/followers', getFollowers);
-router.get('/:userId/following', getFollowing);
 router.get('/search', searchValidation, searchUsers);
+
+// Rutas que pueden ser públicas o privadas (con autenticación opcional)
+router.get('/profile/:username', optionalAuth, getUserProfile);
+router.get('/:userId/followers', optionalAuth, getFollowers);
+router.get('/:userId/following', optionalAuth, getFollowing);
 
 // Rutas protegidas
 router.post('/:userId/follow', auth, followUser);

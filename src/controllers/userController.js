@@ -92,20 +92,35 @@ exports.getUserProfile = async (req, res) => {
       }
     }
 
+    const responseData = {
+      ...user.toObject(),
+      stories,
+      postsCount,
+      storiesCount,
+      reelsCount,
+      followersCount,
+      followingCount,
+      totalLikes,
+      totalComments,
+      isFollowing,
+    };
+
+    logger.info('getUserProfile response:', {
+      username: user.username,
+      userId: user._id.toString(),
+      isFollowing,
+      reqUserId: req.userId,
+      responseData: {
+        ...responseData,
+        followers: responseData.followers?.length || 0,
+        following: responseData.following?.length || 0,
+        posts: responseData.posts?.length || 0
+      }
+    });
+
     res.json({
       success: true,
-      user: {
-        ...user.toObject(),
-        stories,
-        postsCount,
-        storiesCount,
-        reelsCount,
-        followersCount,
-        followingCount,
-        totalLikes,
-        totalComments,
-        isFollowing,
-      },
+      user: responseData,
     });
   } catch (error) {
     logger.error('Error en getUserProfile:', error);

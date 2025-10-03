@@ -1,15 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { config } = require('../utils/config');
+const logger = require('../utils/logger');
 
 const auth = async (req, res, next) => {
   try {
-    // Log solo para requests específicos para evitar spam
-    const shouldLog = process.env.NODE_ENV === 'development' &&
-                     (req.path.includes('/posts') || req.path.includes('/users') || req.path.includes('/stories'));
-
-    if (shouldLog) {
-      console.log('🔐 Auth middleware - Ruta:', req.path, 'Método:', req.method);
-    }
 
     // Obtener token del header
     const authHeader = req.header('Authorization');
@@ -39,7 +34,7 @@ const auth = async (req, res, next) => {
     }
 
     // Verificar JWT
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, config.jwtSecret);
 
     if (!decoded || !decoded.id) {
       return res.status(401).json({
@@ -69,19 +64,19 @@ const auth = async (req, res, next) => {
     req.user = user;
     req.userId = user._id;
 
-    // Solo log en desarrollo y limitado para evitar spam
-    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
-      console.log('Auth middleware - Usuario autenticado:', user.username, 'ID:', user._id);
-    }
-
-    // Log específico para stories para debugging
-    if (process.env.NODE_ENV === 'development' && req.path.includes('/stories')) {
-      console.log('🔐 Auth middleware - Stories - Usuario:', user.username, 'ID:', user._id);
+    if (config.isDevelopment) {
+      logger.info('Auth middleware - Usuario autenticado:', {
+        userId: user._id.toString(),
+        username: user.username,
+        email: user.email
+      });
     }
 
     next();
   } catch (error) {
-    console.error('Error en middleware de autenticación:', error);
+    if (config.isDevelopment) {
+      logger.debug('Error en middleware de autenticación:', error.message);
+    }
 
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
@@ -122,7 +117,7 @@ const optionalAuth = async (req, res, next) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, config.jwtSecret);
 
     if (decoded && decoded.id) {
       const user = await User.findById(decoded.id).select('-password');
