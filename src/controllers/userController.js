@@ -318,18 +318,20 @@ exports.getFollowers = async (req, res) => {
       });
     }
 
-    const total = user.followers.length;
+    // Filtrar para excluir al propio usuario y añadir información de seguimiento
+    const followersWithStatus = user.followers
+      .filter(follower => follower._id.toString() !== userId) // Excluir al propio usuario
+      .map(follower => {
+        const userObj = follower.toObject();
+        // Si hay un usuario autenticado, verificar si está siguiendo
+        if (req.userId) {
+          // Verificar si el usuario actual está siguiendo a este seguidor
+          userObj.isFollowing = req.userId && user.following && user.following.includes(follower._id);
+        }
+        return userObj;
+      });
 
-    // Añadir información de si el usuario actual está siguiendo a cada seguidor
-    const followersWithStatus = user.followers.map(follower => {
-      const userObj = follower.toObject();
-      // Si hay un usuario autenticado, verificar si está siguiendo
-      if (req.userId) {
-        // Verificar si el usuario actual está siguiendo a este seguidor
-        userObj.isFollowing = req.userId && user.following && user.following.includes(follower._id);
-      }
-      return userObj;
-    });
+    const total = followersWithStatus.length; // Total después de filtrar
 
     res.json({
       success: true,
@@ -372,17 +374,19 @@ exports.getFollowing = async (req, res) => {
       });
     }
 
-    const total = user.following.length;
+    // Filtrar para excluir al propio usuario y añadir información de seguimiento
+    const followingWithStatus = user.following
+      .filter(followedUser => followedUser._id.toString() !== userId) // Excluir al propio usuario
+      .map(followedUser => {
+        const userObj = followedUser.toObject();
+        // Si hay un usuario autenticado, verificar si está siguiendo
+        if (req.userId) {
+          userObj.isFollowing = true; // En getFollowing, todos los usuarios ya están siendo seguidos
+        }
+        return userObj;
+      });
 
-    // Añadir información de si el usuario actual está siguiendo a cada usuario
-    const followingWithStatus = user.following.map(followedUser => {
-      const userObj = followedUser.toObject();
-      // Si hay un usuario autenticado, verificar si está siguiendo
-      if (req.userId) {
-        userObj.isFollowing = true; // En getFollowing, todos los usuarios ya están siendo seguidos
-      }
-      return userObj;
-    });
+    const total = followingWithStatus.length; // Total después de filtrar
 
     res.json({
       success: true,
