@@ -74,7 +74,16 @@ exports.getUserProfile = async (req, res) => {
       try {
         const currentUser = await User.findById(req.userId);
         if (currentUser) {
-          isFollowing = currentUser.following.includes(user._id);
+          // Convertir ambos a string para comparación correcta
+          const profileUserIdStr = user._id.toString();
+          isFollowing = currentUser.following.some(followingId => followingId.toString() === profileUserIdStr);
+          
+          logger.info('Follow status check:', {
+            currentUserId: req.userId,
+            profileUserId: profileUserIdStr,
+            isFollowing,
+            currentUserFollowing: currentUser.following.map(id => id.toString())
+          });
         }
       } catch (error) {
         logger.error('Error checking follow status:', error);
@@ -206,7 +215,11 @@ exports.followUser = async (req, res) => {
 
     const currentUser = await User.findById(req.userId);
 
-    if (currentUser.following.includes(userToFollow._id)) {
+    // Verificar si ya está siguiendo usando comparación de strings
+    const userToFollowIdStr = userToFollow._id.toString();
+    const isAlreadyFollowing = currentUser.following.some(followingId => followingId.toString() === userToFollowIdStr);
+    
+    if (isAlreadyFollowing) {
       return res.status(400).json({
         success: false,
         message: 'Ya estás siguiendo a este usuario',
@@ -264,7 +277,11 @@ exports.unfollowUser = async (req, res) => {
 
     const currentUser = await User.findById(req.userId);
 
-    if (!currentUser.following.includes(userToUnfollow._id)) {
+    // Verificar si está siguiendo usando comparación de strings
+    const userToUnfollowIdStr = userToUnfollow._id.toString();
+    const isCurrentlyFollowing = currentUser.following.some(followingId => followingId.toString() === userToUnfollowIdStr);
+    
+    if (!isCurrentlyFollowing) {
       return res.status(400).json({
         success: false,
         message: 'No estás siguiendo a este usuario',
