@@ -868,3 +868,177 @@ exports.toggleTwoFactor = async (req, res) => {
     });
   }
 };
+
+// Silenciar a un usuario
+exports.muteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userToMute = await User.findById(userId);
+
+    if (!userToMute) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (userToMute._id.toString() === req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes silenciarte a ti mismo',
+      });
+    }
+
+    const currentUser = await User.findById(req.userId);
+
+    if (currentUser.mutedUsers.includes(userToMute._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya tienes silenciado a este usuario',
+      });
+    }
+
+    // Agregar a usuarios silenciados
+    currentUser.mutedUsers.push(userToMute._id);
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario silenciado exitosamente',
+    });
+  } catch (error) {
+    logger.error('Error en muteUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Desilenciar a un usuario
+exports.unmuteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userToUnmute = await User.findById(userId);
+
+    if (!userToUnmute) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    const currentUser = await User.findById(req.userId);
+
+    if (!currentUser.mutedUsers.includes(userToUnmute._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No tienes silenciado a este usuario',
+      });
+    }
+
+    // Remover de usuarios silenciados
+    currentUser.mutedUsers = currentUser.mutedUsers.filter(
+      id => id.toString() !== userToUnmute._id.toString()
+    );
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario desilenciado exitosamente',
+    });
+  } catch (error) {
+    logger.error('Error en unmuteUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Restringir a un usuario
+exports.restrictUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userToRestrict = await User.findById(userId);
+
+    if (!userToRestrict) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (userToRestrict._id.toString() === req.userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes restringirte a ti mismo',
+      });
+    }
+
+    const currentUser = await User.findById(req.userId);
+
+    if (currentUser.restrictedUsers.includes(userToRestrict._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya tienes restringido a este usuario',
+      });
+    }
+
+    // Agregar a usuarios restringidos
+    currentUser.restrictedUsers.push(userToRestrict._id);
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario restringido exitosamente',
+    });
+  } catch (error) {
+    logger.error('Error en restrictUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Desrestringir a un usuario
+exports.unrestrictUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userToUnrestrict = await User.findById(userId);
+
+    if (!userToUnrestrict) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    const currentUser = await User.findById(req.userId);
+
+    if (!currentUser.restrictedUsers.includes(userToUnrestrict._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'No tienes restringido a este usuario',
+      });
+    }
+
+    // Remover de usuarios restringidos
+    currentUser.restrictedUsers = currentUser.restrictedUsers.filter(
+      id => id.toString() !== userToUnrestrict._id.toString()
+    );
+    await currentUser.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario desrestringido exitosamente',
+    });
+  } catch (error) {
+    logger.error('Error en unrestrictUser:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};

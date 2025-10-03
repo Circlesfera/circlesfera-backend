@@ -20,6 +20,10 @@ const {
   updateSecuritySettings,
   changePassword,
   toggleTwoFactor,
+  muteUser,
+  unmuteUser,
+  restrictUser,
+  unrestrictUser,
 } = require('../controllers/userController');
 const { auth } = require('../middlewares/auth');
 
@@ -44,6 +48,10 @@ router.post('/:userId/follow', auth, followUser);
 router.delete('/:userId/follow', auth, unfollowUser);
 router.post('/:userId/block', auth, blockUser);
 router.delete('/:userId/block', auth, unblockUser);
+router.post('/:userId/mute', auth, muteUser);
+router.delete('/:userId/mute', auth, unmuteUser);
+router.post('/:userId/restrict', auth, restrictUser);
+router.delete('/:userId/restrict', auth, unrestrictUser);
 router.get('/blocked/list', auth, getBlockedUsers);
 router.get('/suggestions', auth, getUserSuggestions);
 
