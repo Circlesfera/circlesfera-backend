@@ -1,8 +1,6 @@
 const Conversation = require('../models/Conversation');
-const Message = require('../models/Message');
 const User = require('../models/User');
-const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 
 // Obtener conversaciones del usuario
 exports.getConversations = async (req, res) => {
@@ -32,7 +30,7 @@ exports.getConversations = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getConversations:', error);
+    logger.error('Error en getConversations:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -70,7 +68,7 @@ exports.getConversation = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en getConversation:', error);
+    logger.error('Error en getConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -117,7 +115,7 @@ exports.createDirectConversation = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en createDirectConversation:', error);
+    logger.error('Error en createDirectConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -163,7 +161,7 @@ exports.createGroupConversation = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en createGroupConversation:', error);
+    logger.error('Error en createGroupConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -209,7 +207,7 @@ exports.addParticipant = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en addParticipant:', error);
+    logger.error('Error en addParticipant:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -255,7 +253,7 @@ exports.removeParticipant = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en removeParticipant:', error);
+    logger.error('Error en removeParticipant:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -301,7 +299,7 @@ exports.addAdmin = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en addAdmin:', error);
+    logger.error('Error en addAdmin:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -347,7 +345,7 @@ exports.removeAdmin = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en removeAdmin:', error);
+    logger.error('Error en removeAdmin:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -398,7 +396,7 @@ exports.updateConversation = async (req, res) => {
       conversation,
     });
   } catch (error) {
-    console.error('Error en updateConversation:', error);
+    logger.error('Error en updateConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -434,7 +432,7 @@ exports.archiveConversation = async (req, res) => {
       message: 'Conversación archivada',
     });
   } catch (error) {
-    console.error('Error en archiveConversation:', error);
+    logger.error('Error en archiveConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -470,7 +468,7 @@ exports.unarchiveConversation = async (req, res) => {
       message: 'Conversación desarchivada',
     });
   } catch (error) {
-    console.error('Error en unarchiveConversation:', error);
+    logger.error('Error en unarchiveConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -506,7 +504,7 @@ exports.deleteConversation = async (req, res) => {
       message: 'Conversación eliminada',
     });
   } catch (error) {
-    console.error('Error en deleteConversation:', error);
+    logger.error('Error en deleteConversation:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -537,7 +535,7 @@ exports.getConversationStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getConversationStats:', error);
+    logger.error('Error en getConversationStats:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

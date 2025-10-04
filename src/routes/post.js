@@ -60,7 +60,6 @@ router.get('/recent', getRecentPosts);
 router.get('/user/:username', getUserPosts);
 
 
-
 // Rutas protegidas
 router.get('/feed', auth, getFeed);
 

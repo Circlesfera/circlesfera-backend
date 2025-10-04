@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 const connectDB = async () => {
   try {
@@ -9,8 +10,8 @@ const connectDB = async () => {
       throw new Error('MONGODB_URI no está configurada en las variables de entorno');
     }
 
-    console.log('🔗 Intentando conectar a MongoDB...');
-    console.log(`📊 URI: ${mongoURI}`);
+    logger.info('🔗 Intentando conectar a MongoDB...');
+    logger.info(`📊 URI: ${mongoURI}`);
 
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,
@@ -19,30 +20,30 @@ const connectDB = async () => {
       bufferCommands: false,
     });
 
-    console.log('✅ MongoDB conectado exitosamente');
-    console.log(`📊 Base de datos: ${mongoose.connection.name}`);
-    console.log(`🌐 Host: ${mongoose.connection.host}:${mongoose.connection.port}`);
+    logger.info('✅ MongoDB conectado exitosamente');
+    logger.info(`📊 Base de datos: ${mongoose.connection.name}`);
+    logger.info(`🌐 Host: ${mongoose.connection.host}:${mongoose.connection.port}`);
 
     // Manejar eventos de conexión
     mongoose.connection.on('error', (err) => {
-      console.error('❌ Error en la conexión de MongoDB:', err);
+      logger.error('❌ Error en la conexión de MongoDB:', err);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('⚠️  MongoDB desconectado');
+      logger.warn('⚠️  MongoDB desconectado');
     });
 
     // Manejar cierre graceful
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
-      console.log('🔄 Conexión de MongoDB cerrada por terminación de la aplicación');
+      logger.info('🔄 Conexión de MongoDB cerrada por terminación de la aplicación');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('❌ Error al conectar a MongoDB:', error.message);
-    console.error('💡 Asegúrate de que MongoDB esté ejecutándose y la URI sea correcta');
-    console.error('💡 Si usas MongoDB local, ejecuta: brew services start mongodb-community');
+    logger.error('❌ Error al conectar a MongoDB:', error.message);
+    logger.error('💡 Asegúrate de que MongoDB esté ejecutándose y la URI sea correcta');
+    logger.error('💡 Si usas MongoDB local, ejecuta: brew services start mongodb-community');
     process.exit(1);
   }
 };

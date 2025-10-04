@@ -14,7 +14,7 @@ const {
   getMessageStats,
 } = require('../controllers/messageController');
 const { auth } = require('../middlewares/auth');
-const { uploadSingle, uploadMultiple, handleUploadError } = require('../middlewares/upload');
+const { uploadSingle, handleUploadError } = require('../middlewares/upload');
 
 // Validaciones
 const sendTextMessageValidation = [

@@ -2,7 +2,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
 const mongoose = require('mongoose');
-const socketService = require('../services/socketService');
+const logger = require('../utils/logger');
 
 // Obtener notificaciones del usuario
 exports.getNotifications = async (req, res) => {
@@ -39,7 +39,7 @@ exports.getNotifications = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getNotifications:', error);
+    logger.error('Error en getNotifications:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -58,7 +58,7 @@ exports.getUnreadCount = async (req, res) => {
       count,
     });
   } catch (error) {
-    console.error('Error en getUnreadCount:', error);
+    logger.error('Error en getUnreadCount:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -93,7 +93,7 @@ exports.markAsRead = async (req, res) => {
       message: 'Notificación marcada como leída',
     });
   } catch (error) {
-    console.error('Error en markAsRead:', error);
+    logger.error('Error en markAsRead:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -112,7 +112,7 @@ exports.markAllAsRead = async (req, res) => {
       message: 'Todas las notificaciones marcadas como leídas',
     });
   } catch (error) {
-    console.error('Error en markAllAsRead:', error);
+    logger.error('Error en markAllAsRead:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -147,7 +147,7 @@ exports.deleteNotification = async (req, res) => {
       message: 'Notificación eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Error en deleteNotification:', error);
+    logger.error('Error en deleteNotification:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -170,7 +170,7 @@ exports.deleteReadNotifications = async (req, res) => {
       message: 'Notificaciones leídas eliminadas exitosamente',
     });
   } catch (error) {
-    console.error('Error en deleteReadNotifications:', error);
+    logger.error('Error en deleteReadNotifications:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -228,7 +228,7 @@ exports.createNotification = async (req, res) => {
       notification,
     });
   } catch (error) {
-    console.error('Error en createNotification:', error);
+    logger.error('Error en createNotification:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -269,7 +269,7 @@ exports.getNotificationStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getNotificationStats:', error);
+    logger.error('Error en getNotificationStats:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -289,7 +289,7 @@ exports.cleanupOldNotifications = async (req, res) => {
       result,
     });
   } catch (error) {
-    console.error('Error en cleanupOldNotifications:', error);
+    logger.error('Error en cleanupOldNotifications:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

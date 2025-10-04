@@ -9,6 +9,7 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
+    index: true,
   },
   email: {
     type: String,
@@ -16,6 +17,7 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
+    index: true,
   },
   password: {
     type: String,
@@ -158,9 +160,7 @@ const UserSchema = new mongoose.Schema({
   toObject: { virtuals: true },
 });
 
-// Índices para mejorar el rendimiento
-UserSchema.index({ username: 1 });
-UserSchema.index({ email: 1 });
+// Índices adicionales para mejorar el rendimiento
 UserSchema.index({ createdAt: -1 });
 
 // Virtuals

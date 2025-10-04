@@ -2,7 +2,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
-const socketService = require('../services/socketService');
+const logger = require('../utils/logger');
 
 // Crear una nueva publicación
 exports.createPost = async (req, res) => {
@@ -35,7 +35,7 @@ exports.createPost = async (req, res) => {
 
     // Manejar diferentes tipos de contenido
     switch (type) {
-    case 'image':
+    case 'image': {
       if (!req.files || !req.files.images) {
         return res.status(400).json({
           success: false,
@@ -53,6 +53,7 @@ exports.createPost = async (req, res) => {
         })),
       };
       break;
+    }
 
     case 'video':
       if (!req.files || !req.files.video) {
@@ -111,7 +112,7 @@ exports.createPost = async (req, res) => {
       post,
     });
   } catch (error) {
-    console.error('Error en createPost:', error);
+    logger.error('Error en createPost:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -171,7 +172,7 @@ exports.getFeed = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getFeed:', error);
+    logger.error('Error en getFeed:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -204,7 +205,7 @@ exports.getPost = async (req, res) => {
       post,
     });
   } catch (error) {
-    console.error('Error en getPost:', error);
+    logger.error('Error en getPost:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -254,7 +255,7 @@ exports.toggleLike = async (req, res) => {
       likesCount: updatedPost.likes.length,
     });
   } catch (error) {
-    console.error('Error en toggleLike:', error);
+    logger.error('Error en toggleLike:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -281,7 +282,7 @@ exports.getLikes = async (req, res) => {
       likes: post.likes,
     });
   } catch (error) {
-    console.error('Error en getLikes:', error);
+    logger.error('Error en getLikes:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -329,7 +330,7 @@ exports.getUserPosts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getUserPosts:', error);
+    logger.error('Error en getUserPosts:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -349,7 +350,7 @@ exports.getTrendingPosts = async (req, res) => {
       posts,
     });
   } catch (error) {
-    console.error('Error en getTrendingPosts:', error);
+    logger.error('Error en getTrendingPosts:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -396,7 +397,7 @@ exports.deletePost = async (req, res) => {
       message: 'Publicación eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Error en deletePost:', error);
+    logger.error('Error en deletePost:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -459,7 +460,7 @@ exports.updatePost = async (req, res) => {
       post,
     });
   } catch (error) {
-    console.error('Error en updatePost:', error);
+    logger.error('Error en updatePost:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -499,7 +500,7 @@ exports.getRecentPosts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getRecentPosts:', error);
+    logger.error('Error en getRecentPosts:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

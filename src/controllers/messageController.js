@@ -1,9 +1,8 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const User = require('../models/User');
 const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
 const socketService = require('../services/socketService');
+const logger = require('../utils/logger');
 
 // Obtener mensajes de una conversación
 exports.getMessages = async (req, res) => {
@@ -53,7 +52,7 @@ exports.getMessages = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getMessages:', error);
+    logger.error('Error en getMessages:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -148,7 +147,7 @@ exports.sendTextMessage = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error en sendTextMessage:', error);
+    logger.error('Error en sendTextMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -228,7 +227,7 @@ exports.sendImageMessage = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error en sendImageMessage:', error);
+    logger.error('Error en sendImageMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -240,7 +239,6 @@ exports.sendImageMessage = async (req, res) => {
 exports.sendVideoMessage = async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const { caption } = req.body;
     const videoFile = req.files?.video;
 
     if (!videoFile) {
@@ -309,7 +307,7 @@ exports.sendVideoMessage = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error en sendVideoMessage:', error);
+    logger.error('Error en sendVideoMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -387,7 +385,7 @@ exports.sendLocationMessage = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error en sendLocationMessage:', error);
+    logger.error('Error en sendLocationMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -449,7 +447,7 @@ exports.editMessage = async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error en editMessage:', error);
+    logger.error('Error en editMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -489,7 +487,7 @@ exports.deleteMessage = async (req, res) => {
       message: 'Mensaje eliminado',
     });
   } catch (error) {
-    console.error('Error en deleteMessage:', error);
+    logger.error('Error en deleteMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -573,7 +571,7 @@ exports.forwardMessage = async (req, res) => {
       messages: forwardedMessages,
     });
   } catch (error) {
-    console.error('Error en forwardMessage:', error);
+    logger.error('Error en forwardMessage:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -636,7 +634,7 @@ exports.searchMessages = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en searchMessages:', error);
+    logger.error('Error en searchMessages:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -672,7 +670,7 @@ exports.getMessageStats = async (req, res) => {
       stats,
     });
   } catch (error) {
-    console.error('Error en getMessageStats:', error);
+    logger.error('Error en getMessageStats:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

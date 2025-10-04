@@ -116,12 +116,12 @@ app.use(cors({
 // Logging HTTP con Morgan
 if (config.isDevelopment) {
   app.use(morgan('dev', {
-    skip: (req, res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
+    skip: (req, _res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
   }));
 } else {
   // En producción, logging mínimo
   app.use(morgan('combined', {
-    skip: (req, res) => res.statusCode < 400 || req.method === 'OPTIONS',
+    skip: (req, _res) => req.method === 'OPTIONS',
   }));
 }
 

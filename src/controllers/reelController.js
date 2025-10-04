@@ -2,12 +2,12 @@ const Reel = require('../models/Reel');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
-const socketService = require('../services/socketService');
+const logger = require('../utils/logger');
 
 // Crear un nuevo reel
 exports.createReel = async (req, res) => {
   try {
-    console.log('🎬 createReel llamado con:', {
+    logger.info('🎬 createReel llamado con:', {
       userId: req.userId,
       body: req.body,
       headers: req.headers,
@@ -66,7 +66,7 @@ exports.createReel = async (req, res) => {
       reelData.location = { name: location };
     }
 
-    console.log('🎬 Reel data a crear:', reelData);
+    logger.info('🎬 Reel data a crear:', reelData);
 
     // Crear el reel
     const reel = new Reel(reelData);
@@ -96,7 +96,7 @@ exports.createReel = async (req, res) => {
         }
       }
     } catch (notifError) {
-      console.log('⚠️ Error creando notificaciones:', notifError);
+      logger.info('⚠️ Error creando notificaciones:', notifError);
       // No fallar si las notificaciones fallan
     }
 
@@ -107,7 +107,7 @@ exports.createReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en createReel:', error);
+    logger.error('Error en createReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -153,7 +153,7 @@ exports.getReelsForFeed = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getReelsForFeed:', error);
+    logger.error('Error en getReelsForFeed:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -206,7 +206,7 @@ exports.getUserReels = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getUserReels:', error);
+    logger.error('Error en getUserReels:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -248,7 +248,7 @@ exports.getReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getReel:', error);
+    logger.error('Error en getReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -303,7 +303,7 @@ exports.likeReel = async (req, res) => {
           },
         });
       } catch (notifError) {
-        console.log('⚠️ Error creando notificación de like:', notifError);
+        logger.info('⚠️ Error creando notificación de like:', notifError);
       }
     }
 
@@ -314,7 +314,7 @@ exports.likeReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en likeReel:', error);
+    logger.error('Error en likeReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -345,7 +345,7 @@ exports.unlikeReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en unlikeReel:', error);
+    logger.error('Error en unlikeReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -406,7 +406,7 @@ exports.commentReel = async (req, res) => {
           },
         });
       } catch (notifError) {
-        console.log('⚠️ Error creando notificación de comentario:', notifError);
+        logger.info('⚠️ Error creando notificación de comentario:', notifError);
       }
     }
 
@@ -423,7 +423,7 @@ exports.commentReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en commentReel:', error);
+    logger.error('Error en commentReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -461,7 +461,7 @@ exports.deleteReel = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en deleteReel:', error);
+    logger.error('Error en deleteReel:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -509,7 +509,7 @@ exports.searchReelsByHashtag = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en searchReelsByHashtag:', error);
+    logger.error('Error en searchReelsByHashtag:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -570,7 +570,7 @@ exports.getTrendingReels = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en getTrendingReels:', error);
+    logger.error('Error en getTrendingReels:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',

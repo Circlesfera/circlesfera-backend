@@ -1,11 +1,14 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { config } = require('../utils/config');
+const logger = require('../utils/logger');
 
 // Crear directorio uploads si no existe
-const uploadsDir = 'uploads';
+const uploadsDir = config.uploadDir;
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  logger.info(`Directorio de uploads creado: ${uploadsDir}`);
 }
 
 const storage = multer.diskStorage({
@@ -40,24 +43,25 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB máximo para todos los archivos
-    files: 10, // Máximo 10 archivos por request
+    fileSize: config.maxFileSize,
+    files: config.maxFilesCount,
   },
 });
 
 // Middleware para manejar errores de multer
-const handleUploadError = (error, req, res, next) => {
+const handleUploadError = (error, req, res, _next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
+      const maxSizeMB = Math.floor(config.maxFileSize / (1024 * 1024));
       return res.status(400).json({
         success: false,
-        message: 'El archivo es demasiado grande. Máximo 100MB',
+        message: `El archivo es demasiado grande. Máximo ${maxSizeMB}MB`,
       });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         success: false,
-        message: 'Demasiados archivos. Máximo 10 archivos',
+        message: `Demasiados archivos. Máximo ${config.maxFilesCount} archivos`,
       });
     }
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
@@ -75,7 +79,7 @@ const handleUploadError = (error, req, res, next) => {
     });
   }
 
-  console.error('Error en upload:', error);
+  logger.error('Error en upload:', error);
   return res.status(500).json({
     success: false,
     message: 'Error al subir archivo',
@@ -84,7 +88,7 @@ const handleUploadError = (error, req, res, next) => {
 
 // Configuraciones específicas
 const uploadSingle = upload.single('file');
-const uploadMultiple = upload.array('files', 10);
+const uploadMultiple = upload.array('files', config.maxFilesCount);
 const uploadFields = upload.fields([
   { name: 'avatar', maxCount: 1 },
   { name: 'images', maxCount: 10 },

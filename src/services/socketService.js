@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { config } = require('../utils/config');
+const logger = require('../utils/logger');
 
 class SocketService {
   constructor() {
@@ -10,10 +12,10 @@ class SocketService {
 
   initialize(server) {
     const { Server } = require('socket.io');
-    
+
     this.io = new Server(server, {
       cors: {
-        origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+        origin: config.corsOrigin,
         methods: ['GET', 'POST'],
         credentials: true,
       },
@@ -22,8 +24,8 @@ class SocketService {
 
     this.setupMiddleware();
     this.setupEventHandlers();
-    
-    console.log('🔌 Socket.IO inicializado correctamente');
+
+    logger.info('🔌 Socket.IO inicializado correctamente');
   }
 
   setupMiddleware() {
@@ -31,14 +33,14 @@ class SocketService {
     this.io.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-        
+
         if (!token) {
           return next(new Error('Token de autenticación requerido'));
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, config.jwtSecret);
         const user = await User.findById(decoded.id).select('username avatar fullName');
-        
+
         if (!user) {
           return next(new Error('Usuario no encontrado'));
         }
@@ -47,7 +49,7 @@ class SocketService {
         socket.user = user;
         next();
       } catch (error) {
-        console.error('Error en autenticación de socket:', error);
+        logger.error('Error en autenticación de socket:', error);
         next(new Error('Token inválido'));
       }
     });
@@ -55,8 +57,8 @@ class SocketService {
 
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
-      console.log(`👤 Usuario conectado: ${socket.user.username} (${socket.id})`);
-      
+      logger.info(`👤 Usuario conectado: ${socket.user.username} (${socket.id})`);
+
       // Registrar usuario conectado
       this.connectedUsers.set(socket.userId, socket.id);
       this.userSockets.set(socket.id, socket.userId);
@@ -67,18 +69,18 @@ class SocketService {
       // Eventos de mensajería
       socket.on('join_conversation', (conversationId) => {
         socket.join(`conversation_${conversationId}`);
-        console.log(`💬 ${socket.user.username} se unió a la conversación ${conversationId}`);
+        logger.info(`💬 ${socket.user.username} se unió a la conversación ${conversationId}`);
       });
 
       socket.on('leave_conversation', (conversationId) => {
         socket.leave(`conversation_${conversationId}`);
-        console.log(`💬 ${socket.user.username} salió de la conversación ${conversationId}`);
+        logger.info(`💬 ${socket.user.username} salió de la conversación ${conversationId}`);
       });
 
       socket.on('send_message', async (data) => {
         try {
           const { conversationId, content, replyTo } = data;
-          
+
           // Validar datos
           if (!conversationId || !content) {
             socket.emit('error', { message: 'Datos de mensaje inválidos' });
@@ -101,9 +103,9 @@ class SocketService {
             isTemporary: true, // Marcar como temporal hasta confirmación del servidor
           });
 
-          console.log(`💬 Mensaje enviado por ${socket.user.username} en conversación ${conversationId}`);
+          logger.info(`💬 Mensaje enviado por ${socket.user.username} en conversación ${conversationId}`);
         } catch (error) {
-          console.error('Error enviando mensaje:', error);
+          logger.error('Error enviando mensaje:', error);
           socket.emit('error', { message: 'Error enviando mensaje' });
         }
       });
@@ -165,8 +167,8 @@ class SocketService {
 
       // Manejo de desconexión
       socket.on('disconnect', () => {
-        console.log(`👤 Usuario desconectado: ${socket.user.username} (${socket.id})`);
-        
+        logger.info(`👤 Usuario desconectado: ${socket.user.username} (${socket.id})`);
+
         // Remover usuario de mapas
         this.connectedUsers.delete(socket.userId);
         this.userSockets.delete(socket.id);

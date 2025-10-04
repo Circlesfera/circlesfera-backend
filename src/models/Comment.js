@@ -96,7 +96,7 @@ CommentSchema.methods.softDelete = function() {
 };
 
 // Métodos estáticos
-CommentSchema.statics.findByPost = function(postId, options = {}) {
+CommentSchema.statics.findByPost = function(postId, _options = {}) {
   const query = {
     post: postId,
     isDeleted: false,
@@ -122,14 +122,14 @@ CommentSchema.statics.findReplies = function(commentId) {
 // Middleware pre-save
 CommentSchema.pre('save', function(next) {
   // Detectar menciones en el contenido
-  const mentionRegex = /@(\w+)/g;
+  // const mentionRegex = /@(\w+)/g;
   const mentions = [];
-  let match;
 
-  while ((match = mentionRegex.exec(this.content)) !== null) {
-    // Aquí podrías buscar usuarios por username y agregar sus IDs
-    // Por ahora solo guardamos el patrón
-  }
+  // TODO: Implementar extracción de menciones
+  // const matches = this.content.matchAll(mentionRegex);
+  // for (const match of matches) {
+  //   mentions.push(match[1]);
+  // }
 
   this.mentions = mentions;
   next();

@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 
 // Crear un comentario
 exports.createComment = async (req, res) => {
@@ -69,7 +70,7 @@ exports.createComment = async (req, res) => {
       comment,
     });
   } catch (error) {
-    console.error('Error en createComment:', error);
+    logger.error('Error en createComment:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -115,7 +116,7 @@ exports.getComments = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getComments:', error);
+    logger.error('Error en getComments:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -160,7 +161,7 @@ exports.getReplies = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getReplies:', error);
+    logger.error('Error en getReplies:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -207,7 +208,7 @@ exports.toggleLike = async (req, res) => {
       likesCount: comment.likes.length,
     });
   } catch (error) {
-    console.error('Error en toggleLike:', error);
+    logger.error('Error en toggleLike:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -257,7 +258,7 @@ exports.updateComment = async (req, res) => {
       comment,
     });
   } catch (error) {
-    console.error('Error en updateComment:', error);
+    logger.error('Error en updateComment:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -296,7 +297,7 @@ exports.deleteComment = async (req, res) => {
       message: 'Comentario eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Error en deleteComment:', error);
+    logger.error('Error en deleteComment:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
@@ -350,7 +351,7 @@ exports.getUserComments = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error en getUserComments:', error);
+    logger.error('Error en getUserComments:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
