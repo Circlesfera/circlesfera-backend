@@ -8,6 +8,22 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
+};
+
+// Log de configuración para debug
+console.log('🔧 Backend Config:', {
+  nodeEnv: config.nodeEnv,
+  isDevelopment: config.isDevelopment,
+  isProduction: config.isProduction,
+  port: process.env.PORT || 5001,
+  corsOrigin: process.env.CORS_ORIGIN || 'https://dev.circlesfera.com'
+});
+
+const configFull = {
+  // Entorno
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isDevelopment: process.env.NODE_ENV === 'development',
+  isProduction: process.env.NODE_ENV === 'production',
 
   // Servidor
   port: parseInt(process.env.PORT, 10) || 5001,
@@ -21,7 +37,7 @@ const config = {
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 
   // CORS
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  corsOrigin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://dev.circlesfera.com'],
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min
@@ -99,5 +115,5 @@ config.getPaginationLimit = (requested) => {
   return Math.min(limit, config.maxPageLimit);
 };
 
-module.exports = { config, validateConfig };
+module.exports = { config: configFull, validateConfig };
 
