@@ -110,14 +110,14 @@ app.use(express.urlencoded({
   limit: '10mb'
 }));
 
-// CORS configurado para permitir el frontend
-app.use(cors({
-  origin: config.corsOrigin,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range'],
-  exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges'],
-}));
+// CORS deshabilitado en el backend - manejado por Nginx
+// app.use(cors({
+//   origin: config.corsOrigin,
+//   credentials: true,
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range'],
+//   exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges'],
+// }));
 
 // Logging HTTP con Morgan
 if (config.isDevelopment) {
