@@ -68,30 +68,30 @@ const validateConfig = () => {
   const errors = [];
 
   // Variables requeridas en producción
-  if (config.isProduction) {
-    if (!config.mongodbUri) {
+  if (configFull.isProduction) {
+    if (!configFull.mongodbUri) {
       errors.push('MONGODB_URI es requerido en producción');
     }
-    if (!config.jwtSecret) {
+    if (!configFull.jwtSecret) {
       errors.push('JWT_SECRET es requerido en producción');
     }
   }
 
   // Variables requeridas siempre
-  if (!config.jwtSecret) {
+  if (!configFull.jwtSecret) {
     errors.push('JWT_SECRET debe estar configurado (genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
   }
 
-  if (!config.mongodbUri) {
+  if (!configFull.mongodbUri) {
     errors.push('MONGODB_URI debe estar configurado');
   }
 
   // Validaciones de valores
-  if (config.bcryptSaltRounds < 10 || config.bcryptSaltRounds > 15) {
+  if (configFull.bcryptSaltRounds < 10 || configFull.bcryptSaltRounds > 15) {
     errors.push('BCRYPT_SALT_ROUNDS debe estar entre 10 y 15');
   }
 
-  if (config.port < 1024 || config.port > 65535) {
+  if (configFull.port < 1024 || configFull.port > 65535) {
     errors.push('PORT debe estar entre 1024 y 65535');
   }
 
@@ -107,12 +107,12 @@ const validateConfig = () => {
  * @param {number} requested - Límite solicitado
  * @returns {number} Límite validado
  */
-config.getPaginationLimit = (requested) => {
+configFull.getPaginationLimit = (requested) => {
   const limit = parseInt(requested, 10);
   if (isNaN(limit) || limit < 1) {
-    return config.defaultPageLimit;
+    return configFull.defaultPageLimit;
   }
-  return Math.min(limit, config.maxPageLimit);
+  return Math.min(limit, configFull.maxPageLimit);
 };
 
 module.exports = { config: configFull, validateConfig };
