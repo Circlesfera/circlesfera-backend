@@ -20,13 +20,33 @@ async function createTestUsers() {
     
     logger.info('🔗 Conectado a la base de datos');
     
+    // Verificar que todas las variables de entorno estén configuradas
+    const requiredEnvVars = [
+      'TEST_USER_1_USERNAME',
+      'TEST_USER_1_EMAIL', 
+      'TEST_USER_1_PASSWORD',
+      'TEST_USER_1_FULLNAME',
+      'TEST_USER_1_BIO',
+      'TEST_USER_2_USERNAME',
+      'TEST_USER_2_EMAIL',
+      'TEST_USER_2_PASSWORD',
+      'TEST_USER_2_FULLNAME',
+      'TEST_USER_2_BIO'
+    ];
+
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      throw new Error(`Variables de entorno requeridas no configuradas: ${missingVars.join(', ')}`);
+    }
+    
     // Crear usuario 1
     const user1 = new User({
-      username: 'testuser',
-      email: 'testuser@example.com',
-      password: 'password123',
-      fullName: 'Usuario de Prueba',
-      bio: 'Usuario de prueba para CircleSfera'
+      username: process.env.TEST_USER_1_USERNAME,
+      email: process.env.TEST_USER_1_EMAIL,
+      password: process.env.TEST_USER_1_PASSWORD,
+      fullName: process.env.TEST_USER_1_FULLNAME,
+      bio: process.env.TEST_USER_1_BIO
     });
     
     await user1.save();
@@ -34,11 +54,11 @@ async function createTestUsers() {
     
     // Crear usuario 2
     const user2 = new User({
-      username: 'circlesfera',
-      email: 'circlesfera@example.com',
-      password: 'password123',
-      fullName: 'CircleSfera',
-      bio: 'Cuenta oficial de CircleSfera'
+      username: process.env.TEST_USER_2_USERNAME,
+      email: process.env.TEST_USER_2_EMAIL,
+      password: process.env.TEST_USER_2_PASSWORD,
+      fullName: process.env.TEST_USER_2_FULLNAME,
+      bio: process.env.TEST_USER_2_BIO
     });
     
     await user2.save();

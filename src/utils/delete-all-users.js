@@ -10,8 +10,8 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const User = require('../src/models/User');
-const logger = require('../src/utils/logger');
+const User = require('../models/User');
+const logger = require('../utils/logger');
 
 async function deleteAllUsers() {
   try {
