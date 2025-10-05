@@ -1,4 +1,7 @@
-require('dotenv').config();
+// Solo cargar dotenv si no hay variables de entorno ya configuradas (Docker, etc.)
+if (!process.env.JWT_SECRET && !process.env.MONGODB_URI) {
+  require('dotenv').config();
+}
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
