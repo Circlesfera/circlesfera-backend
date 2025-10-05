@@ -1,7 +1,10 @@
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+
+// Detectar si estamos en Docker/Alpine
+const isDocker = process.env.NODE_ENV === 'test' && process.platform === 'linux';
 
 let mongoServer;
+let mongoUri;
 
 // Configurar variables de entorno para tests
 process.env.NODE_ENV = 'test';
@@ -11,11 +14,25 @@ process.env.BCRYPT_SALT_ROUNDS = '10';
 
 // Setup antes de todos los tests
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
+  if (isDocker) {
+    // En Docker, usar MongoDB real o mock
+    mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/circlesfera-test';
+    console.log('🐳 Docker detected, using MongoDB URI:', mongoUri);
+  } else {
+    // En desarrollo local, usar MongoDB Memory Server
+    try {
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      mongoServer = await MongoMemoryServer.create();
+      mongoUri = mongoServer.getUri();
+      console.log('💻 Local development, using MongoDB Memory Server');
+    } catch (error) {
+      console.log('⚠️  MongoDB Memory Server failed, using local MongoDB');
+      mongoUri = 'mongodb://localhost:27017/circlesfera-test';
+    }
+  }
 
   await mongoose.connect(mongoUri);
-});
+}, 30000);
 
 // Limpiar después de cada test
 afterEach(async () => {
@@ -28,8 +45,10 @@ afterEach(async () => {
 // Cerrar conexión después de todos los tests
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongoServer.stop();
-});
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
+}, 30000);
 
 // Suprimir logs durante tests
 global.console = {
@@ -47,4 +66,3 @@ describe('Test Setup', () => {
     expect(true).toBe(true);
   });
 });
-
