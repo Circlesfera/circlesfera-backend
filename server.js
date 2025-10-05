@@ -16,6 +16,9 @@ const { config, validateConfig } = require('./src/utils/config');
 
 const app = express();
 
+// Configurar trust proxy para Nginx (requerido para rate limiting con X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // Validar configuración al inicio
 try {
   validateConfig();
