@@ -97,6 +97,8 @@ exports.getComments = async (req, res) => {
       req.query.limit
     );
 
+    logger.info('getComments llamado:', { postId, page, limit, skip });
+
     // Intentar obtener del caché
     const cacheKey = `comments:${postId}:${page}:${limit}`;
     const cachedComments = await cache.get(cacheKey);
@@ -133,10 +135,26 @@ exports.getComments = async (req, res) => {
       Comment.countDocuments(query),
     ]);
 
-    const response = createPaginatedResponse(comments, total, page, limit);
+    const response = {
+      success: true,
+      comments,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasMore: page < Math.ceil(total / limit),
+      },
+    };
 
     // Guardar en caché por 1 minuto
     await cache.set(cacheKey, response, 60);
+
+    logger.info('getComments respuesta:', {
+      success: response.success,
+      commentsCount: response.comments.length,
+      total: response.pagination.total,
+    });
 
     res.json(response);
   } catch (error) {

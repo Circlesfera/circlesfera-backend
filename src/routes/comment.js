@@ -10,7 +10,7 @@ const {
   deleteComment,
   getUserComments,
 } = require('../controllers/commentController');
-const { auth } = require('../middlewares/auth');
+const { auth, optionalAuth } = require('../middlewares/auth');
 
 // Validaciones
 const createCommentValidation = [
@@ -31,23 +31,15 @@ const updateCommentValidation = [
     .withMessage('El comentario debe tener entre 1 y 1000 caracteres'),
 ];
 
-// Rutas públicas
-router.get('/user/:username', getUserComments);
-router.get('/post/:postId', getComments);
-router.get('/:commentId/replies', getReplies);
+// Rutas públicas con autenticación opcional
+router.get('/user/:username', optionalAuth, getUserComments);
+router.get('/post/:postId', optionalAuth, getComments);
+router.get('/:commentId/replies', optionalAuth, getReplies);
 
 // Rutas protegidas
-router.post('/post/:postId',
-  auth,
-  createCommentValidation,
-  createComment,
-);
+router.post('/post/:postId', auth, createCommentValidation, createComment);
 
-router.put('/:commentId',
-  auth,
-  updateCommentValidation,
-  updateComment,
-);
+router.put('/:commentId', auth, updateCommentValidation, updateComment);
 
 router.post('/:commentId/like', auth, toggleLike);
 router.delete('/:commentId', auth, deleteComment);
