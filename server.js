@@ -199,6 +199,7 @@ app.use('/api/reels', require('./src/routes/reel'));
 app.use('/api/notifications', require('./src/routes/notification'));
 app.use('/api/conversations', require('./src/routes/conversation'));
 app.use('/api/messages', require('./src/routes/message'));
+app.use('/api/analytics', require('./src/routes/analytics'));
 
 // Error handler de Sentry (debe ir ANTES del error handler global)
 if (sentry) {
