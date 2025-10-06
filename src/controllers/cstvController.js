@@ -1,0 +1,591 @@
+const CSTV = require('../models/CSTV');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { validationResult } = require('express-validator');
+const logger = require('../utils/logger');
+const cache = require('../utils/cacheAdapter');
+
+// Crear un nuevo video CSTV
+exports.createCSTVVideo = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array(),
+      });
+    }
+
+    const {
+      title,
+      description,
+      video,
+      category = 'other',
+      visibility = 'public',
+      ageRestriction = 'all',
+      allowComments = true,
+      allowLikes = true,
+      allowShares = true,
+      tags = [],
+      monetization = { enabled: false },
+      scheduling = { isScheduled: false },
+    } = req.body;
+
+    const cstvData = {
+      user: req.user.id,
+      title,
+      description,
+      video,
+      category,
+      visibility,
+      ageRestriction,
+      allowComments,
+      allowLikes,
+      allowShares,
+      tags,
+      monetization,
+      scheduling,
+      isPublished: !scheduling.isScheduled,
+    };
+
+    const cstvVideo = new CSTV(cstvData);
+    await cstvVideo.save();
+
+    // Poblar información del usuario
+    await cstvVideo.populate('user', 'username avatar fullName isVerified');
+
+    logger.info('📺 CSTV video creado:', {
+      id: cstvVideo._id,
+      user: req.user.id,
+      title: cstvVideo.title,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Video CSTV creado exitosamente',
+      data: cstvVideo,
+    });
+  } catch (error) {
+    logger.error('Error creando CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Obtener videos CSTV
+exports.getCSTVVideos = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      category,
+      userId,
+      sortBy = 'newest',
+    } = req.query;
+
+    const cacheKey = `cstv_videos:${category || 'all'}:${userId || 'all'}:${sortBy}:${page}:${limit}`;
+
+    // Intentar obtener desde caché
+    const cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+
+    const options = {
+      category,
+      userId,
+      limit: parseInt(limit),
+      skip: (parseInt(page) - 1) * parseInt(limit),
+    };
+
+    let videos;
+
+    switch (sortBy) {
+      case 'trending':
+        videos = await CSTV.getTrendingVideos(options);
+        break;
+      case 'views':
+        videos = await CSTV.find({
+          isPublished: true,
+          visibility: 'public',
+          'moderation.status': 'approved',
+          ...(category && { category }),
+          ...(userId && { user: userId }),
+        })
+          .populate('user', 'username avatar fullName isVerified')
+          .sort({ 'views.total': -1 })
+          .limit(options.limit)
+          .skip(options.skip);
+        break;
+      case 'likes':
+        videos = await CSTV.find({
+          isPublished: true,
+          visibility: 'public',
+          'moderation.status': 'approved',
+          ...(category && { category }),
+          ...(userId && { user: userId }),
+        })
+          .populate('user', 'username avatar fullName isVerified')
+          .sort({ likesCount: -1 })
+          .limit(options.limit)
+          .skip(options.skip);
+        break;
+      default: // newest
+        videos = await CSTV.getPublicVideos(options);
+        break;
+    }
+
+    const total = await CSTV.countDocuments({
+      isPublished: true,
+      visibility: 'public',
+      'moderation.status': 'approved',
+      ...(category && { category }),
+      ...(userId && { user: userId }),
+    });
+
+    const response = {
+      success: true,
+      data: videos,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+
+    // Guardar en caché por 5 minutos
+    await cache.set(cacheKey, response, 300);
+
+    res.json(response);
+  } catch (error) {
+    logger.error('Error obteniendo CSTV videos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Obtener un video específico
+exports.getCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const cacheKey = `cstv_video:${videoId}`;
+    const cachedVideo = await cache.get(cacheKey);
+
+    if (cachedVideo) {
+      // Incrementar views si es un usuario autenticado
+      if (req.user?.id) {
+        const video = await CSTV.findById(videoId);
+        if (video) {
+          await video.addView(req.user.id);
+          await cache.delete(cacheKey);
+        }
+      }
+      return res.json({
+        success: true,
+        data: cachedVideo,
+      });
+    }
+
+    const video = await CSTV.findById(videoId).populate(
+      'user',
+      'username avatar fullName isVerified followers'
+    );
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    // Verificar permisos de acceso
+    if (
+      video.visibility === 'private' &&
+      video.user._id.toString() !== req.user?.id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes acceso a este video',
+      });
+    }
+
+    // Incrementar views
+    await video.addView(req.user?.id);
+
+    // Guardar en caché por 10 minutos
+    await cache.set(cacheKey, video, 600);
+
+    res.json({
+      success: true,
+      data: video,
+    });
+  } catch (error) {
+    logger.error('Error obteniendo CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Actualizar un video CSTV
+exports.updateCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const updates = req.body;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    // Verificar que el usuario es el propietario
+    if (video.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para editar este video',
+      });
+    }
+
+    // Actualizar campos permitidos
+    const allowedUpdates = [
+      'title',
+      'description',
+      'category',
+      'visibility',
+      'ageRestriction',
+      'allowComments',
+      'allowLikes',
+      'allowShares',
+      'tags',
+      'seo',
+    ];
+
+    allowedUpdates.forEach(field => {
+      if (updates[field] !== undefined) {
+        video[field] = updates[field];
+      }
+    });
+
+    await video.save();
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+    await cache.deletePattern('cstv_videos:*');
+
+    logger.info('📺 CSTV video actualizado:', {
+      id: videoId,
+      user: req.user.id,
+    });
+
+    res.json({
+      success: true,
+      message: 'Video actualizado exitosamente',
+      data: video,
+    });
+  } catch (error) {
+    logger.error('Error actualizando CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Eliminar un video CSTV
+exports.deleteCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    // Verificar que el usuario es el propietario
+    if (video.user.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para eliminar este video',
+      });
+    }
+
+    await CSTV.findByIdAndDelete(videoId);
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+    await cache.deletePattern('cstv_videos:*');
+
+    logger.info('📺 CSTV video eliminado:', {
+      id: videoId,
+      user: req.user.id,
+    });
+
+    res.json({
+      success: true,
+      message: 'Video eliminado exitosamente',
+    });
+  } catch (error) {
+    logger.error('Error eliminando CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Dar like a un video CSTV
+exports.likeCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    if (!video.allowLikes) {
+      return res.status(403).json({
+        success: false,
+        message: 'Los likes están deshabilitados en este video',
+      });
+    }
+
+    await video.toggleLike(req.user.id);
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+    await cache.deletePattern('cstv_videos:*');
+
+    res.json({
+      success: true,
+      message: 'Like actualizado exitosamente',
+      data: {
+        likesCount: video.likesCount,
+        isLiked: video.likes.includes(req.user.id),
+      },
+    });
+  } catch (error) {
+    logger.error('Error dando like a CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Quitar like de un video CSTV
+exports.unlikeCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    await video.toggleLike(req.user.id);
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+    await cache.deletePattern('cstv_videos:*');
+
+    res.json({
+      success: true,
+      message: 'Like removido exitosamente',
+      data: {
+        likesCount: video.likesCount,
+        isLiked: video.likes.includes(req.user.id),
+      },
+    });
+  } catch (error) {
+    logger.error('Error removiendo like de CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Guardar un video CSTV
+exports.saveCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    await video.toggleSave(req.user.id);
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+
+    res.json({
+      success: true,
+      message: 'Video guardado exitosamente',
+      data: {
+        savesCount: video.savesCount,
+        isSaved: video.saves.includes(req.user.id),
+      },
+    });
+  } catch (error) {
+    logger.error('Error guardando CSTV video:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Quitar de guardados un video CSTV
+exports.unsaveCSTVVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const video = await CSTV.findById(videoId);
+
+    if (!video) {
+      return res.status(404).json({
+        success: false,
+        message: 'Video no encontrado',
+      });
+    }
+
+    await video.toggleSave(req.user.id);
+
+    // Limpiar caché
+    await cache.deletePattern(`cstv_video:${videoId}`);
+
+    res.json({
+      success: true,
+      message: 'Video removido de guardados exitosamente',
+      data: {
+        savesCount: video.savesCount,
+        isSaved: video.saves.includes(req.user.id),
+      },
+    });
+  } catch (error) {
+    logger.error('Error removiendo CSTV video de guardados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Obtener videos trending
+exports.getTrendingVideos = async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+
+    const cacheKey = `cstv_trending:${limit}`;
+    const cachedData = await cache.get(cacheKey);
+
+    if (cachedData) {
+      return res.json({
+        success: true,
+        data: cachedData,
+      });
+    }
+
+    const videos = await CSTV.getTrendingVideos({
+      limit: parseInt(limit),
+    });
+
+    // Guardar en caché por 10 minutos
+    await cache.set(cacheKey, videos, 600);
+
+    res.json({
+      success: true,
+      data: videos,
+    });
+  } catch (error) {
+    logger.error('Error obteniendo videos trending:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};
+
+// Buscar videos
+exports.searchVideos = async (req, res) => {
+  try {
+    const { q: searchTerm, page = 1, limit = 20 } = req.query;
+
+    const cacheKey = `cstv_search:${searchTerm}:${page}:${limit}`;
+    const cachedData = await cache.get(cacheKey);
+
+    if (cachedData) {
+      return res.json({
+        success: true,
+        data: cachedData,
+      });
+    }
+
+    const videos = await CSTV.searchVideos(searchTerm, {
+      limit: parseInt(limit),
+      skip: (parseInt(page) - 1) * parseInt(limit),
+    });
+
+    const total = await CSTV.countDocuments({
+      isPublished: true,
+      visibility: 'public',
+      'moderation.status': 'approved',
+      $text: { $search: searchTerm },
+    });
+
+    const response = {
+      videos,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+
+    // Guardar en caché por 5 minutos
+    await cache.set(cacheKey, response, 300);
+
+    res.json({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    logger.error('Error buscando videos CSTV:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+    });
+  }
+};

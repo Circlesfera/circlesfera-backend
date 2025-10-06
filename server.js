@@ -92,6 +92,8 @@ app.use('/api/reels', limiter);
 app.use('/api/notifications', limiter);
 app.use('/api/conversations', limiter);
 app.use('/api/messages', limiter);
+app.use('/api/live-streams', limiter);
+app.use('/api/cstv', limiter);
 
 // Request ID tracking
 const requestId = require('./src/middlewares/requestId');
@@ -200,6 +202,9 @@ app.use('/api/notifications', require('./src/routes/notification'));
 app.use('/api/conversations', require('./src/routes/conversation'));
 app.use('/api/messages', require('./src/routes/message'));
 app.use('/api/analytics', require('./src/routes/analytics'));
+app.use('/api/live-streams', require('./src/routes/liveStream'));
+app.use('/api/live-streams', require('./src/routes/liveComment'));
+app.use('/api/cstv', require('./src/routes/cstv'));
 
 // Error handler de Sentry (debe ir ANTES del error handler global)
 if (sentry) {
