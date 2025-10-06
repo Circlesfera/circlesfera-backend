@@ -1,14 +1,6 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+echo "🔍 Ejecutando verificaciones pre-commit..."
 
-# Ejecutar linting y formateo antes del commit
-echo "🔍 Ejecutando linting..."
-npm run lint
-
-echo "🎨 Verificando formato..."
-npm run format
-
-echo "🧪 Ejecutando tests..."
-npm run test
+# Ejecutar lint-staged (ya incluye linting y formato)
+npx lint-staged
 
 echo "✅ Pre-commit checks completados exitosamente!"

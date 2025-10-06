@@ -1,0 +1,7 @@
+echo "🧪 Ejecutando tests antes de push..."
+
+# Ejecutar tests
+npm run test
+
+echo "✅ Pre-push checks completados exitosamente!"
+
