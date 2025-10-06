@@ -1,207 +1,174 @@
-const logger = require('./logger');
-
 /**
  * Utilidades para optimizar queries de MongoDB
  */
 
 /**
- * Builder de queries optimizadas
+ * Campos básicos de usuario para populate
  */
-class QueryBuilder {
-  constructor(model, query = {}) {
-    this.model = model;
-    this.query = query;
-    this.options = {
-      lean: true,
-      select: null,
-      populate: null,
-      sort: null,
-      skip: 0,
-      limit: 10,
-    };
-  }
-
-  /**
-   * Usar lean() para retornar objetos planos (más rápido)
-   */
-  useLean(value = true) {
-    this.options.lean = value;
-    return this;
-  }
-
-  /**
-   * Seleccionar solo campos necesarios
-   */
-  select(fields) {
-    this.options.select = fields;
-    return this;
-  }
-
-  /**
-   * Popular referencias
-   */
-  populate(path, select) {
-    if (!this.options.populate) {
-      this.options.populate = [];
-    }
-    this.options.populate.push({ path, select });
-    return this;
-  }
-
-  /**
-   * Ordenar resultados
-   */
-  sort(sortBy) {
-    this.options.sort = sortBy;
-    return this;
-  }
-
-  /**
-   * Paginación
-   */
-  paginate(page = 1, limit = 10) {
-    this.options.skip = (page - 1) * limit;
-    this.options.limit = limit;
-    return this;
-  }
-
-  /**
-   * Ejecutar query
-   */
-  async exec() {
-    const startTime = Date.now();
-
-    let queryChain = this.model.find(this.query);
-
-    if (this.options.select) {
-      queryChain = queryChain.select(this.options.select);
-    }
-
-    if (this.options.populate) {
-      this.options.populate.forEach(pop => {
-        queryChain = queryChain.populate(pop.path, pop.select);
-      });
-    }
-
-    if (this.options.sort) {
-      queryChain = queryChain.sort(this.options.sort);
-    }
-
-    if (this.options.skip) {
-      queryChain = queryChain.skip(this.options.skip);
-    }
-
-    if (this.options.limit) {
-      queryChain = queryChain.limit(this.options.limit);
-    }
-
-    if (this.options.lean) {
-      queryChain = queryChain.lean();
-    }
-
-    const results = await queryChain;
-    const executionTime = Date.now() - startTime;
-
-    // Log queries lentas (> 100ms)
-    if (executionTime > 100) {
-      logger.warn('Slow query detected', {
-        model: this.model.modelName,
-        query: this.query,
-        executionTime: `${executionTime}ms`,
-      });
-    }
-
-    return results;
-  }
-
-  /**
-   * Contar documentos
-   */
-  async count() {
-    return this.model.countDocuments(this.query);
-  }
-
-  /**
-   * Ejecutar con paginación completa
-   */
-  async execWithPagination(page = 1, limit = 10) {
-    this.paginate(page, limit);
-
-    const [results, total] = await Promise.all([
-      this.exec(),
-      this.count(),
-    ]);
-
-    return {
-      results,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-        hasNext: page < Math.ceil(total / limit),
-        hasPrev: page > 1,
-      },
-    };
-  }
-}
+const USER_BASIC_FIELDS = 'username avatar fullName isVerified';
 
 /**
- * Crear query optimizada
+ * Campos de usuario para populate en feed
  */
-const optimizedQuery = (model, query = {}) => {
-  return new QueryBuilder(model, query);
+const USER_FEED_FIELDS = 'username avatar fullName isVerified bio';
+
+/**
+ * Campos de usuario para populate en perfil
+ */
+const USER_PROFILE_FIELDS =
+  'username avatar fullName isVerified bio website location followers following';
+
+/**
+ * Opciones de paginación estándar
+ * @param {number} page - Página actual
+ * @param {number} limit - Elementos por página
+ * @returns {Object} Objeto con skip y limit
+ */
+const getPaginationOptions = (page = 1, limit = 10) => {
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+
+  const skip = (pageNum - 1) * limitNum;
+
+  return {
+    skip,
+    limit: limitNum,
+    page: pageNum,
+  };
 };
 
 /**
- * Batch loading de documentos
- * Útil para evitar N+1 queries
+ * Crear objeto de respuesta paginada
+ * @param {Array} data - Datos a retornar
+ * @param {number} total - Total de documentos
+ * @param {number} page - Página actual
+ * @param {number} limit - Elementos por página
+ * @returns {Object} Respuesta con paginación
  */
-const batchLoad = async (model, ids, select = null) => {
-  const query = model.find({ _id: { $in: ids } });
+const createPaginatedResponse = (data, total, page, limit) => {
+  const totalPages = Math.ceil(total / limit);
 
-  if (select) {
-    query.select(select);
-  }
-
-  const results = await query.lean();
-
-  // Crear map para acceso rápido
-  const map = new Map();
-  results.forEach(doc => {
-    map.set(doc._id.toString(), doc);
-  });
-
-  return map;
+  return {
+    success: true,
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: totalPages,
+      hasMore: page < totalPages,
+    },
+  };
 };
 
 /**
- * Proyección estándar para usuarios públicos
+ * Opciones de populate optimizado para posts
  */
-const USER_PUBLIC_PROJECTION = 'username avatar fullName bio isVerified followersCount followingCount';
+const getPostPopulateOptions = () => [
+  {
+    path: 'user',
+    select: USER_BASIC_FIELDS,
+  },
+];
 
 /**
- * Proyección mínima para usuarios (solo para listas)
+ * Opciones de populate optimizado para comentarios
  */
-const USER_MINIMAL_PROJECTION = 'username avatar fullName isVerified';
+const getCommentPopulateOptions = () => [
+  {
+    path: 'user',
+    select: USER_BASIC_FIELDS,
+  },
+  {
+    path: 'parentComment',
+    select: 'content user createdAt',
+    populate: {
+      path: 'user',
+      select: 'username avatar',
+    },
+  },
+];
 
 /**
- * Proyección para posts en feed
+ * Opciones de populate optimizado para mensajes
  */
-const POST_FEED_PROJECTION = 'user type content caption location tags likes comments views createdAt';
+const getMessagePopulateOptions = () => [
+  {
+    path: 'sender',
+    select: USER_BASIC_FIELDS,
+  },
+  {
+    path: 'replyTo',
+    select: 'content sender createdAt',
+    populate: {
+      path: 'sender',
+      select: 'username avatar',
+    },
+  },
+];
 
 /**
- * Proyección para posts en perfil
+ * Opciones de populate optimizado para notificaciones
  */
-const POST_PROFILE_PROJECTION = 'content type likes comments createdAt';
+const getNotificationPopulateOptions = () => [
+  {
+    path: 'from',
+    select: USER_BASIC_FIELDS,
+  },
+  {
+    path: 'post',
+    select: 'content caption',
+  },
+  {
+    path: 'comment',
+    select: 'content',
+  },
+];
+
+/**
+ * Opciones de populate optimizado para stories
+ */
+const getStoryPopulateOptions = () => [
+  {
+    path: 'user',
+    select: USER_BASIC_FIELDS,
+  },
+];
+
+/**
+ * Opciones de populate optimizado para reels
+ */
+const getReelPopulateOptions = () => [
+  {
+    path: 'user',
+    select: USER_BASIC_FIELDS,
+  },
+];
+
+/**
+ * Generar clave de caché para consultas
+ * @param {string} model - Nombre del modelo
+ * @param {Object} query - Query de MongoDB
+ * @param {Object} options - Opciones adicionales
+ * @returns {string} Clave única para caché
+ */
+const generateCacheKey = (model, query = {}, options = {}) => {
+  const queryStr = JSON.stringify(query);
+  const optionsStr = JSON.stringify(options);
+  return `${model}:${queryStr}:${optionsStr}`;
+};
 
 module.exports = {
-  QueryBuilder,
-  optimizedQuery,
-  batchLoad,
-  USER_PUBLIC_PROJECTION,
-  USER_MINIMAL_PROJECTION,
-  POST_FEED_PROJECTION,
-  POST_PROFILE_PROJECTION,
+  USER_BASIC_FIELDS,
+  USER_FEED_FIELDS,
+  USER_PROFILE_FIELDS,
+  getPaginationOptions,
+  createPaginatedResponse,
+  getPostPopulateOptions,
+  getCommentPopulateOptions,
+  getMessagePopulateOptions,
+  getNotificationPopulateOptions,
+  getStoryPopulateOptions,
+  getReelPopulateOptions,
+  generateCacheKey,
 };
-

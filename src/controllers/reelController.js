@@ -3,6 +3,12 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
+const cacheService = require('../utils/cacheService');
+const {
+  getPaginationOptions,
+  createPaginatedResponse,
+  USER_BASIC_FIELDS,
+} = require('../utils/queryOptimizer');
 
 // Crear un nuevo reel
 exports.createReel = async (req, res) => {
@@ -22,7 +28,16 @@ exports.createReel = async (req, res) => {
       });
     }
 
-    const { caption, hashtags, location, audioTitle, audioArtist, allowComments, allowDuets, allowStitches } = req.body;
+    const {
+      caption,
+      hashtags,
+      location,
+      audioTitle,
+      audioArtist,
+      allowComments,
+      allowDuets,
+      allowStitches,
+    } = req.body;
 
     // Verificar que se subió un video
     if (!req.files || !req.files.video) {
@@ -47,7 +62,9 @@ exports.createReel = async (req, res) => {
         height: 1920,
       },
       caption: caption || '',
-      hashtags: hashtags ? hashtags.split(',').map(tag => tag.trim().replace('#', '')) : [],
+      hashtags: hashtags
+        ? hashtags.split(',').map(tag => tag.trim().replace('#', ''))
+        : [],
       allowComments: allowComments !== false, // Por defecto true
       allowDuets: allowDuets !== false, // Por defecto true
       allowStitches: allowStitches !== false, // Por defecto true
@@ -105,7 +122,6 @@ exports.createReel = async (req, res) => {
       message: 'Reel creado exitosamente',
       reel,
     });
-
   } catch (error) {
     logger.error('Error en createReel:', error);
     res.status(500).json({
@@ -119,39 +135,56 @@ exports.createReel = async (req, res) => {
 // Obtener reels para el feed
 exports.getReelsForFeed = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const userId = req.userId;
+    const { page, limit, skip } = getPaginationOptions(
+      req.query.page || 1,
+      req.query.limit || 20
+    );
 
-    // Obtener reels públicos que no han sido eliminados
-    const reels = await Reel.find({
+    // Intentar obtener del caché
+    const cacheKey = `reels:feed:${userId}:${page}:${limit}`;
+    const cachedReels = cacheService.get(cacheKey);
+
+    if (cachedReels) {
+      logger.info(`Reels feed servido desde caché para usuario ${userId}`);
+      return res.json(cachedReels);
+    }
+
+    // Query optimizada
+    const query = {
       isDeleted: false,
       isPublic: true,
-    })
-      .populate('user', 'username avatar fullName')
-      .populate('audio')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    };
 
-    // Contar total de reels para paginación
-    const total = await Reel.countDocuments({
-      isDeleted: false,
-      isPublic: true,
-    });
+    // Ejecutar queries en paralelo
+    const [reels, total] = await Promise.all([
+      Reel.find(query)
+        .populate('user', USER_BASIC_FIELDS)
+        .select('-__v')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Reel.countDocuments(query),
+    ]);
 
-    res.json({
+    const response = {
       success: true,
       reels,
       pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalReels: total,
-        hasNext: page * limit < total,
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
         hasPrev: page > 1,
       },
-    });
+    };
 
+    // Guardar en caché por 2 minutos
+    cacheService.set(cacheKey, response, 120);
+
+    res.json(response);
   } catch (error) {
     logger.error('Error en getReelsForFeed:', error);
     res.status(500).json({
@@ -204,7 +237,6 @@ exports.getUserReels = async (req, res) => {
         hasPrev: page > 1,
       },
     });
-
   } catch (error) {
     logger.error('Error en getUserReels:', error);
     res.status(500).json({
@@ -246,7 +278,6 @@ exports.getReel = async (req, res) => {
       success: true,
       reel,
     });
-
   } catch (error) {
     logger.error('Error en getReel:', error);
     res.status(500).json({
@@ -288,6 +319,10 @@ exports.likeReel = async (req, res) => {
 
     await reel.addLike(userId);
 
+    // Invalidar caché relacionado
+    cacheService.deletePattern(`reel:${id}:*`);
+    cacheService.deletePattern(`reels:feed:*`);
+
     // Crear notificación para el dueño del reel
     if (reel.user.toString() !== userId) {
       try {
@@ -311,8 +346,8 @@ exports.likeReel = async (req, res) => {
       success: true,
       message: 'Like agregado exitosamente',
       likesCount: reel.likes.length + 1,
+      isLiked: true,
     });
-
   } catch (error) {
     logger.error('Error en likeReel:', error);
     res.status(500).json({
@@ -338,12 +373,16 @@ exports.unlikeReel = async (req, res) => {
 
     await reel.removeLike(userId);
 
+    // Invalidar caché relacionado
+    cacheService.deletePattern(`reel:${id}:*`);
+    cacheService.deletePattern(`reels:feed:*`);
+
     res.json({
       success: true,
       message: 'Like removido exitosamente',
       likesCount: reel.likes.length,
+      isLiked: false,
     });
-
   } catch (error) {
     logger.error('Error en unlikeReel:', error);
     res.status(500).json({
@@ -421,7 +460,6 @@ exports.commentReel = async (req, res) => {
       reel: updatedReel,
       commentsCount: updatedReel.comments.length,
     });
-
   } catch (error) {
     logger.error('Error en commentReel:', error);
     res.status(500).json({
@@ -459,7 +497,6 @@ exports.deleteReel = async (req, res) => {
       success: true,
       message: 'Reel eliminado exitosamente',
     });
-
   } catch (error) {
     logger.error('Error en deleteReel:', error);
     res.status(500).json({
@@ -507,7 +544,6 @@ exports.searchReelsByHashtag = async (req, res) => {
         hasPrev: page > 1,
       },
     });
-
   } catch (error) {
     logger.error('Error en searchReelsByHashtag:', error);
     res.status(500).json({
@@ -525,9 +561,13 @@ exports.getTrendingReels = async (req, res) => {
 
     let dateFilter = {};
     if (timeFrame === 'week') {
-      dateFilter = { createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } };
+      dateFilter = {
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      };
     } else if (timeFrame === 'month') {
-      dateFilter = { createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } };
+      dateFilter = {
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      };
     }
 
     const reels = await Reel.aggregate([
@@ -568,7 +608,6 @@ exports.getTrendingReels = async (req, res) => {
       reels,
       timeFrame,
     });
-
   } catch (error) {
     logger.error('Error en getTrendingReels:', error);
     res.status(500).json({

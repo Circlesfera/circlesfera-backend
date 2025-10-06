@@ -3,6 +3,13 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
+const cacheService = require('../utils/cacheService');
+const {
+  getPaginationOptions,
+  createPaginatedResponse,
+  getPostPopulateOptions,
+  USER_BASIC_FIELDS,
+} = require('../utils/queryOptimizer');
 
 // Crear una nueva publicación
 exports.createPost = async (req, res) => {
@@ -35,73 +42,72 @@ exports.createPost = async (req, res) => {
 
     // Manejar diferentes tipos de contenido
     switch (type) {
-    case 'image': {
-      if (!req.files || !req.files.images) {
-        return res.status(400).json({
-          success: false,
-          message: 'La imagen es obligatoria para publicaciones de imagen',
-        });
+      case 'image': {
+        if (!req.files || !req.files.images) {
+          return res.status(400).json({
+            success: false,
+            message: 'La imagen es obligatoria para publicaciones de imagen',
+          });
+        }
+
+        const images = Array.isArray(req.files.images)
+          ? req.files.images
+          : [req.files.images];
+        postData.content = {
+          images: images.map(file => ({
+            url: `${baseUrl}/uploads/${file.filename}`,
+            alt: caption || '',
+            width: 0,
+            height: 0,
+          })),
+        };
+        break;
       }
 
-      const images = Array.isArray(req.files.images) ? req.files.images : [req.files.images];
-      postData.content = {
-        images: images.map(file => ({
-          url: `${baseUrl}/uploads/${file.filename}`,
-          alt: caption || '',
-          width: 0,
-          height: 0,
-        })),
-      };
-      break;
-    }
+      case 'video':
+        if (!req.files || !req.files.video) {
+          return res.status(400).json({
+            success: false,
+            message: 'El video es obligatorio para publicaciones de video',
+          });
+        }
 
-    case 'video':
-      if (!req.files || !req.files.video) {
+        postData.content = {
+          video: {
+            url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
+            duration: 0,
+            thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+            width: 0,
+            height: 0,
+          },
+        };
+        break;
+
+      case 'text':
+        if (!text) {
+          return res.status(400).json({
+            success: false,
+            message: 'El texto es obligatorio para publicaciones de texto',
+          });
+        }
+
+        postData.content = {
+          text,
+        };
+        break;
+
+      default:
         return res.status(400).json({
           success: false,
-          message: 'El video es obligatorio para publicaciones de video',
+          message: 'Tipo de publicación no válido',
         });
-      }
-
-      postData.content = {
-        video: {
-          url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
-          duration: 0,
-          thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
-          width: 0,
-          height: 0,
-        },
-      };
-      break;
-
-    case 'text':
-      if (!text) {
-        return res.status(400).json({
-          success: false,
-          message: 'El texto es obligatorio para publicaciones de texto',
-        });
-      }
-
-      postData.content = {
-        text,
-      };
-      break;
-
-    default:
-      return res.status(400).json({
-        success: false,
-        message: 'Tipo de publicación no válido',
-      });
     }
 
     const post = new Post(postData);
     await post.save();
 
     // Actualizar el array de posts del usuario
-    await User.findByIdAndUpdate(
-      req.userId,
-      { $push: { posts: post._id } },
-    );
+    await User.findByIdAndUpdate(req.userId, { $push: { posts: post._id } });
 
     // Populate user data for response
     await post.populate('user', 'username avatar fullName');
@@ -125,8 +131,21 @@ exports.createPost = async (req, res) => {
 exports.getFeed = async (req, res) => {
   try {
     const userId = req.userId;
+    const { page, limit, skip } = getPaginationOptions(
+      req.query.page,
+      req.query.limit
+    );
 
-    const user = await User.findById(userId);
+    // Intentar obtener del caché
+    const cacheKey = `feed:${userId}:${page}:${limit}`;
+    const cachedFeed = cacheService.get(cacheKey);
+
+    if (cachedFeed) {
+      logger.info(`Feed servido desde caché para usuario ${userId}`);
+      return res.json(cachedFeed);
+    }
+
+    const user = await User.findById(userId).select('following').lean();
 
     if (!user) {
       return res.status(404).json({
@@ -138,39 +157,43 @@ exports.getFeed = async (req, res) => {
     // Usuarios a mostrar: seguidos + propio usuario
     const usersToShow = [userId, ...(user.following || [])];
 
-    // Paginación
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    const posts = await Post.find({
+    // Query optimizada con índices
+    const query = {
       user: { $in: usersToShow },
       isPublic: true,
       isArchived: false,
       isDeleted: false,
-    })
-      .populate('user', 'username avatar fullName')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    };
 
-    const total = await Post.countDocuments({
-      user: { $in: usersToShow },
-      isPublic: true,
-      isArchived: false,
-      isDeleted: false,
-    });
+    // Ejecutar queries en paralelo para mejor performance
+    const [posts, total] = await Promise.all([
+      Post.find(query)
+        .populate('user', USER_BASIC_FIELDS)
+        .select('-__v') // Excluir campo de versión
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(), // Convertir a objeto plano para mejor performance
+      Post.countDocuments(query),
+    ]);
 
-    res.json({
-      success: true,
-      posts,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    // Agregar campo isLiked para el usuario actual
+    const postsWithLikeStatus = posts.map(post => ({
+      ...post,
+      isLiked: post.likes?.includes(userId) || false,
+    }));
+
+    const response = createPaginatedResponse(
+      postsWithLikeStatus,
+      total,
+      page,
+      limit
+    );
+
+    // Guardar en caché por 2 minutos
+    cacheService.set(cacheKey, response, 120);
+
+    res.json(response);
   } catch (error) {
     logger.error('Error en getFeed:', error);
     res.status(500).json({
@@ -183,12 +206,24 @@ exports.getFeed = async (req, res) => {
 // Obtener un post específico
 exports.getPost = async (req, res) => {
   try {
+    const postId = req.params.id;
+    const userId = req.userId;
+
+    // Intentar obtener del caché
+    const cacheKey = `post:${postId}:${userId}`;
+    const cachedPost = cacheService.get(cacheKey);
+
+    if (cachedPost) {
+      return res.json(cachedPost);
+    }
+
     const post = await Post.findOne({
-      _id: req.params.id,
+      _id: postId,
       isDeleted: false,
     })
-      .populate('user', 'username avatar fullName bio')
-      .populate('likes', 'username avatar');
+      .populate('user', USER_BASIC_FIELDS)
+      .select('-__v')
+      .lean();
 
     if (!post) {
       return res.status(404).json({
@@ -197,13 +232,24 @@ exports.getPost = async (req, res) => {
       });
     }
 
-    // Incrementar vistas
-    await post.incrementViews();
+    // Incrementar vistas (sin esperar)
+    Post.findByIdAndUpdate(postId, { $inc: { views: 1 } }).exec();
 
-    res.json({
+    // Agregar isLiked
+    const postWithLikeStatus = {
+      ...post,
+      isLiked: post.likes?.includes(userId) || false,
+    };
+
+    const response = {
       success: true,
-      post,
-    });
+      post: postWithLikeStatus,
+    };
+
+    // Guardar en caché por 1 minuto
+    cacheService.set(cacheKey, response, 60);
+
+    res.json(response);
   } catch (error) {
     logger.error('Error en getPost:', error);
     res.status(500).json({
@@ -216,7 +262,10 @@ exports.getPost = async (req, res) => {
 // Dar/quitar like a un post
 exports.toggleLike = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const postId = req.params.id;
+    const userId = req.userId;
+
+    const post = await Post.findById(postId);
 
     if (!post) {
       return res.status(404).json({
@@ -225,7 +274,6 @@ exports.toggleLike = async (req, res) => {
       });
     }
 
-    const userId = req.userId;
     const isLiked = post.isLikedBy(userId);
 
     if (isLiked) {
@@ -246,8 +294,12 @@ exports.toggleLike = async (req, res) => {
       }
     }
 
+    // Invalidar caché relacionado con este post
+    cacheService.deletePattern(`post:${postId}:*`);
+    cacheService.deletePattern(`feed:*`);
+
     // Recargar el post para obtener los datos actualizados
-    const updatedPost = await Post.findById(req.params.id);
+    const updatedPost = await Post.findById(postId);
 
     res.json({
       success: true,
@@ -267,8 +319,10 @@ exports.toggleLike = async (req, res) => {
 // Listar usuarios que han dado like a un post
 exports.getLikes = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id)
-      .populate('likes', 'username avatar fullName');
+    const post = await Post.findById(req.params.id).populate(
+      'likes',
+      'username avatar fullName'
+    );
 
     if (!post) {
       return res.status(404).json({
@@ -342,8 +396,10 @@ exports.getUserPosts = async (req, res) => {
 exports.getTrendingPosts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const posts = await Post.findTrending(limit)
-      .populate('user', 'username avatar fullName');
+    const posts = await Post.findTrending(limit).populate(
+      'user',
+      'username avatar fullName'
+    );
 
     res.json({
       success: true,

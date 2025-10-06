@@ -3,6 +3,13 @@ const Post = require('../models/Post');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
+const cacheService = require('../utils/cacheService');
+const {
+  getPaginationOptions,
+  createPaginatedResponse,
+  getCommentPopulateOptions,
+  USER_BASIC_FIELDS,
+} = require('../utils/queryOptimizer');
 
 // Crear un comentario
 exports.createComment = async (req, res) => {
@@ -49,6 +56,9 @@ exports.createComment = async (req, res) => {
     const comment = new Comment(commentData);
     await comment.save();
 
+    // Invalidar caché de comentarios
+    cacheService.deletePattern(`comments:${postId}:*`);
+
     // Populate user data
     await comment.populate('user', 'username avatar fullName');
 
@@ -82,12 +92,21 @@ exports.createComment = async (req, res) => {
 exports.getComments = async (req, res) => {
   try {
     const postId = req.params.postId;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPaginationOptions(
+      req.query.page,
+      req.query.limit
+    );
+
+    // Intentar obtener del caché
+    const cacheKey = `comments:${postId}:${page}:${limit}`;
+    const cachedComments = cacheService.get(cacheKey);
+
+    if (cachedComments) {
+      return res.json(cachedComments);
+    }
 
     // Verificar que el post existe
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).select('_id').lean();
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -95,26 +114,31 @@ exports.getComments = async (req, res) => {
       });
     }
 
-    const comments = await Comment.findByPost(postId)
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Comment.countDocuments({
+    // Query optimizada
+    const query = {
       post: postId,
       isDeleted: false,
       parentComment: null,
-    });
+    };
 
-    res.json({
-      success: true,
-      comments,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    // Ejecutar queries en paralelo
+    const [comments, total] = await Promise.all([
+      Comment.find(query)
+        .populate('user', USER_BASIC_FIELDS)
+        .select('-__v')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Comment.countDocuments(query),
+    ]);
+
+    const response = createPaginatedResponse(comments, total, page, limit);
+
+    // Guardar en caché por 1 minuto
+    cacheService.set(cacheKey, response, 60);
+
+    res.json(response);
   } catch (error) {
     logger.error('Error en getComments:', error);
     res.status(500).json({
