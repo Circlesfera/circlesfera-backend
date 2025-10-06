@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
-const cacheService = require('../utils/cacheService');
+const cache = require('../utils/cacheAdapter');
 const {
   getPaginationOptions,
   createPaginatedResponse,
@@ -138,7 +138,7 @@ exports.getFeed = async (req, res) => {
 
     // Intentar obtener del caché
     const cacheKey = `feed:${userId}:${page}:${limit}`;
-    const cachedFeed = cacheService.get(cacheKey);
+    const cachedFeed = await cache.get(cacheKey);
 
     if (cachedFeed) {
       logger.info(`Feed servido desde caché para usuario ${userId}`);
@@ -191,7 +191,7 @@ exports.getFeed = async (req, res) => {
     );
 
     // Guardar en caché por 2 minutos
-    cacheService.set(cacheKey, response, 120);
+    await cache.set(cacheKey, response, 120);
 
     res.json(response);
   } catch (error) {
@@ -211,7 +211,7 @@ exports.getPost = async (req, res) => {
 
     // Intentar obtener del caché
     const cacheKey = `post:${postId}:${userId}`;
-    const cachedPost = cacheService.get(cacheKey);
+    const cachedPost = await cache.get(cacheKey);
 
     if (cachedPost) {
       return res.json(cachedPost);
@@ -247,7 +247,7 @@ exports.getPost = async (req, res) => {
     };
 
     // Guardar en caché por 1 minuto
-    cacheService.set(cacheKey, response, 60);
+    await cache.set(cacheKey, response, 60);
 
     res.json(response);
   } catch (error) {
@@ -295,8 +295,8 @@ exports.toggleLike = async (req, res) => {
     }
 
     // Invalidar caché relacionado con este post
-    cacheService.deletePattern(`post:${postId}:*`);
-    cacheService.deletePattern(`feed:*`);
+    await cache.deletePattern(`post:${postId}:*`);
+    await cache.deletePattern(`feed:*`);
 
     // Recargar el post para obtener los datos actualizados
     const updatedPost = await Post.findById(postId);

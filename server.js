@@ -42,23 +42,25 @@ if (sentry) {
 app.use(compression());
 
 // Configuración de seguridad
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ['\'self\''],
-      styleSrc: ['\'self\'', '\'unsafe-inline\''],
-      scriptSrc: ['\'self\''],
-      imgSrc: ['\'self\'', 'data:', 'blob:'],
-      mediaSrc: ['\'self\'', 'data:', 'blob:'],
-      connectSrc: ['\'self\''],
-      fontSrc: ['\'self\'', 'https:', 'data:'],
-      objectSrc: ['\'none\''],
-      upgradeInsecureRequests: [],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        mediaSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-}));
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // Rate limiting - más permisivo en desarrollo
 const limiter = rateLimit({
@@ -74,7 +76,8 @@ const limiter = rateLimit({
   handler: (req, res) => {
     logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
-      error: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.',
+      error:
+        'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.',
     });
   },
 });
@@ -94,7 +97,6 @@ app.use('/api/messages', limiter);
 const requestId = require('./src/middlewares/requestId');
 app.use(requestId);
 
-
 // Sanitización - Compatible con Express 5
 const { sanitizeMongo, sanitizeBody } = require('./src/middlewares/sanitize');
 app.use(sanitizeMongo);
@@ -103,12 +105,14 @@ app.use(sanitizeBody);
 // Middlewares básicos
 app.use(express.json());
 // Configuración compatible con Express 5
-app.use(express.urlencoded({ 
-  extended: true,
-  // Prevenir que modifique req.query en Express 5
-  parameterLimit: 1000,
-  limit: '10mb'
-}));
+app.use(
+  express.urlencoded({
+    extended: true,
+    // Prevenir que modifique req.query en Express 5
+    parameterLimit: 1000,
+    limit: '10mb',
+  })
+);
 
 // CORS deshabilitado en el backend - manejado por Nginx
 // app.use(cors({
@@ -121,24 +125,31 @@ app.use(express.urlencoded({
 
 // Logging HTTP con Morgan
 if (config.isDevelopment) {
-  app.use(morgan('dev', {
-    skip: (req, _res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
-  }));
+  app.use(
+    morgan('dev', {
+      skip: (req, _res) => req.method === 'OPTIONS', // Saltar peticiones OPTIONS para evitar conflictos
+    })
+  );
 } else {
   // En producción, logging mínimo
-  app.use(morgan('combined', {
-    skip: (req, _res) => req.method === 'OPTIONS',
-  }));
+  app.use(
+    morgan('combined', {
+      skip: (req, _res) => req.method === 'OPTIONS',
+    })
+  );
 }
 
 // Conexión a la base de datos
 connectDB();
 
-// Inicializar Redis (opcional)
-const { initRedis } = require('./src/utils/cache');
-initRedis().catch(err => {
-  logger.warn('Redis no disponible, continuando sin cache:', err.message);
-});
+// Inicializar Redis (opcional - solo en producción)
+const { initRedis } = require('./src/config/redis');
+try {
+  initRedis();
+  logger.info('✅ Sistema de caché inicializado');
+} catch (err) {
+  logger.warn('⚠️ Redis no disponible, usando caché en memoria');
+}
 
 // Swagger Documentation
 if (config.isDevelopment) {
@@ -158,12 +169,18 @@ if (config.isDevelopment) {
     res.redirect('/api-docs');
   });
 
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: 'CircleSfera API Docs',
-    customCss: '.swagger-ui .topbar { display: none }',
-  }));
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: 'CircleSfera API Docs',
+      customCss: '.swagger-ui .topbar { display: none }',
+    })
+  );
 
-  logger.info(`📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`);
+  logger.info(
+    `📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`
+  );
 }
 
 // Health check endpoints (sin rate limiting ni autenticación)
@@ -197,11 +214,11 @@ app.use((err, req, res, _next) => {
     path: req.path,
     ip: req.ip,
   };
-  
+
   if (config.isDevelopment && err.stack) {
     errorInfo.stack = err.stack;
   }
-  
+
   logger.error('Error en request:', errorInfo);
 
   // Errores de validación de Mongoose
@@ -282,7 +299,7 @@ process.on('unhandledRejection', (reason, promise) => {
   });
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('Uncaught Exception:', error);
   // Cerrar servidor gracefully
   server.close(() => {

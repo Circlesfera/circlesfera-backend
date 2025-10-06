@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
-const cacheService = require('../utils/cacheService');
+const cache = require('../utils/cacheAdapter');
 const {
   getPaginationOptions,
   createPaginatedResponse,
@@ -143,7 +143,7 @@ exports.getReelsForFeed = async (req, res) => {
 
     // Intentar obtener del caché
     const cacheKey = `reels:feed:${userId}:${page}:${limit}`;
-    const cachedReels = cacheService.get(cacheKey);
+    const cachedReels = await cache.get(cacheKey);
 
     if (cachedReels) {
       logger.info(`Reels feed servido desde caché para usuario ${userId}`);
@@ -182,7 +182,7 @@ exports.getReelsForFeed = async (req, res) => {
     };
 
     // Guardar en caché por 2 minutos
-    cacheService.set(cacheKey, response, 120);
+    await cache.set(cacheKey, response, 120);
 
     res.json(response);
   } catch (error) {
@@ -320,8 +320,8 @@ exports.likeReel = async (req, res) => {
     await reel.addLike(userId);
 
     // Invalidar caché relacionado
-    cacheService.deletePattern(`reel:${id}:*`);
-    cacheService.deletePattern(`reels:feed:*`);
+    await cache.deletePattern(`reel:${id}:*`);
+    await cache.deletePattern(`reels:feed:*`);
 
     // Crear notificación para el dueño del reel
     if (reel.user.toString() !== userId) {
@@ -374,8 +374,8 @@ exports.unlikeReel = async (req, res) => {
     await reel.removeLike(userId);
 
     // Invalidar caché relacionado
-    cacheService.deletePattern(`reel:${id}:*`);
-    cacheService.deletePattern(`reels:feed:*`);
+    await cache.deletePattern(`reel:${id}:*`);
+    await cache.deletePattern(`reels:feed:*`);
 
     res.json({
       success: true,

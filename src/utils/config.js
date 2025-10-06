@@ -16,7 +16,7 @@ console.log('🔧 Backend Config:', {
   isDevelopment: config.isDevelopment,
   isProduction: config.isProduction,
   port: process.env.PORT || 5001,
-  corsOrigin: process.env.CORS_ORIGIN || 'https://dev.circlesfera.com'
+  corsOrigin: process.env.CORS_ORIGIN || 'https://dev.circlesfera.com',
 });
 
 const configFull = {
@@ -31,17 +31,23 @@ const configFull = {
   // Base de datos
   mongodbUri: process.env.MONGODB_URI || process.env.MONGO_URI,
 
+  // Redis (opcional - solo en producción)
+  redisUrl: process.env.REDIS_URL || null,
+
   // Seguridad
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 
   // CORS
-  corsOrigin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['https://dev.circlesfera.com'],
+  corsOrigin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',')
+    : ['https://dev.circlesfera.com'],
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min
-  rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  rateLimitMaxRequests:
+    parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
 
   // Upload
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
@@ -79,7 +85,9 @@ const validateConfig = () => {
 
   // Variables requeridas siempre
   if (!configFull.jwtSecret) {
-    errors.push('JWT_SECRET debe estar configurado (genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+    errors.push(
+      "JWT_SECRET debe estar configurado (genera uno con: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
+    );
   }
 
   if (!configFull.mongodbUri) {
@@ -96,7 +104,9 @@ const validateConfig = () => {
   }
 
   if (errors.length > 0) {
-    throw new Error(`Errores de configuración:\n${errors.map(e => `  - ${e}`).join('\n')}`);
+    throw new Error(
+      `Errores de configuración:\n${errors.map(e => `  - ${e}`).join('\n')}`
+    );
   }
 
   return true;
@@ -107,7 +117,7 @@ const validateConfig = () => {
  * @param {number} requested - Límite solicitado
  * @returns {number} Límite validado
  */
-configFull.getPaginationLimit = (requested) => {
+configFull.getPaginationLimit = requested => {
   const limit = parseInt(requested, 10);
   if (isNaN(limit) || limit < 1) {
     return configFull.defaultPageLimit;
@@ -116,4 +126,3 @@ configFull.getPaginationLimit = (requested) => {
 };
 
 module.exports = { config: configFull, validateConfig };
-
