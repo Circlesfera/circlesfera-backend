@@ -13,6 +13,7 @@ const {
 } = require('../controllers/authController');
 const { auth } = require('../middlewares/auth');
 const { uploadFields, handleUploadError } = require('../middlewares/upload');
+const imageOptimizer = require('../middlewares/imageOptimizer');
 
 // Validaciones
 const registerValidation = [
@@ -21,7 +22,9 @@ const registerValidation = [
     .isLength({ min: 3, max: 30 })
     .withMessage('El nombre de usuario debe tener entre 3 y 30 caracteres')
     .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('El nombre de usuario solo puede contener letras, números y guiones bajos'),
+    .withMessage(
+      'El nombre de usuario solo puede contener letras, números y guiones bajos'
+    ),
   body('email')
     .isEmail()
     .normalizeEmail()
@@ -30,7 +33,9 @@ const registerValidation = [
     .isLength({ min: 6 })
     .withMessage('La contraseña debe tener al menos 6 caracteres')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'),
+    .withMessage(
+      'La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'
+    ),
   body('fullName')
     .optional()
     .trim()
@@ -39,12 +44,8 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email')
-    .notEmpty()
-    .withMessage('El email es requerido'),
-  body('password')
-    .notEmpty()
-    .withMessage('La contraseña es requerida'),
+  body('email').notEmpty().withMessage('El email es requerido'),
+  body('password').notEmpty().withMessage('La contraseña es requerida'),
 ];
 
 const updateProfileValidation = [
@@ -54,7 +55,9 @@ const updateProfileValidation = [
     .isLength({ min: 3, max: 30 })
     .withMessage('El nombre de usuario debe tener entre 3 y 30 caracteres')
     .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('El nombre de usuario solo puede contener letras, números y guiones bajos'),
+    .withMessage(
+      'El nombre de usuario solo puede contener letras, números y guiones bajos'
+    ),
   body('fullName')
     .optional()
     .trim()
@@ -103,7 +106,9 @@ const changePasswordValidation = [
     .isLength({ min: 6 })
     .withMessage('La nueva contraseña debe tener al menos 6 caracteres')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'),
+    .withMessage(
+      'La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'
+    ),
 ];
 
 // Rutas públicas
@@ -113,7 +118,15 @@ router.get('/check-username/:username', checkUsernameAvailability);
 
 // Rutas protegidas
 router.get('/profile', auth, getProfile);
-router.put('/profile', auth, uploadFields, handleUploadError, updateProfileValidation, updateProfile);
+router.put(
+  '/profile',
+  auth,
+  uploadFields,
+  imageOptimizer,
+  handleUploadError,
+  updateProfileValidation,
+  updateProfile
+);
 router.put('/change-password', auth, changePasswordValidation, changePassword);
 router.post('/logout', auth, logout);
 router.post('/refresh-token', auth, refreshToken);

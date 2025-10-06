@@ -15,6 +15,7 @@ const {
 } = require('../controllers/postController');
 const { auth } = require('../middlewares/auth');
 const { uploadFields, handleUploadError } = require('../middlewares/upload');
+const imageOptimizer = require('../middlewares/imageOptimizer');
 
 // Validaciones
 const createPostValidation = [
@@ -59,7 +60,6 @@ router.get('/trending', getTrendingPosts);
 router.get('/recent', getRecentPosts);
 router.get('/user/:username', getUserPosts);
 
-
 // Rutas protegidas
 router.get('/feed', auth, getFeed);
 
@@ -68,26 +68,20 @@ router.get('/:id', getPost);
 router.get('/:id/likes', getLikes);
 
 // Ruta para posts con archivos (imagen/video)
-router.post('/media',
+router.post(
+  '/media',
   auth,
   uploadFields,
+  imageOptimizer,
   createPostValidation,
   createPost,
-  handleUploadError,
+  handleUploadError
 );
 
 // Ruta para posts de texto (sin archivos)
-router.post('/',
-  auth,
-  createPostValidation,
-  createPost,
-);
+router.post('/', auth, createPostValidation, createPost);
 
-router.put('/:id',
-  auth,
-  updatePostValidation,
-  updatePost,
-);
+router.put('/:id', auth, updatePostValidation, updatePost);
 
 router.post('/:id/like', auth, toggleLike);
 router.delete('/:id', auth, deletePost);

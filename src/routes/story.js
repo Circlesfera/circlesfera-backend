@@ -15,6 +15,7 @@ const {
 } = require('../controllers/storyController');
 const { auth } = require('../middlewares/auth');
 const { uploadFields, handleUploadError } = require('../middlewares/upload');
+const imageOptimizer = require('../middlewares/imageOptimizer');
 
 // Validaciones
 const createStoryValidation = [
@@ -54,21 +55,18 @@ router.get('/users', auth, getUsersWithStories);
 router.get('/user/:username', getUserStories);
 router.get('/:id', getStory);
 
-
 // Rutas protegidas
-router.post('/',
+router.post(
+  '/',
   auth,
   uploadFields,
+  imageOptimizer,
   createStoryValidation,
   createStory,
-  handleUploadError,
+  handleUploadError
 );
 
-router.post('/:id/reaction',
-  auth,
-  addReactionValidation,
-  addReaction,
-);
+router.post('/:id/reaction', auth, addReactionValidation, addReaction);
 
 router.delete('/:id/reaction', auth, removeReaction);
 router.post('/:id/reply', auth, addReplyValidation, addReply);
