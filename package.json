@@ -16,7 +16,7 @@
     "check": "npm run lint && npm run format:check && npm run test",
     "verify": "npm run lint && npm run format:check",
     "validate": "npm run check",
-    "prepare": "husky"
+    "prepare": "node -e \"try { require('husky') } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e }\""
   },
   "lint-staged": {
     "*.js": [
