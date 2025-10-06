@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
 
   // Check Memory
   const memUsage = process.memoryUsage();
-  const memoryThreshold = 0.9; // 90%
+  const memoryThreshold = 0.95; // 95% - Más realista para contenedores Docker
   const memoryUsagePercent = memUsage.heapUsed / memUsage.heapTotal;
 
   health.checks.memory = {
@@ -76,8 +76,21 @@ router.get('/', async (req, res) => {
     usagePercent: `${(memoryUsagePercent * 100).toFixed(2)}%`,
   };
 
-  if (memoryUsagePercent > memoryThreshold) {
-    health.status = 'degraded';
+  // Solo degradar el estado si hay problemas críticos, no por memoria alta
+  // La memoria alta en contenedores Docker es normal y no crítica
+  
+  // Verificar si hay problemas críticos que requieren degradar el estado
+  const criticalIssues = []
+  
+  // Solo MongoDB desconectado es crítico
+  if (health.checks.mongodb && health.checks.mongodb.status === 'down') {
+    criticalIssues.push('MongoDB desconectado')
+  }
+  
+  // Solo degradar si hay problemas críticos
+  if (criticalIssues.length > 0) {
+    health.status = 'degraded'
+    health.criticalIssues = criticalIssues
   }
 
   // Response time
