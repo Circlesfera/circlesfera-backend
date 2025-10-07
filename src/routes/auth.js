@@ -1,6 +1,6 @@
-const express = require('express');
-const router = express.Router();
-const { body } = require('express-validator');
+const express = require('express')
+const router = express.Router()
+const { body } = require('express-validator')
 const {
   register,
   login,
@@ -9,11 +9,11 @@ const {
   changePassword,
   logout,
   refreshToken,
-  checkUsernameAvailability,
-} = require('../controllers/authController');
-const { auth } = require('../middlewares/auth');
-const { uploadFields, handleUploadError } = require('../middlewares/upload');
-const imageOptimizer = require('../middlewares/imageOptimizer');
+  checkUsernameAvailability
+} = require('../controllers/authController')
+const { auth } = require('../middlewares/auth')
+const { uploadFields, handleUploadError } = require('../middlewares/upload')
+const imageOptimizer = require('../middlewares/imageOptimizer')
 
 // Validaciones
 const registerValidation = [
@@ -40,13 +40,13 @@ const registerValidation = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('El nombre completo no puede exceder 50 caracteres'),
-];
+    .withMessage('El nombre completo no puede exceder 50 caracteres')
+]
 
 const loginValidation = [
   body('email').notEmpty().withMessage('El email es requerido'),
-  body('password').notEmpty().withMessage('La contraseña es requerida'),
-];
+  body('password').notEmpty().withMessage('La contraseña es requerida')
+]
 
 const updateProfileValidation = [
   body('username')
@@ -95,8 +95,8 @@ const updateProfileValidation = [
   body('isPrivate')
     .optional()
     .isBoolean()
-    .withMessage('El valor de privacidad debe ser true o false'),
-];
+    .withMessage('El valor de privacidad debe ser true o false')
+]
 
 const changePasswordValidation = [
   body('currentPassword')
@@ -108,16 +108,16 @@ const changePasswordValidation = [
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage(
       'La contraseña debe contener al menos una letra mayúscula, una minúscula y un número'
-    ),
-];
+    )
+]
 
 // Rutas públicas
-router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
-router.get('/check-username/:username', checkUsernameAvailability);
+router.post('/register', registerValidation, register)
+router.post('/login', loginValidation, login)
+router.get('/check-username/:username', checkUsernameAvailability)
 
 // Rutas protegidas
-router.get('/profile', auth, getProfile);
+router.get('/profile', auth, getProfile)
 router.put(
   '/profile',
   auth,
@@ -126,9 +126,9 @@ router.put(
   handleUploadError,
   updateProfileValidation,
   updateProfile
-);
-router.put('/change-password', auth, changePasswordValidation, changePassword);
-router.post('/logout', auth, logout);
-router.post('/refresh-token', auth, refreshToken);
+)
+router.put('/change-password', auth, changePasswordValidation, changePassword)
+router.post('/logout', auth, logout)
+router.post('/refresh-token', auth, refreshToken)
 
-module.exports = router;
+module.exports = router

@@ -1,8 +1,8 @@
-const Story = require('../models/Story');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
-const logger = require('../utils/logger');
+const Story = require('../models/Story')
+const User = require('../models/User')
+const Notification = require('../models/Notification')
+const { validationResult } = require('express-validator')
+const logger = require('../utils/logger')
 
 // Crear una nueva historia
 exports.createStory = async (req, res) => {
@@ -10,35 +10,35 @@ exports.createStory = async (req, res) => {
     logger.info('📝 createStory llamado con:', {
       userId: req.userId,
       body: req.body,
-      headers: req.headers,
-    });
+      headers: req.headers
+    })
 
-    const errors = validationResult(req);
+    const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array(),
-      });
+        errors: errors.array()
+      })
     }
 
-    const { type, caption, location, textContent, textStyle } = req.body;
+    const { type, caption, location, textContent, textStyle } = req.body
 
     const storyData = {
       user: req.userId,
       type: type || 'image',
-      caption: caption || '',
-    };
+      caption: caption || ''
+    }
 
-    logger.info('📝 Story data a crear:', storyData);
+    logger.info('📝 Story data a crear:', storyData)
 
     // Agregar ubicación si se proporciona
     if (location) {
-      storyData.location = { name: location };
+      storyData.location = { name: location }
     }
 
     // Construir URL completa del servidor
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = `${req.protocol}://${req.get('host')}`
 
     // Manejar diferentes tipos de contenido
     switch (type) {
@@ -46,39 +46,39 @@ exports.createStory = async (req, res) => {
       if (!req.files || !req.files.image) {
         return res.status(400).json({
           success: false,
-          message: 'La imagen es obligatoria para historias de imagen',
-        });
+          message: 'La imagen es obligatoria para historias de imagen'
+        })
       }
 
       logger.info('Creating image story with:', {
         filename: req.files.image[0].filename,
         baseUrl,
-        fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`,
-      });
+        fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`
+      })
 
       storyData.content = {
         image: {
           url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
           alt: caption || '',
           width: 0,
-          height: 0,
-        },
-      };
-      break;
+          height: 0
+        }
+      }
+      break
 
     case 'video':
       if (!req.files || !req.files.video) {
         return res.status(400).json({
           success: false,
-          message: 'El video es obligatorio para historias de video',
-        });
+          message: 'El video es obligatorio para historias de video'
+        })
       }
 
       logger.info('Creating video story with:', {
         filename: req.files.video[0].filename,
         baseUrl,
-        fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`,
-      });
+        fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`
+      })
 
       storyData.content = {
         video: {
@@ -86,27 +86,27 @@ exports.createStory = async (req, res) => {
           duration: 0,
           thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
           width: 0,
-          height: 0,
-        },
-      };
-      break;
+          height: 0
+        }
+      }
+      break
 
     case 'text': {
       if (!textContent) {
         return res.status(400).json({
           success: false,
-          message: 'El contenido de texto es obligatorio para historias de texto',
-        });
+          message: 'El contenido de texto es obligatorio para historias de texto'
+        })
       }
 
       // Parse textStyle si viene como JSON string
-      let parsedTextStyle = {};
+      let parsedTextStyle = {}
       if (textStyle) {
         try {
-          parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle;
+          parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle
         } catch (error) {
-          logger.error('Error parsing textStyle:', error);
-          parsedTextStyle = {};
+          logger.error('Error parsing textStyle:', error)
+          parsedTextStyle = {}
         }
       }
 
@@ -116,48 +116,48 @@ exports.createStory = async (req, res) => {
           backgroundColor: parsedTextStyle.backgroundColor || '#000000',
           textColor: parsedTextStyle.textColor || '#ffffff',
           fontSize: parsedTextStyle.fontSize || 24,
-          fontFamily: parsedTextStyle.fontFamily || 'Arial',
-        },
-      };
-      break;
+          fontFamily: parsedTextStyle.fontFamily || 'Arial'
+        }
+      }
+      break
     }
 
     default:
       return res.status(400).json({
         success: false,
-        message: 'Tipo de historia no válido',
-      });
+        message: 'Tipo de historia no válido'
+      })
     }
 
-    const story = new Story(storyData);
-    await story.save();
+    const story = new Story(storyData)
+    await story.save()
 
     // Actualizar el array de stories del usuario (si existe)
     try {
       await User.findByIdAndUpdate(
         req.userId,
-        { $push: { stories: story._id } },
-      );
+        { $push: { stories: story._id } }
+      )
     } catch (error) {
-      logger.info('No se pudo actualizar el array de stories del usuario:', error.message);
+      logger.info('No se pudo actualizar el array de stories del usuario:', error.message)
     }
 
     // Populate user data for response
-    await story.populate('user', 'username avatar fullName');
+    await story.populate('user', 'username avatar fullName')
 
     res.status(201).json({
       success: true,
       message: 'Historia creada exitosamente',
-      story,
-    });
+      story
+    })
   } catch (error) {
-    logger.error('Error en createStory:', error);
+    logger.error('Error en createStory:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener historias para el feed
 exports.getStoriesForFeed = async (req, res) => {
@@ -166,54 +166,54 @@ exports.getStoriesForFeed = async (req, res) => {
     const stories = await Story.find({
       isDeleted: false,
       isPublic: true,
-      expiresAt: { $gt: new Date() },
+      expiresAt: { $gt: new Date() }
     })
       .populate('user', 'username avatar fullName')
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(20)
 
     res.json({
       success: true,
-      stories,
-    });
+      stories
+    })
   } catch (error) {
-    logger.error('Error en getStoriesForFeed:', error);
+    logger.error('Error en getStoriesForFeed:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener historias de un usuario específico
 exports.getUserStories = async (req, res) => {
   try {
-    const { username } = req.params;
-    const user = await User.findOne({ username });
+    const { username } = req.params
+    const user = await User.findOne({ username })
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado',
-      });
+        message: 'Usuario no encontrado'
+      })
     }
 
     const stories = await Story.findByUser(user._id, { includeExpired: false })
       .populate('user', 'username avatar fullName')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
 
     res.json({
       success: true,
-      stories,
-    });
+      stories
+    })
   } catch (error) {
-    logger.error('Error en getUserStories:', error);
+    logger.error('Error en getUserStories:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener una historia específica
 exports.getStory = async (req, res) => {
@@ -221,140 +221,140 @@ exports.getStory = async (req, res) => {
     const story = await Story.findOne({
       _id: req.params.id,
       isDeleted: false,
-      isPublic: true,
+      isPublic: true
     })
       .populate('user', 'username avatar fullName')
       .populate('views.user', 'username avatar')
       .populate('reactions.user', 'username avatar')
-      .populate('replies.user', 'username avatar');
+      .populate('replies.user', 'username avatar')
 
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada',
-      });
+        message: 'Historia no encontrada'
+      })
     }
 
     // Verificar si la historia ha expirado
     if (story.isExpired) {
       return res.status(404).json({
         success: false,
-        message: 'Esta historia ha expirado',
-      });
+        message: 'Esta historia ha expirado'
+      })
     }
 
     // Agregar vista si el usuario no es el dueño
     if (story.user._id.toString() !== req.userId) {
-      await story.addView(req.userId);
+      await story.addView(req.userId)
     }
 
     res.json({
       success: true,
-      story,
-    });
+      story
+    })
   } catch (error) {
-    logger.error('Error en getStory:', error);
+    logger.error('Error en getStory:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Agregar reacción a una historia
 exports.addReaction = async (req, res) => {
   try {
-    const { reactionType } = req.body;
-    const story = await Story.findById(req.params.id);
+    const { reactionType } = req.body
+    const story = await Story.findById(req.params.id)
 
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada',
-      });
+        message: 'Historia no encontrada'
+      })
     }
 
     if (story.isExpired) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes reaccionar a una historia expirada',
-      });
+        message: 'No puedes reaccionar a una historia expirada'
+      })
     }
 
-    await story.addReaction(req.userId, reactionType);
+    await story.addReaction(req.userId, reactionType)
 
     res.json({
       success: true,
       message: 'Reacción agregada exitosamente',
-      reactionsCount: story.reactions.length,
-    });
+      reactionsCount: story.reactions.length
+    })
   } catch (error) {
-    logger.error('Error en addReaction:', error);
+    logger.error('Error en addReaction:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Remover reacción de una historia
 exports.removeReaction = async (req, res) => {
   try {
-    const story = await Story.findById(req.params.id);
+    const story = await Story.findById(req.params.id)
 
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada',
-      });
+        message: 'Historia no encontrada'
+      })
     }
 
-    await story.removeReaction(req.userId);
+    await story.removeReaction(req.userId)
 
     res.json({
       success: true,
       message: 'Reacción removida exitosamente',
-      reactionsCount: story.reactions.length,
-    });
+      reactionsCount: story.reactions.length
+    })
   } catch (error) {
-    logger.error('Error en removeReaction:', error);
+    logger.error('Error en removeReaction:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Agregar respuesta a una historia
 exports.addReply = async (req, res) => {
   try {
-    const errors = validationResult(req);
+    const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array(),
-      });
+        errors: errors.array()
+      })
     }
 
-    const { content } = req.body;
-    const story = await Story.findById(req.params.id);
+    const { content } = req.body
+    const story = await Story.findById(req.params.id)
 
     if (!story) {
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada',
-      });
+        message: 'Historia no encontrada'
+      })
     }
 
     if (story.isExpired) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes responder a una historia expirada',
-      });
+        message: 'No puedes responder a una historia expirada'
+      })
     }
 
-    await story.addReply(req.userId, content);
+    await story.addReply(req.userId, content)
 
     // Notificar al dueño de la historia si no es el mismo usuario
     if (story.user.toString() !== req.userId) {
@@ -363,23 +363,23 @@ exports.addReply = async (req, res) => {
         type: 'story_reply',
         from: req.userId,
         story: story._id,
-        message: 'Respondió a tu historia',
-      });
+        message: 'Respondió a tu historia'
+      })
     }
 
     res.json({
       success: true,
       message: 'Respuesta agregada exitosamente',
-      repliesCount: story.replies.length,
-    });
+      repliesCount: story.replies.length
+    })
   } catch (error) {
-    logger.error('Error en addReply:', error);
+    logger.error('Error en addReply:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Eliminar una historia
 exports.deleteStory = async (req, res) => {
@@ -387,17 +387,17 @@ exports.deleteStory = async (req, res) => {
     logger.info('🗑️ deleteStory llamado con:', {
       storyId: req.params.id,
       userId: req.userId,
-      headers: req.headers,
-    });
+      headers: req.headers
+    })
 
-    const story = await Story.findById(req.params.id);
+    const story = await Story.findById(req.params.id)
 
     if (!story) {
-      logger.info('❌ Story no encontrada:', req.params.id);
+      logger.info('❌ Story no encontrada:', req.params.id)
       return res.status(404).json({
         success: false,
-        message: 'Historia no encontrada',
-      });
+        message: 'Historia no encontrada'
+      })
     }
 
     logger.info('📖 Story encontrada:', {
@@ -405,136 +405,136 @@ exports.deleteStory = async (req, res) => {
       storyUserId: story.user,
       requestUserId: req.userId,
       storyUserType: typeof story.user,
-      requestUserIdType: typeof req.userId,
-    });
+      requestUserIdType: typeof req.userId
+    })
 
     // Verificar que el usuario sea el dueño de la historia
     // Convertir ambos IDs a string para comparación correcta
-    const storyUserId = story.user.toString();
-    const requestUserId = req.userId.toString();
+    const storyUserId = story.user.toString()
+    const requestUserId = req.userId.toString()
 
     if (storyUserId !== requestUserId) {
       logger.info('❌ Permisos insuficientes:', {
         storyUser: storyUserId,
         requestUser: requestUserId,
-        match: storyUserId === requestUserId,
-      });
+        match: storyUserId === requestUserId
+      })
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para eliminar esta historia',
-      });
+        message: 'No tienes permisos para eliminar esta historia'
+      })
     }
 
     logger.info('✅ Permisos verificados correctamente:', {
       storyUser: storyUserId,
       requestUser: requestUserId,
-      match: storyUserId === requestUserId,
-    });
+      match: storyUserId === requestUserId
+    })
 
-    logger.info('🗑️ Antes de softDelete - Story ID:', story._id);
-    logger.info('🗑️ Antes de softDelete - isDeleted:', story.isDeleted);
+    logger.info('🗑️ Antes de softDelete - Story ID:', story._id)
+    logger.info('🗑️ Antes de softDelete - isDeleted:', story.isDeleted)
 
     // Ejecutar softDelete
-    const result = await story.softDelete();
+    const result = await story.softDelete()
 
-    logger.info('🗑️ Después de softDelete - Resultado:', result);
-    logger.info('🗑️ Después de softDelete - isDeleted:', result.isDeleted);
-    logger.info('🗑️ Después de softDelete - Story guardada:', result._id);
+    logger.info('🗑️ Después de softDelete - Resultado:', result)
+    logger.info('🗑️ Después de softDelete - isDeleted:', result.isDeleted)
+    logger.info('🗑️ Después de softDelete - Story guardada:', result._id)
 
     // Verificar directamente en la base de datos si se guardó
-    const storyFromDB = await Story.findById(story._id);
+    const storyFromDB = await Story.findById(story._id)
     logger.info('🗑️ Verificación directa en BD:', {
       id: storyFromDB._id,
       isDeleted: storyFromDB.isDeleted,
-      updatedAt: storyFromDB.updatedAt,
-    });
+      updatedAt: storyFromDB.updatedAt
+    })
 
     res.json({
       success: true,
-      message: 'Historia eliminada exitosamente',
-    });
+      message: 'Historia eliminada exitosamente'
+    })
   } catch (error) {
-    logger.error('Error en deleteStory:', error);
+    logger.error('Error en deleteStory:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Limpiar historias expiradas (tarea programada)
 exports.cleanupExpiredStories = async (req, res) => {
   try {
-    const result = await Story.cleanupExpiredStories();
+    const result = await Story.cleanupExpiredStories()
 
     res.json({
       success: true,
       message: 'Limpieza de historias expiradas completada',
-      result,
-    });
+      result
+    })
   } catch (error) {
-    logger.error('Error en cleanupExpiredStories:', error);
+    logger.error('Error en cleanupExpiredStories:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener usuarios con stories para la barra de stories
 exports.getUsersWithStories = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId
 
     // Validar que el userId existe
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: 'Usuario no autenticado',
-      });
+        message: 'Usuario no autenticado'
+      })
     }
 
     // Obtener el usuario actual para incluir sus stories
-    const currentUser = await User.findById(userId).select('following').lean();
+    const currentUser = await User.findById(userId).select('following').lean()
     if (!currentUser) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado',
-      });
+        message: 'Usuario no encontrado'
+      })
     }
 
     // Obtener usuarios seguidos
-    const following = currentUser.following || [];
+    const following = currentUser.following || []
 
     // Buscar stories activas (no expiradas) de usuarios seguidos + propio usuario
     const query = {
       isDeleted: false,
       isPublic: true,
       expiresAt: { $gt: new Date() },
-      user: { $in: [userId, ...following] },
-    };
+      user: { $in: [userId, ...following] }
+    }
 
     // Logging optimizado - solo en desarrollo y con menos detalle
     if (process.env.NODE_ENV === 'development') {
-      logger.debug('🔍 Query para buscar stories:', JSON.stringify(query, null, 2));
-      logger.debug('🔍 Usuario actual ID:', userId);
-      logger.debug('🔍 Usuarios seguidos:', following);
+      logger.debug('🔍 Query para buscar stories:', JSON.stringify(query, null, 2))
+      logger.debug('🔍 Usuario actual ID:', userId)
+      logger.debug('🔍 Usuarios seguidos:', following)
     }
 
     const activeStories = await Story.find(query)
       .populate('user', 'username avatar fullName')
       .sort({ createdAt: -1 })
-      .lean(); // Usar lean() para mejor rendimiento
+      .lean() // Usar lean() para mejor rendimiento
 
     if (process.env.NODE_ENV === 'development') {
-      logger.debug('📊 Stories encontradas:', activeStories.length);
+      logger.debug('📊 Stories encontradas:', activeStories.length)
     }
 
     // Agrupar stories por usuario
-    const usersMap = new Map();
+    const usersMap = new Map()
 
     activeStories.forEach(story => {
-      const userId = story.user._id.toString();
+      const userId = story.user._id.toString()
       if (!usersMap.has(userId)) {
         usersMap.set(userId, {
           _id: story.user._id,
@@ -542,26 +542,26 @@ exports.getUsersWithStories = async (req, res) => {
           avatar: story.user.avatar,
           fullName: story.user.fullName,
           latestStory: story,
-          storiesCount: 0,
-        });
+          storiesCount: 0
+        })
       }
-      usersMap.get(userId).storiesCount++;
-    });
+      usersMap.get(userId).storiesCount++
+    })
 
     // Convertir a array y ordenar por la story más reciente
     const usersWithStories = Array.from(usersMap.values())
-      .sort((a, b) => new Date(b.latestStory.createdAt) - new Date(a.latestStory.createdAt));
+      .sort((a, b) => new Date(b.latestStory.createdAt) - new Date(a.latestStory.createdAt))
 
     res.json({
       success: true,
-      users: usersWithStories,
-    });
+      users: usersWithStories
+    })
   } catch (error) {
-    logger.error('Error en getUsersWithStories:', error);
+    logger.error('Error en getUsersWithStories:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
-};
+}

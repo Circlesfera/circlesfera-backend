@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 /**
  * Esquema para almacenar eventos de analytics
@@ -24,51 +24,51 @@ const analyticsEventSchema = new mongoose.Schema(
         'message_sent',
         'search_performed',
         'profile_viewed',
-        'settings_changed',
+        'settings_changed'
       ],
-      index: true,
+      index: true
     },
 
     // Usuario que generó el evento (opcional si no está autenticado)
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      index: true,
+      index: true
     },
 
     // Categoría del evento
     category: {
       type: String,
       required: true,
-      index: true,
+      index: true
     },
 
     // Acción realizada
     action: {
       type: String,
-      required: true,
+      required: true
     },
 
     // Etiqueta adicional
     label: {
       type: String,
-      index: true,
+      index: true
     },
 
     // Valor numérico (opcional)
     value: {
-      type: Number,
+      type: Number
     },
 
     // Metadata adicional
     metadata: {
-      type: mongoose.Schema.Types.Mixed,
+      type: mongoose.Schema.Types.Mixed
     },
 
     // Información de la sesión
     sessionId: {
       type: String,
-      index: true,
+      index: true
     },
 
     // Información del navegador/dispositivo
@@ -85,48 +85,48 @@ const analyticsEventSchema = new mongoose.Schema(
     timestamp: {
       type: Date,
       default: Date.now,
-      index: true,
-    },
+      index: true
+    }
   },
   {
-    timestamps: true,
+    timestamps: true
   }
-);
+)
 
 // Índices compuestos para consultas comunes
-analyticsEventSchema.index({ user: 1, event: 1, timestamp: -1 });
-analyticsEventSchema.index({ event: 1, timestamp: -1 });
-analyticsEventSchema.index({ category: 1, timestamp: -1 });
+analyticsEventSchema.index({ user: 1, event: 1, timestamp: -1 })
+analyticsEventSchema.index({ event: 1, timestamp: -1 })
+analyticsEventSchema.index({ category: 1, timestamp: -1 })
 
 // Método estático para obtener estadísticas
 analyticsEventSchema.statics.getStats = async function (filters = {}) {
   const stats = await this.aggregate([
     {
-      $match: filters,
+      $match: filters
     },
     {
       $group: {
         _id: '$event',
         count: { $sum: 1 },
-        uniqueUsers: { $addToSet: '$user' },
-      },
+        uniqueUsers: { $addToSet: '$user' }
+      }
     },
     {
       $project: {
         event: '$_id',
         count: 1,
-        uniqueUsers: { $size: '$uniqueUsers' },
-      },
+        uniqueUsers: { $size: '$uniqueUsers' }
+      }
     },
     {
-      $sort: { count: -1 },
-    },
-  ]);
+      $sort: { count: -1 }
+    }
+  ])
 
-  return stats;
-};
+  return stats
+}
 
 // TTL index para auto-eliminar eventos antiguos (después de 90 días)
-analyticsEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7776000 });
+analyticsEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7776000 })
 
-module.exports = mongoose.model('AnalyticsEvent', analyticsEventSchema);
+module.exports = mongoose.model('AnalyticsEvent', analyticsEventSchema)

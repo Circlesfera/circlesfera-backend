@@ -1,21 +1,20 @@
-const express = require('express');
-const router = express.Router();
-const { body } = require('express-validator');
+const express = require('express')
+const router = express.Router()
+const { body } = require('express-validator')
 const {
   createPost,
   getFeed,
   getPost,
   toggleLike,
   getLikes,
-  getUserPosts,
   getTrendingPosts,
   getRecentPosts,
   deletePost,
-  updatePost,
-} = require('../controllers/postController');
-const { auth } = require('../middlewares/auth');
-const { uploadFields, handleUploadError } = require('../middlewares/upload');
-const imageOptimizer = require('../middlewares/imageOptimizer');
+  updatePost
+} = require('../controllers/postController')
+const { auth } = require('../middlewares/auth')
+const { uploadFields, handleUploadError } = require('../middlewares/upload')
+const imageOptimizer = require('../middlewares/imageOptimizer')
 
 // Validaciones
 const createPostValidation = [
@@ -37,8 +36,8 @@ const createPostValidation = [
   body('text')
     .optional()
     .isLength({ max: 5000 })
-    .withMessage('El texto no puede exceder 5000 caracteres'),
-];
+    .withMessage('El texto no puede exceder 5000 caracteres')
+]
 
 const updatePostValidation = [
   body('caption')
@@ -52,20 +51,19 @@ const updatePostValidation = [
   body('tags')
     .optional()
     .isString()
-    .withMessage('Los tags deben ser una cadena separada por comas'),
-];
+    .withMessage('Los tags deben ser una cadena separada por comas')
+]
 
 // Rutas públicas
-router.get('/trending', getTrendingPosts);
-router.get('/recent', getRecentPosts);
-router.get('/user/:username', getUserPosts);
+router.get('/trending', getTrendingPosts)
+router.get('/recent', getRecentPosts)
 
 // Rutas protegidas
-router.get('/feed', auth, getFeed);
+router.get('/feed', auth, getFeed)
 
 // Rutas con parámetros (deben ir después de las rutas específicas)
-router.get('/:id', getPost);
-router.get('/:id/likes', getLikes);
+router.get('/:id', getPost)
+router.get('/:id/likes', getLikes)
 
 // Ruta para posts con archivos (imagen/video)
 router.post(
@@ -76,14 +74,14 @@ router.post(
   createPostValidation,
   createPost,
   handleUploadError
-);
+)
 
 // Ruta para posts de texto (sin archivos)
-router.post('/', auth, createPostValidation, createPost);
+router.post('/', auth, createPostValidation, createPost)
 
-router.put('/:id', auth, updatePostValidation, updatePost);
+router.put('/:id', auth, updatePostValidation, updatePost)
 
-router.post('/:id/like', auth, toggleLike);
-router.delete('/:id', auth, deletePost);
+router.post('/:id/like', auth, toggleLike)
+router.delete('/:id', auth, deletePost)
 
-module.exports = router;
+module.exports = router

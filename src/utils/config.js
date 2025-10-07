@@ -7,8 +7,8 @@ const config = {
   // Entorno
   nodeEnv: process.env.NODE_ENV || 'development',
   isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production',
-};
+  isProduction: process.env.NODE_ENV === 'production'
+}
 
 // Log de configuración para debug
 console.log('🔧 Backend Config:', {
@@ -16,8 +16,8 @@ console.log('🔧 Backend Config:', {
   isDevelopment: config.isDevelopment,
   isProduction: config.isProduction,
   port: process.env.PORT || 5001,
-  corsOrigin: process.env.CORS_ORIGIN || 'https://dev.circlesfera.com',
-});
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3001'
+})
 
 const configFull = {
   // Entorno
@@ -42,7 +42,7 @@ const configFull = {
   // CORS
   corsOrigin: process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',')
-    : ['https://dev.circlesfera.com'],
+    : ['http://localhost:3001'],
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min
@@ -63,54 +63,54 @@ const configFull = {
   minPasswordLength: parseInt(process.env.MIN_PASSWORD_LENGTH, 10) || 8,
 
   // Logging
-  logLevel: process.env.LOG_LEVEL || 'info',
-};
+  logLevel: process.env.LOG_LEVEL || 'info'
+}
 
 /**
  * Valida que todas las variables de entorno críticas estén configuradas
  * @throws {Error} Si falta alguna variable crítica
  */
 const validateConfig = () => {
-  const errors = [];
+  const errors = []
 
   // Variables requeridas en producción
   if (configFull.isProduction) {
     if (!configFull.mongodbUri) {
-      errors.push('MONGODB_URI es requerido en producción');
+      errors.push('MONGODB_URI es requerido en producción')
     }
     if (!configFull.jwtSecret) {
-      errors.push('JWT_SECRET es requerido en producción');
+      errors.push('JWT_SECRET es requerido en producción')
     }
   }
 
   // Variables requeridas siempre
   if (!configFull.jwtSecret) {
     errors.push(
-      "JWT_SECRET debe estar configurado (genera uno con: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
-    );
+      'JWT_SECRET debe estar configurado (genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+    )
   }
 
   if (!configFull.mongodbUri) {
-    errors.push('MONGODB_URI debe estar configurado');
+    errors.push('MONGODB_URI debe estar configurado')
   }
 
   // Validaciones de valores
   if (configFull.bcryptSaltRounds < 10 || configFull.bcryptSaltRounds > 15) {
-    errors.push('BCRYPT_SALT_ROUNDS debe estar entre 10 y 15');
+    errors.push('BCRYPT_SALT_ROUNDS debe estar entre 10 y 15')
   }
 
   if (configFull.port < 1024 || configFull.port > 65535) {
-    errors.push('PORT debe estar entre 1024 y 65535');
+    errors.push('PORT debe estar entre 1024 y 65535')
   }
 
   if (errors.length > 0) {
     throw new Error(
       `Errores de configuración:\n${errors.map(e => `  - ${e}`).join('\n')}`
-    );
+    )
   }
 
-  return true;
-};
+  return true
+}
 
 /**
  * Obtiene un límite de paginación validado
@@ -118,11 +118,11 @@ const validateConfig = () => {
  * @returns {number} Límite validado
  */
 configFull.getPaginationLimit = requested => {
-  const limit = parseInt(requested, 10);
+  const limit = parseInt(requested, 10)
   if (isNaN(limit) || limit < 1) {
-    return configFull.defaultPageLimit;
+    return configFull.defaultPageLimit
   }
-  return Math.min(limit, configFull.maxPageLimit);
-};
+  return Math.min(limit, configFull.maxPageLimit)
+}
 
-module.exports = { config: configFull, validateConfig };
+module.exports = { config: configFull, validateConfig }

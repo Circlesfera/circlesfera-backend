@@ -1,7 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const { body, param, query, validationResult } = require('express-validator');
-const { auth: protect, optionalAuth } = require('../middlewares/auth');
+const express = require('express')
+const router = express.Router()
+const { body, param, query, validationResult } = require('express-validator')
+const { auth: protect, optionalAuth } = require('../middlewares/auth')
 const {
   createLiveStream,
   getLiveStreams,
@@ -10,8 +10,8 @@ const {
   endLiveStream,
   addViewer,
   removeViewer,
-  inviteCoHost,
-} = require('../controllers/liveStreamController');
+  inviteCoHost
+} = require('../controllers/liveStreamController')
 
 // Validaciones
 const createLiveStreamValidation = [
@@ -50,21 +50,21 @@ const createLiveStreamValidation = [
   body('saveToCSTV')
     .optional()
     .isBoolean()
-    .withMessage('saveToCSTV debe ser un valor booleano'),
-];
+    .withMessage('saveToCSTV debe ser un valor booleano')
+]
 
 // Middleware para manejar errores de validación
 const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
+  const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
       message: 'Errores de validación',
-      errors: errors.array(),
-    });
+      errors: errors.array()
+    })
   }
-  next();
-};
+  next()
+}
 
 const startLiveStreamValidation = [
   body('streamKey').notEmpty().withMessage('El stream key es requerido'),
@@ -76,8 +76,8 @@ const startLiveStreamValidation = [
   body('thumbnailUrl')
     .optional()
     .isURL()
-    .withMessage('La URL de thumbnail debe ser válida'),
-];
+    .withMessage('La URL de thumbnail debe ser válida')
+]
 
 const endLiveStreamValidation = [
   body('saveToCSTV')
@@ -109,20 +109,20 @@ const endLiveStreamValidation = [
       'fitness',
       'beauty',
       'art',
-      'other',
+      'other'
     ])
-    .withMessage('Categoría de CSTV no válida'),
-];
+    .withMessage('Categoría de CSTV no válida')
+]
 
 const inviteCoHostValidation = [
-  body('userId').isMongoId().withMessage('El ID del usuario debe ser válido'),
-];
+  body('userId').isMongoId().withMessage('El ID del usuario debe ser válido')
+]
 
 const streamIdValidation = [
   param('streamId')
     .isMongoId()
-    .withMessage('El ID de la transmisión debe ser válido'),
-];
+    .withMessage('El ID de la transmisión debe ser válido')
+]
 
 const queryValidation = [
   query('status')
@@ -136,8 +136,8 @@ const queryValidation = [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('El límite debe estar entre 1 y 100'),
-];
+    .withMessage('El límite debe estar entre 1 y 100')
+]
 
 // Rutas de Live Streaming
 
@@ -150,7 +150,7 @@ router.post(
   ...createLiveStreamValidation,
   handleValidationErrors,
   createLiveStream
-);
+)
 
 // @route   GET /api/live-streams
 // @desc    Obtener transmisiones en vivo
@@ -161,7 +161,7 @@ router.get(
   queryValidation,
   handleValidationErrors,
   getLiveStreams
-);
+)
 
 // @route   GET /api/live-streams/:streamId
 // @desc    Obtener una transmisión específica
@@ -172,7 +172,7 @@ router.get(
   streamIdValidation,
   handleValidationErrors,
   getLiveStream
-);
+)
 
 // @route   PUT /api/live-streams/:streamId/start
 // @desc    Iniciar una transmisión en vivo
@@ -184,7 +184,7 @@ router.put(
   ...startLiveStreamValidation,
   handleValidationErrors,
   startLiveStream
-);
+)
 
 // @route   PUT /api/live-streams/:streamId/end
 // @desc    Terminar una transmisión en vivo
@@ -196,7 +196,7 @@ router.put(
   ...endLiveStreamValidation,
   handleValidationErrors,
   endLiveStream
-);
+)
 
 // @route   POST /api/live-streams/:streamId/viewer
 // @desc    Agregar viewer a la transmisión
@@ -207,7 +207,7 @@ router.post(
   streamIdValidation,
   handleValidationErrors,
   addViewer
-);
+)
 
 // @route   DELETE /api/live-streams/:streamId/viewer
 // @desc    Remover viewer de la transmisión
@@ -218,7 +218,7 @@ router.delete(
   streamIdValidation,
   handleValidationErrors,
   removeViewer
-);
+)
 
 // @route   POST /api/live-streams/:streamId/invite-cohost
 // @desc    Invitar co-host a la transmisión
@@ -230,6 +230,6 @@ router.post(
   ...inviteCoHostValidation,
   handleValidationErrors,
   inviteCoHost
-);
+)
 
-module.exports = router;
+module.exports = router

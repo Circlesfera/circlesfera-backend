@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const LiveCommentSchema = new mongoose.Schema(
   {
@@ -7,12 +7,12 @@ const LiveCommentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'LiveStream',
       required: [true, 'La transmisión en vivo es requerida'],
-      index: true,
+      index: true
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'El usuario es requerido'],
+      required: [true, 'El usuario es requerido']
     },
 
     // Contenido del comentario
@@ -20,20 +20,20 @@ const LiveCommentSchema = new mongoose.Schema(
       type: String,
       required: [true, 'El contenido es requerido'],
       maxlength: [500, 'El comentario no puede exceder 500 caracteres'],
-      trim: true,
+      trim: true
     },
 
     // Tipo de comentario
     type: {
       type: String,
       enum: ['comment', 'question', 'reaction', 'system'],
-      default: 'comment',
+      default: 'comment'
     },
 
     // Respuesta a otro comentario
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'LiveComment',
+      ref: 'LiveComment'
     },
 
     // Reacciones al comentario
@@ -41,88 +41,88 @@ const LiveCommentSchema = new mongoose.Schema(
       {
         user: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
+          ref: 'User'
         },
         type: {
           type: String,
           enum: ['like', 'love', 'laugh', 'wow', 'angry'],
-          default: 'like',
+          default: 'like'
         },
         createdAt: {
           type: Date,
-          default: Date.now,
-        },
-      },
+          default: Date.now
+        }
+      }
     ],
 
     // Configuración de moderación
     isModerated: {
       type: Boolean,
-      default: false,
+      default: false
     },
     moderatedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'User'
     },
     moderatedAt: Date,
     moderationReason: {
       type: String,
-      enum: ['spam', 'inappropriate', 'harassment', 'hate_speech', 'other'],
+      enum: ['spam', 'inappropriate', 'harassment', 'hate_speech', 'other']
     },
 
     // Configuración de visibilidad
     isVisible: {
       type: Boolean,
-      default: true,
+      default: true
     },
     isPinned: {
       type: Boolean,
-      default: false,
+      default: false
     },
 
     // Metadatos
     timestamp: {
       type: Number, // Timestamp en segundos desde el inicio del live
-      required: true,
+      required: true
     },
     clientId: {
       type: String, // ID único del cliente para evitar duplicados
-      sparse: true,
+      sparse: true
     },
 
     // Configuración de notificaciones
     notifyStreamer: {
       type: Boolean,
-      default: true,
+      default: true
     },
     notifyCoHosts: {
       type: Boolean,
-      default: false,
-    },
+      default: false
+    }
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toObject: { virtuals: true }
   }
-);
+)
 
 // Índices para optimización
-LiveCommentSchema.index({ liveStream: 1, createdAt: -1 });
-LiveCommentSchema.index({ liveStream: 1, timestamp: 1 });
-LiveCommentSchema.index({ user: 1, createdAt: -1 });
-LiveCommentSchema.index({ isVisible: 1, createdAt: -1 });
+LiveCommentSchema.index({ liveStream: 1, createdAt: -1 })
+LiveCommentSchema.index({ liveStream: 1, timestamp: 1 })
+LiveCommentSchema.index({ user: 1, createdAt: -1 })
+LiveCommentSchema.index({ isVisible: 1, createdAt: -1 })
 
 // Virtual para contar reacciones
 LiveCommentSchema.virtual('reactionCount').get(function () {
-  return this.reactions.length;
-});
+  return this.reactions.length
+})
 
 // Virtual para verificar si un usuario reaccionó
 LiveCommentSchema.virtual('userReaction').get(function () {
   // Este virtual se poblará dinámicamente
-  return null;
-});
+  return null
+})
 
 // Método para agregar reacción
 LiveCommentSchema.methods.addReaction = function (
@@ -132,25 +132,25 @@ LiveCommentSchema.methods.addReaction = function (
   // Remover reacción existente del usuario si la hay
   this.reactions = this.reactions.filter(
     reaction => reaction.user.toString() !== userId.toString()
-  );
+  )
 
   // Agregar nueva reacción
   this.reactions.push({
     user: userId,
     type: reactionType,
-    createdAt: new Date(),
-  });
+    createdAt: new Date()
+  })
 
-  return this.save();
-};
+  return this.save()
+}
 
 // Método para remover reacción
 LiveCommentSchema.methods.removeReaction = function (userId) {
   this.reactions = this.reactions.filter(
     reaction => reaction.user.toString() !== userId.toString()
-  );
-  return this.save();
-};
+  )
+  return this.save()
+}
 
 // Método para moderar comentario
 LiveCommentSchema.methods.moderate = function (
@@ -158,29 +158,29 @@ LiveCommentSchema.methods.moderate = function (
   reason,
   action = 'hide'
 ) {
-  this.isModerated = true;
-  this.moderatedBy = moderatorId;
-  this.moderatedAt = new Date();
-  this.moderationReason = reason;
+  this.isModerated = true
+  this.moderatedBy = moderatorId
+  this.moderatedAt = new Date()
+  this.moderationReason = reason
 
   if (action === 'hide') {
-    this.isVisible = false;
+    this.isVisible = false
   }
 
-  return this.save();
-};
+  return this.save()
+}
 
 // Método para fijar comentario
 LiveCommentSchema.methods.pin = function () {
-  this.isPinned = true;
-  return this.save();
-};
+  this.isPinned = true
+  return this.save()
+}
 
 // Método para desfijar comentario
 LiveCommentSchema.methods.unpin = function () {
-  this.isPinned = false;
-  return this.save();
-};
+  this.isPinned = false
+  return this.save()
+}
 
 // Método estático para obtener comentarios de una transmisión
 LiveCommentSchema.statics.getStreamComments = function (
@@ -189,26 +189,26 @@ LiveCommentSchema.statics.getStreamComments = function (
 ) {
   const query = {
     liveStream: liveStreamId,
-    isVisible: true,
-  };
+    isVisible: true
+  }
 
   // Filtrar por tipo si se especifica
   if (options.type) {
-    query.type = options.type;
+    query.type = options.type
   }
 
   // Filtrar comentarios fijados primero
   const sortOrder = options.sortByPinned
     ? { isPinned: -1, timestamp: 1 }
-    : { timestamp: 1 };
+    : { timestamp: 1 }
 
   return this.find(query)
     .populate('user', 'username avatar fullName isVerified')
     .populate('replyTo.user', 'username avatar fullName')
     .populate('reactions.user', 'username avatar')
     .sort(sortOrder)
-    .limit(options.limit || 100);
-};
+    .limit(options.limit || 100)
+}
 
 // Método estático para obtener comentarios recientes
 LiveCommentSchema.statics.getRecentComments = function (
@@ -218,19 +218,19 @@ LiveCommentSchema.statics.getRecentComments = function (
 ) {
   const query = {
     liveStream: liveStreamId,
-    isVisible: true,
-  };
+    isVisible: true
+  }
 
   if (since) {
-    query.createdAt = { $gt: since };
+    query.createdAt = { $gt: since }
   }
 
   return this.find(query)
     .populate('user', 'username avatar fullName isVerified')
     .populate('reactions.user', 'username avatar')
     .sort({ timestamp: 1 })
-    .limit(limit);
-};
+    .limit(limit)
+}
 
 // Método estático para obtener estadísticas de comentarios
 LiveCommentSchema.statics.getCommentStats = function (liveStreamId) {
@@ -241,48 +241,48 @@ LiveCommentSchema.statics.getCommentStats = function (liveStreamId) {
         _id: null,
         totalComments: { $sum: 1 },
         visibleComments: {
-          $sum: { $cond: ['$isVisible', 1, 0] },
+          $sum: { $cond: ['$isVisible', 1, 0] }
         },
         moderatedComments: {
-          $sum: { $cond: ['$isModerated', 1, 0] },
+          $sum: { $cond: ['$isModerated', 1, 0] }
         },
         pinnedComments: {
-          $sum: { $cond: ['$isPinned', 1, 0] },
+          $sum: { $cond: ['$isPinned', 1, 0] }
         },
         totalReactions: {
-          $sum: { $size: '$reactions' },
+          $sum: { $size: '$reactions' }
         },
         avgReactionsPerComment: {
-          $avg: { $size: '$reactions' },
-        },
-      },
-    },
-  ]);
-};
+          $avg: { $size: '$reactions' }
+        }
+      }
+    }
+  ])
+}
 
 // Middleware pre-save para validar timestamp
 LiveCommentSchema.pre('save', function (next) {
   if (this.isNew && !this.timestamp) {
     // Si no se proporciona timestamp, usar el tiempo actual
-    this.timestamp = Math.floor(Date.now() / 1000);
+    this.timestamp = Math.floor(Date.now() / 1000)
   }
-  next();
-});
+  next()
+})
 
 // Middleware post-save para limpiar comentarios antiguos
 LiveCommentSchema.post('save', function () {
   // Limpiar comentarios muy antiguos (más de 24 horas)
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
   this.constructor
     .deleteMany({
       liveStream: this.liveStream,
       createdAt: { $lt: oneDayAgo },
-      isPinned: false,
+      isPinned: false
     })
     .catch(err => {
-      console.error('Error limpiando comentarios antiguos:', err);
-    });
-});
+      console.error('Error limpiando comentarios antiguos:', err)
+    })
+})
 
-module.exports = mongoose.model('LiveComment', LiveCommentSchema);
+module.exports = mongoose.model('LiveComment', LiveCommentSchema)

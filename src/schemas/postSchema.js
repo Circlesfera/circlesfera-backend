@@ -1,11 +1,11 @@
-const { z } = require('zod');
+const { z } = require('zod')
 
 /**
  * Schema de validación para crear post
  */
 const createPostSchema = z.object({
   type: z.enum(['image', 'video'], {
-    errorMap: () => ({ message: 'Tipo debe ser "image" o "video"' }),
+    errorMap: () => ({ message: 'Tipo debe ser "image" o "video"' })
   }),
 
   caption: z.string()
@@ -22,8 +22,8 @@ const createPostSchema = z.object({
   tags: z.array(z.string().max(50, 'Tag no puede exceder 50 caracteres'))
     .max(30, 'Máximo 30 tags')
     .optional()
-    .default([]),
-});
+    .default([])
+})
 
 /**
  * Schema de validación para actualizar post
@@ -41,8 +41,8 @@ const updatePostSchema = z.object({
 
   tags: z.array(z.string().max(50))
     .max(30, 'Máximo 30 tags')
-    .optional(),
-});
+    .optional()
+})
 
 /**
  * Schema de validación para comentarios
@@ -55,12 +55,12 @@ const createCommentSchema = z.object({
 
   parentComment: z.string()
     .regex(/^[0-9a-fA-F]{24}$/, 'ID de comentario padre inválido')
-    .optional(),
-});
+    .optional()
+})
 
 module.exports = {
   createPostSchema,
   updatePostSchema,
-  createCommentSchema,
-};
+  createCommentSchema
+}
 

@@ -1,14 +1,13 @@
-const Reel = require('../models/Reel');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
-const logger = require('../utils/logger');
-const cache = require('../utils/cacheAdapter');
+const Reel = require('../models/Reel')
+const User = require('../models/User')
+const Notification = require('../models/Notification')
+const { validationResult } = require('express-validator')
+const logger = require('../utils/logger')
+// Cache eliminado para simplificar el desarrollo local
 const {
   getPaginationOptions,
-  createPaginatedResponse,
-  USER_BASIC_FIELDS,
-} = require('../utils/queryOptimizer');
+  createPaginatedResponse
+} = require('../utils/queryOptimizer')
 
 // Crear un nuevo reel
 exports.createReel = async (req, res) => {
@@ -16,16 +15,16 @@ exports.createReel = async (req, res) => {
     logger.info('🎬 createReel llamado con:', {
       userId: req.userId,
       body: req.body,
-      headers: req.headers,
-    });
+      headers: req.headers
+    })
 
-    const errors = validationResult(req);
+    const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
-        errors: errors.array(),
-      });
+        errors: errors.array()
+      })
     }
 
     const {
@@ -36,20 +35,20 @@ exports.createReel = async (req, res) => {
       audioArtist,
       allowComments,
       allowDuets,
-      allowStitches,
-    } = req.body;
+      allowStitches
+    } = req.body
 
     // Verificar que se subió un video
     if (!req.files || !req.files.video) {
       return res.status(400).json({
         success: false,
-        message: 'El video es obligatorio para crear un reel',
-      });
+        message: 'El video es obligatorio para crear un reel'
+      })
     }
 
     // Construir URL completa del servidor
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const videoUrl = `${baseUrl}/uploads/${req.files.video[0].filename}`;
+    const baseUrl = `${req.protocol}://${req.get('host')}`
+    const videoUrl = `${baseUrl}/uploads/${req.files.video[0].filename}`
 
     // Crear objeto del reel
     const reelData = {
@@ -59,7 +58,7 @@ exports.createReel = async (req, res) => {
         thumbnail: videoUrl.replace(/\.[^/.]+$/, '_thumb.jpg'), // Thumbnail automático
         duration: 0, // Se calculará después
         width: 1080, // Proporción 9:16 fija
-        height: 1920,
+        height: 1920
       },
       caption: caption || '',
       hashtags: hashtags
@@ -67,37 +66,37 @@ exports.createReel = async (req, res) => {
         : [],
       allowComments: allowComments !== false, // Por defecto true
       allowDuets: allowDuets !== false, // Por defecto true
-      allowStitches: allowStitches !== false, // Por defecto true
-    };
+      allowStitches: allowStitches !== false // Por defecto true
+    }
 
     // Agregar audio si se proporciona
     if (audioTitle || audioArtist) {
       reelData.audio = {
         title: audioTitle || '',
-        artist: audioArtist || '',
-      };
+        artist: audioArtist || ''
+      }
     }
 
     // Agregar ubicación si se proporciona
     if (location) {
-      reelData.location = { name: location };
+      reelData.location = { name: location }
     }
 
-    logger.info('🎬 Reel data a crear:', reelData);
+    logger.info('🎬 Reel data a crear:', reelData)
 
     // Crear el reel
-    const reel = new Reel(reelData);
-    await reel.save();
+    const reel = new Reel(reelData)
+    await reel.save()
 
     // Populate user info para la respuesta
-    await reel.populate('user', 'username avatar fullName');
+    await reel.populate('user', 'username avatar fullName')
 
     // Crear notificación para seguidores (opcional)
     try {
-      const user = await User.findById(req.userId);
+      const user = await User.findById(req.userId)
       if (user && user.followers && user.followers.length > 0) {
         // Notificar a los primeros 10 seguidores para evitar spam
-        const followersToNotify = user.followers.slice(0, 10);
+        const followersToNotify = user.followers.slice(0, 10)
 
         for (const followerId of followersToNotify) {
           await Notification.create({
@@ -107,54 +106,49 @@ exports.createReel = async (req, res) => {
             content: `${user.username} subió un nuevo reel`,
             relatedContent: {
               type: 'reel',
-              id: reel._id,
-            },
-          });
+              id: reel._id
+            }
+          })
         }
       }
     } catch (notifError) {
-      logger.info('⚠️ Error creando notificaciones:', notifError);
+      logger.info('⚠️ Error creando notificaciones:', notifError)
       // No fallar si las notificaciones fallan
     }
 
     res.status(201).json({
       success: true,
       message: 'Reel creado exitosamente',
-      reel,
-    });
+      reel
+    })
   } catch (error) {
-    logger.error('Error en createReel:', error);
+    logger.error('Error en createReel:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
-};
+}
 
 // Obtener reels para el feed
 exports.getReelsForFeed = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId
     const { page, limit, skip } = getPaginationOptions(
       req.query.page || 1,
       req.query.limit || 20
-    );
+    )
 
-    // Intentar obtener del caché
-    const cacheKey = `reels:feed:${userId}:${page}:${limit}`;
-    const cachedReels = await cache.get(cacheKey);
+    logger.info('Feed de reels solicitado:', { userId, page, limit })
 
-    if (cachedReels) {
-      logger.info(`Reels feed servido desde caché para usuario ${userId}`);
-      return res.json(cachedReels);
-    }
+    // Cache eliminado para simplificar el desarrollo local
 
     // Query optimizada
     const query = {
       isDeleted: false,
-      isPublic: true,
-    };
+      isPublic: true
+    }
 
     // Ejecutar queries en paralelo
     const [reels, total] = await Promise.all([
@@ -165,66 +159,62 @@ exports.getReelsForFeed = async (req, res) => {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Reel.countDocuments(query),
-    ]);
+      Reel.countDocuments(query)
+    ])
 
-    const response = {
+    const response = createPaginatedResponse({
+      data: reels,
+      page,
+      limit,
+      total,
       success: true,
-      reels,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-        hasMore: page * limit < total,
-        hasPrev: page > 1,
-      },
-    };
+      message: 'Reels obtenidos exitosamente'
+    })
 
     // Guardar en caché por 2 minutos
-    await cache.set(cacheKey, response, 120);
+    // Cache eliminado - await cache.set(cacheKey, response, 120);
 
-    res.json(response);
+    res.json(response)
   } catch (error) {
-    logger.error('Error en getReelsForFeed:', error);
+    logger.error('Error en getReelsForFeed:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener reels de un usuario específico
 exports.getUserReels = async (req, res) => {
   try {
-    const { username } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const { username } = req.params
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const skip = (page - 1) * limit
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username })
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado',
-      });
+        message: 'Usuario no encontrado'
+      })
     }
 
     const reels = await Reel.find({
       user: user._id,
-      isDeleted: false,
+      isDeleted: false
     })
       .populate('user', 'username avatar fullName')
       .populate('audio')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
 
     // Contar total de reels del usuario
     const total = await Reel.countDocuments({
       user: user._id,
-      isDeleted: false,
-    });
+      isDeleted: false
+    })
 
     res.json({
       success: true,
@@ -234,99 +224,99 @@ exports.getUserReels = async (req, res) => {
         totalPages: Math.ceil(total / limit),
         totalReels: total,
         hasNext: page * limit < total,
-        hasPrev: page > 1,
-      },
-    });
+        hasPrev: page > 1
+      }
+    })
   } catch (error) {
-    logger.error('Error en getUserReels:', error);
+    logger.error('Error en getUserReels:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener un reel específico
 exports.getReel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId;
+    const { id } = req.params
+    const userId = req.userId
 
     const reel = await Reel.findOne({
       _id: id,
       isDeleted: false,
-      isPublic: true,
+      isPublic: true
     })
       .populate('user', 'username avatar fullName')
       .populate('audio')
       .populate('comments.user', 'username avatar')
-      .populate('likes.user', 'username avatar');
+      .populate('likes.user', 'username avatar')
 
     if (!reel) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     // Agregar vista si el usuario no es el dueño
     if (reel.user._id.toString() !== userId) {
-      await reel.addView(userId);
+      await reel.addView(userId)
     }
 
     res.json({
       success: true,
-      reel,
-    });
+      reel
+    })
   } catch (error) {
-    logger.error('Error en getReel:', error);
+    logger.error('Error en getReel:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Dar like a un reel
 exports.likeReel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId;
+    const { id } = req.params
+    const userId = req.userId
 
-    const reel = await Reel.findById(id);
+    const reel = await Reel.findById(id)
     if (!reel) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     if (reel.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     // Verificar si ya dio like
-    const existingLike = reel.likes.find(like => like.user.equals(userId));
+    const existingLike = reel.likes.find(like => like.user.equals(userId))
     if (existingLike) {
       return res.status(400).json({
         success: false,
-        message: 'Ya has dado like a este reel',
-      });
+        message: 'Ya has dado like a este reel'
+      })
     }
 
-    await reel.addLike(userId);
+    await reel.addLike(userId)
 
     // Invalidar caché relacionado
-    await cache.deletePattern(`reel:${id}:*`);
-    await cache.deletePattern(`reels:feed:*`);
+    // Cache eliminado - await cache.deletePattern(`reel:${id}:*`);
+    // Cache eliminado - await cache.deletePattern(`reels:feed:*`);
 
     // Crear notificación para el dueño del reel
     if (reel.user.toString() !== userId) {
       try {
-        const user = await User.findById(userId);
+        const user = await User.findById(userId)
         await Notification.create({
           user: reel.user,
           type: 'reel_like',
@@ -334,11 +324,11 @@ exports.likeReel = async (req, res) => {
           content: `A ${user.username} le gustó tu reel`,
           relatedContent: {
             type: 'reel',
-            id: reel._id,
-          },
-        });
+            id: reel._id
+          }
+        })
       } catch (notifError) {
-        logger.info('⚠️ Error creando notificación de like:', notifError);
+        logger.info('⚠️ Error creando notificación de like:', notifError)
       }
     }
 
@@ -346,94 +336,94 @@ exports.likeReel = async (req, res) => {
       success: true,
       message: 'Like agregado exitosamente',
       likesCount: reel.likes.length + 1,
-      isLiked: true,
-    });
+      isLiked: true
+    })
   } catch (error) {
-    logger.error('Error en likeReel:', error);
+    logger.error('Error en likeReel:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Quitar like de un reel
 exports.unlikeReel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId;
+    const { id } = req.params
+    const userId = req.userId
 
-    const reel = await Reel.findById(id);
+    const reel = await Reel.findById(id)
     if (!reel) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
-    await reel.removeLike(userId);
+    await reel.removeLike(userId)
 
     // Invalidar caché relacionado
-    await cache.deletePattern(`reel:${id}:*`);
-    await cache.deletePattern(`reels:feed:*`);
+    // Cache eliminado - await cache.deletePattern(`reel:${id}:*`);
+    // Cache eliminado - await cache.deletePattern(`reels:feed:*`);
 
     res.json({
       success: true,
       message: 'Like removido exitosamente',
       likesCount: reel.likes.length,
-      isLiked: false,
-    });
+      isLiked: false
+    })
   } catch (error) {
-    logger.error('Error en unlikeReel:', error);
+    logger.error('Error en unlikeReel:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Comentar un reel
 exports.commentReel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { content } = req.body;
-    const userId = req.userId;
+    const { id } = req.params
+    const { content } = req.body
+    const userId = req.userId
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'El comentario no puede estar vacío',
-      });
+        message: 'El comentario no puede estar vacío'
+      })
     }
 
-    const reel = await Reel.findById(id);
+    const reel = await Reel.findById(id)
     if (!reel) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     if (reel.isDeleted) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     if (!reel.allowComments) {
       return res.status(403).json({
         success: false,
-        message: 'Los comentarios están deshabilitados para este reel',
-      });
+        message: 'Los comentarios están deshabilitados para este reel'
+      })
     }
 
-    await reel.addComment(userId, content.trim());
+    await reel.addComment(userId, content.trim())
 
     // Crear notificación para el dueño del reel
     if (reel.user.toString() !== userId) {
       try {
-        const user = await User.findById(userId);
+        const user = await User.findById(userId)
         await Notification.create({
           user: reel.user,
           type: 'reel_comment',
@@ -441,96 +431,96 @@ exports.commentReel = async (req, res) => {
           content: `${user.username} comentó en tu reel`,
           relatedContent: {
             type: 'reel',
-            id: reel._id,
-          },
-        });
+            id: reel._id
+          }
+        })
       } catch (notifError) {
-        logger.info('⚠️ Error creando notificación de comentario:', notifError);
+        logger.info('⚠️ Error creando notificación de comentario:', notifError)
       }
     }
 
     // Obtener el reel actualizado con el comentario
     const updatedReel = await Reel.findById(id)
       .populate('user', 'username avatar fullName')
-      .populate('comments.user', 'username avatar');
+      .populate('comments.user', 'username avatar')
 
     res.json({
       success: true,
       message: 'Comentario agregado exitosamente',
       reel: updatedReel,
-      commentsCount: updatedReel.comments.length,
-    });
+      commentsCount: updatedReel.comments.length
+    })
   } catch (error) {
-    logger.error('Error en commentReel:', error);
+    logger.error('Error en commentReel:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Eliminar un reel
 exports.deleteReel = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId;
+    const { id } = req.params
+    const userId = req.userId
 
-    const reel = await Reel.findById(id);
+    const reel = await Reel.findById(id)
     if (!reel) {
       return res.status(404).json({
         success: false,
-        message: 'Reel no encontrado',
-      });
+        message: 'Reel no encontrado'
+      })
     }
 
     // Verificar que el usuario sea el dueño del reel
     if (reel.user.toString() !== userId) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para eliminar este reel',
-      });
+        message: 'No tienes permisos para eliminar este reel'
+      })
     }
 
-    await reel.softDelete();
+    await reel.softDelete()
 
     res.json({
       success: true,
-      message: 'Reel eliminado exitosamente',
-    });
+      message: 'Reel eliminado exitosamente'
+    })
   } catch (error) {
-    logger.error('Error en deleteReel:', error);
+    logger.error('Error en deleteReel:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Buscar reels por hashtag
 exports.searchReelsByHashtag = async (req, res) => {
   try {
-    const { hashtag } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const { hashtag } = req.params
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const skip = (page - 1) * limit
 
     const reels = await Reel.find({
       hashtags: { $regex: hashtag, $options: 'i' },
       isDeleted: false,
-      isPublic: true,
+      isPublic: true
     })
       .populate('user', 'username avatar fullName')
       .populate('audio')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
 
     // Contar total de reels con ese hashtag
     const total = await Reel.countDocuments({
       hashtags: { $regex: hashtag, $options: 'i' },
       isDeleted: false,
-      isPublic: true,
-    });
+      isPublic: true
+    })
 
     res.json({
       success: true,
@@ -541,33 +531,33 @@ exports.searchReelsByHashtag = async (req, res) => {
         totalPages: Math.ceil(total / limit),
         totalReels: total,
         hasNext: page * limit < total,
-        hasPrev: page > 1,
-      },
-    });
+        hasPrev: page > 1
+      }
+    })
   } catch (error) {
-    logger.error('Error en searchReelsByHashtag:', error);
+    logger.error('Error en searchReelsByHashtag:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener reels trending (más populares)
 exports.getTrendingReels = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
-    const timeFrame = req.query.timeFrame || 'week'; // week, month, all
+    const limit = parseInt(req.query.limit) || 20
+    const timeFrame = req.query.timeFrame || 'week' // week, month, all
 
-    let dateFilter = {};
+    let dateFilter = {}
     if (timeFrame === 'week') {
       dateFilter = {
-        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-      };
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      }
     } else if (timeFrame === 'month') {
       dateFilter = {
-        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      };
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      }
     }
 
     const reels = await Reel.aggregate([
@@ -579,10 +569,10 @@ exports.getTrendingReels = async (req, res) => {
               { $multiply: ['$viewsCount', 1] },
               { $multiply: ['$likesCount', 2] },
               { $multiply: ['$commentsCount', 3] },
-              { $multiply: ['$sharesCount', 4] },
-            ],
-          },
-        },
+              { $multiply: ['$sharesCount', 4] }
+            ]
+          }
+        }
       },
       { $sort: { score: -1 } },
       { $limit: limit },
@@ -591,28 +581,28 @@ exports.getTrendingReels = async (req, res) => {
           from: 'users',
           localField: 'user',
           foreignField: '_id',
-          as: 'user',
-        },
+          as: 'user'
+        }
       },
       { $unwind: '$user' },
       {
         $project: {
           'user.password': 0,
-          'user.email': 0,
-        },
-      },
-    ]);
+          'user.email': 0
+        }
+      }
+    ])
 
     res.json({
       success: true,
       reels,
-      timeFrame,
-    });
+      timeFrame
+    })
   } catch (error) {
-    logger.error('Error en getTrendingReels:', error);
+    logger.error('Error en getTrendingReels:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}

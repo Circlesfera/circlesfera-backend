@@ -1,5 +1,5 @@
-const swaggerJsdoc = require('swagger-jsdoc');
-const { config } = require('../utils/config');
+const swaggerJsdoc = require('swagger-jsdoc')
+const { config } = require('../utils/config')
 
 const options = {
   definition: {
@@ -11,22 +11,22 @@ const options = {
       contact: {
         name: 'CircleSfera Team',
         url: 'https://github.com/circlesfera',
-        email: 'dev@circlesfera.com',
+        email: 'dev@circlesfera.com'
       },
       license: {
         name: 'MIT',
-        url: 'https://opensource.org/licenses/MIT',
-      },
+        url: 'https://opensource.org/licenses/MIT'
+      }
     },
     servers: [
       {
         url: `http://localhost:${config.port}`,
-        description: 'Servidor de desarrollo',
+        description: 'Servidor de desarrollo'
       },
       {
         url: 'https://api.circlesfera.com',
-        description: 'Servidor de producción',
-      },
+        description: 'Servidor de producción'
+      }
     ],
     components: {
       securitySchemes: {
@@ -34,8 +34,8 @@ const options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Token JWT obtenido al hacer login o register',
-        },
+          description: 'Token JWT obtenido al hacer login o register'
+        }
       },
       schemas: {
         User: {
@@ -50,8 +50,8 @@ const options = {
             isVerified: { type: 'boolean', default: false },
             followersCount: { type: 'number', example: 150 },
             followingCount: { type: 'number', example: 200 },
-            createdAt: { type: 'string', format: 'date-time' },
-          },
+            createdAt: { type: 'string', format: 'date-time' }
+          }
         },
         Post: {
           type: 'object',
@@ -62,41 +62,41 @@ const options = {
             caption: { type: 'string' },
             likes: { type: 'array', items: { type: 'string' } },
             comments: { type: 'array', items: { type: 'string' } },
-            createdAt: { type: 'string', format: 'date-time' },
-          },
+            createdAt: { type: 'string', format: 'date-time' }
+          }
         },
         Error: {
           type: 'object',
           properties: {
             success: { type: 'boolean', default: false },
             message: { type: 'string' },
-            errors: { type: 'array', items: { type: 'string' } },
-          },
-        },
+            errors: { type: 'array', items: { type: 'string' } }
+          }
+        }
       },
       responses: {
         UnauthorizedError: {
           description: 'Token de autenticación faltante o inválido',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' },
-            },
-          },
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
         },
         ValidationError: {
           description: 'Error de validación de datos',
           content: {
             'application/json': {
-              schema: { $ref: '#/components/schemas/Error' },
-            },
-          },
-        },
-      },
+              schema: { $ref: '#/components/schemas/Error' }
+            }
+          }
+        }
+      }
     },
     security: [
       {
-        bearerAuth: [],
-      },
+        bearerAuth: []
+      }
     ],
     tags: [
       { name: 'Auth', description: 'Autenticación y autorización' },
@@ -107,14 +107,14 @@ const options = {
       { name: 'Comments', description: 'Comentarios' },
       { name: 'Messages', description: 'Mensajería directa' },
       { name: 'Notifications', description: 'Notificaciones' },
-      { name: 'Health', description: 'Health checks del sistema' },
-    ],
+      { name: 'Health', description: 'Health checks del sistema' }
+    ]
   },
   apis: [
     './src/routes/*.js',
-    './server.js',
-  ],
-};
+    './server.js'
+  ]
+}
 
-module.exports = swaggerJsdoc(options);
+module.exports = swaggerJsdoc(options)
 

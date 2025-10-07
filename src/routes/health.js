@@ -1,8 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const mongoose = require('mongoose');
-const logger = require('../utils/logger');
-const { config } = require('../utils/config');
+const express = require('express')
+const router = express.Router()
+const mongoose = require('mongoose')
+const logger = require('../utils/logger')
+const { config } = require('../utils/config')
 
 /**
  * @swagger
@@ -24,57 +24,57 @@ router.get('/', async (req, res) => {
     uptime: process.uptime(),
     environment: config.nodeEnv,
     requestId: req.id,
-    checks: {},
-  };
+    checks: {}
+  }
 
   // Check MongoDB
   try {
-    const mongoState = mongoose.connection.readyState;
+    const mongoState = mongoose.connection.readyState
     const stateMap = {
       0: 'disconnected',
       1: 'connected',
       2: 'connecting',
-      3: 'disconnecting',
-    };
+      3: 'disconnecting'
+    }
 
     if (mongoState === 1) {
-      const start = Date.now();
-      await mongoose.connection.db.admin().ping();
-      const responseTime = Date.now() - start;
+      const start = Date.now()
+      await mongoose.connection.db.admin().ping()
+      const responseTime = Date.now() - start
 
       health.checks.mongodb = {
         status: 'up',
         responseTime: `${responseTime}ms`,
-        state: stateMap[mongoState],
-      };
+        state: stateMap[mongoState]
+      }
     } else {
       health.checks.mongodb = {
         status: 'down',
-        state: stateMap[mongoState],
-      };
-      health.status = 'degraded';
+        state: stateMap[mongoState]
+      }
+      health.status = 'degraded'
     }
   } catch (error) {
     health.checks.mongodb = {
       status: 'down',
-      error: error.message,
-    };
-    health.status = 'degraded';
-    logger.error('MongoDB health check failed:', error);
+      error: error.message
+    }
+    health.status = 'degraded'
+    logger.error('MongoDB health check failed:', error)
   }
 
   // Check Memory
-  const memUsage = process.memoryUsage();
-  const memoryThreshold = 0.95; // 95% - Más realista para contenedores Docker
-  const memoryUsagePercent = memUsage.heapUsed / memUsage.heapTotal;
+  const memUsage = process.memoryUsage()
+  const memoryThreshold = 0.95 // 95% - Más realista para contenedores Docker
+  const memoryUsagePercent = memUsage.heapUsed / memUsage.heapTotal
 
   health.checks.memory = {
     status: memoryUsagePercent > memoryThreshold ? 'warning' : 'ok',
     rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
     heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
     heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
-    usagePercent: `${(memoryUsagePercent * 100).toFixed(2)}%`,
-  };
+    usagePercent: `${(memoryUsagePercent * 100).toFixed(2)}%`
+  }
 
   // Solo degradar el estado si hay problemas críticos, no por memoria alta
   // La memoria alta en contenedores Docker es normal y no crítica
@@ -95,12 +95,12 @@ router.get('/', async (req, res) => {
 
   // Response time
   if (req.startTime) {
-    health.responseTime = `${Date.now() - req.startTime}ms`;
+    health.responseTime = `${Date.now() - req.startTime}ms`
   }
 
-  const statusCode = health.status === 'ok' ? 200 : 503;
-  res.status(statusCode).json(health);
-});
+  const statusCode = health.status === 'ok' ? 200 : 503
+  res.status(statusCode).json(health)
+})
 
 /**
  * @swagger
@@ -116,9 +116,9 @@ router.get('/', async (req, res) => {
 router.get('/live', (req, res) => {
   res.status(200).json({
     status: 'alive',
-    timestamp: new Date().toISOString(),
-  });
-});
+    timestamp: new Date().toISOString()
+  })
+})
 
 /**
  * @swagger
@@ -139,25 +139,25 @@ router.get('/ready', async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         status: 'not ready',
-        reason: 'MongoDB not connected',
-      });
+        reason: 'MongoDB not connected'
+      })
     }
 
     // Verificar que podemos hacer queries
-    await mongoose.connection.db.admin().ping();
+    await mongoose.connection.db.admin().ping()
 
     res.status(200).json({
       status: 'ready',
-      timestamp: new Date().toISOString(),
-    });
+      timestamp: new Date().toISOString()
+    })
   } catch (error) {
-    logger.error('Readiness check failed:', error);
+    logger.error('Readiness check failed:', error)
     res.status(503).json({
       status: 'not ready',
-      reason: error.message,
-    });
+      reason: error.message
+    })
   }
-});
+})
 
-module.exports = router;
+module.exports = router
 

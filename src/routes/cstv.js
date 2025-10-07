@@ -1,7 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const { body, param, query, validationResult } = require('express-validator');
-const { auth: protect, optionalAuth } = require('../middlewares/auth');
+const express = require('express')
+const router = express.Router()
+const { body, param, query, validationResult } = require('express-validator')
+const { auth: protect, optionalAuth } = require('../middlewares/auth')
 const {
   createCSTVVideo,
   getCSTVVideos,
@@ -13,8 +13,8 @@ const {
   saveCSTVVideo,
   unsaveCSTVVideo,
   getTrendingVideos,
-  searchVideos,
-} = require('../controllers/cstvController');
+  searchVideos
+} = require('../controllers/cstvController')
 
 // Validaciones
 const createCSTVValidation = [
@@ -62,7 +62,7 @@ const createCSTVValidation = [
       'fitness',
       'beauty',
       'art',
-      'other',
+      'other'
     ])
     .withMessage('Categoría no válida'),
   body('visibility')
@@ -89,8 +89,8 @@ const createCSTVValidation = [
   body('tags.*')
     .optional()
     .isLength({ max: 50 })
-    .withMessage('Cada tag no puede exceder 50 caracteres'),
-];
+    .withMessage('Cada tag no puede exceder 50 caracteres')
+]
 
 const updateCSTVValidation = [
   body('title')
@@ -118,7 +118,7 @@ const updateCSTVValidation = [
       'fitness',
       'beauty',
       'art',
-      'other',
+      'other'
     ])
     .withMessage('Categoría no válida'),
   body('visibility')
@@ -141,12 +141,12 @@ const updateCSTVValidation = [
   body('tags.*')
     .optional()
     .isLength({ max: 50 })
-    .withMessage('Cada tag no puede exceder 50 caracteres'),
-];
+    .withMessage('Cada tag no puede exceder 50 caracteres')
+]
 
 const videoIdValidation = [
-  param('videoId').isMongoId().withMessage('El ID del video debe ser válido'),
-];
+  param('videoId').isMongoId().withMessage('El ID del video debe ser válido')
+]
 
 const queryValidation = [
   query('page')
@@ -174,7 +174,7 @@ const queryValidation = [
       'fitness',
       'beauty',
       'art',
-      'other',
+      'other'
     ])
     .withMessage('Categoría no válida'),
   query('userId')
@@ -184,8 +184,8 @@ const queryValidation = [
   query('sortBy')
     .optional()
     .isIn(['newest', 'oldest', 'views', 'likes', 'trending'])
-    .withMessage('Orden de clasificación no válido'),
-];
+    .withMessage('Orden de clasificación no válido')
+]
 
 const searchValidation = [
   query('q')
@@ -200,21 +200,21 @@ const searchValidation = [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 50 })
-    .withMessage('El límite debe estar entre 1 y 50'),
-];
+    .withMessage('El límite debe estar entre 1 y 50')
+]
 
 // Middleware para manejar errores de validación
 const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
+  const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
       message: 'Errores de validación',
-      errors: errors.array(),
-    });
+      errors: errors.array()
+    })
   }
-  next();
-};
+  next()
+}
 
 // Rutas de CSTV
 
@@ -227,7 +227,7 @@ router.post(
   ...createCSTVValidation,
   handleValidationErrors,
   createCSTVVideo
-);
+)
 
 // @route   GET /api/cstv
 // @desc    Obtener videos CSTV
@@ -238,7 +238,7 @@ router.get(
   queryValidation,
   handleValidationErrors,
   getCSTVVideos
-);
+)
 
 // @route   GET /api/cstv/trending
 // @desc    Obtener videos trending
@@ -249,7 +249,7 @@ router.get(
   queryValidation,
   handleValidationErrors,
   getTrendingVideos
-);
+)
 
 // @route   GET /api/cstv/search
 // @desc    Buscar videos
@@ -260,7 +260,7 @@ router.get(
   searchValidation,
   handleValidationErrors,
   searchVideos
-);
+)
 
 // @route   GET /api/cstv/:videoId
 // @desc    Obtener un video específico
@@ -271,7 +271,7 @@ router.get(
   videoIdValidation,
   handleValidationErrors,
   getCSTVVideo
-);
+)
 
 // @route   PUT /api/cstv/:videoId
 // @desc    Actualizar un video CSTV
@@ -283,7 +283,7 @@ router.put(
   ...updateCSTVValidation,
   handleValidationErrors,
   updateCSTVVideo
-);
+)
 
 // @route   DELETE /api/cstv/:videoId
 // @desc    Eliminar un video CSTV
@@ -294,7 +294,7 @@ router.delete(
   videoIdValidation,
   handleValidationErrors,
   deleteCSTVVideo
-);
+)
 
 // @route   POST /api/cstv/:videoId/like
 // @desc    Dar like a un video CSTV
@@ -305,7 +305,7 @@ router.post(
   videoIdValidation,
   handleValidationErrors,
   likeCSTVVideo
-);
+)
 
 // @route   DELETE /api/cstv/:videoId/like
 // @desc    Quitar like de un video CSTV
@@ -316,7 +316,7 @@ router.delete(
   videoIdValidation,
   handleValidationErrors,
   unlikeCSTVVideo
-);
+)
 
 // @route   POST /api/cstv/:videoId/save
 // @desc    Guardar un video CSTV
@@ -327,7 +327,7 @@ router.post(
   videoIdValidation,
   handleValidationErrors,
   saveCSTVVideo
-);
+)
 
 // @route   DELETE /api/cstv/:videoId/save
 // @desc    Quitar de guardados un video CSTV
@@ -338,6 +338,6 @@ router.delete(
   videoIdValidation,
   handleValidationErrors,
   unsaveCSTVVideo
-);
+)
 
-module.exports = router;
+module.exports = router

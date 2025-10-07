@@ -1,21 +1,20 @@
-const express = require('express');
-const router = express.Router();
-const { body } = require('express-validator');
+const express = require('express')
+const router = express.Router()
+const { body } = require('express-validator')
 const {
   createStory,
   getStoriesForFeed,
-  getUserStories,
   getStory,
   addReaction,
   removeReaction,
   addReply,
   deleteStory,
   cleanupExpiredStories,
-  getUsersWithStories,
-} = require('../controllers/storyController');
-const { auth } = require('../middlewares/auth');
-const { uploadFields, handleUploadError } = require('../middlewares/upload');
-const imageOptimizer = require('../middlewares/imageOptimizer');
+  getUsersWithStories
+} = require('../controllers/storyController')
+const { auth } = require('../middlewares/auth')
+const { uploadFields, handleUploadError } = require('../middlewares/upload')
+const imageOptimizer = require('../middlewares/imageOptimizer')
 
 // Validaciones
 const createStoryValidation = [
@@ -33,27 +32,27 @@ const createStoryValidation = [
   body('textContent')
     .optional()
     .isLength({ max: 500 })
-    .withMessage('El contenido de texto no puede exceder 500 caracteres'),
-];
+    .withMessage('El contenido de texto no puede exceder 500 caracteres')
+]
 
 const addReplyValidation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 200 })
-    .withMessage('La respuesta debe tener entre 1 y 200 caracteres'),
-];
+    .withMessage('La respuesta debe tener entre 1 y 200 caracteres')
+]
 
 const addReactionValidation = [
   body('reactionType')
     .isIn(['like', 'love', 'laugh', 'wow', 'sad', 'angry'])
-    .withMessage('Tipo de reacción no válido'),
-];
+    .withMessage('Tipo de reacción no válido')
+]
 
 // Rutas públicas
-router.get('/feed', getStoriesForFeed);
-router.get('/users', auth, getUsersWithStories);
-router.get('/user/:username', getUserStories);
-router.get('/:id', getStory);
+router.get('/feed', getStoriesForFeed)
+router.get('/users', auth, getUsersWithStories)
+// Rutas específicas antes de las genéricas
+router.get('/:id', getStory)
 
 // Rutas protegidas
 router.post(
@@ -64,15 +63,15 @@ router.post(
   createStoryValidation,
   createStory,
   handleUploadError
-);
+)
 
-router.post('/:id/reaction', auth, addReactionValidation, addReaction);
+router.post('/:id/reaction', auth, addReactionValidation, addReaction)
 
-router.delete('/:id/reaction', auth, removeReaction);
-router.post('/:id/reply', auth, addReplyValidation, addReply);
-router.delete('/:id', auth, deleteStory);
+router.delete('/:id/reaction', auth, removeReaction)
+router.post('/:id/reply', auth, addReplyValidation, addReply)
+router.delete('/:id', auth, deleteStory)
 
 // Rutas administrativas
-router.post('/cleanup/expired', auth, cleanupExpiredStories);
+router.post('/cleanup/expired', auth, cleanupExpiredStories)
 
-module.exports = router;
+module.exports = router

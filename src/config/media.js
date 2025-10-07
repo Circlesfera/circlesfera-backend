@@ -7,7 +7,7 @@ const MEDIA_CONFIG = {
     ratio: 1080 / 1350, // 0.8 (4:5)
     maxDuration: 60, // segundos
     formats: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi'],
-    description: 'Historias efímeras que duran 24 horas',
+    description: 'Historias efímeras que duran 24 horas'
   },
 
   // Posts normales (Publicaciones del feed principal)
@@ -17,7 +17,7 @@ const MEDIA_CONFIG = {
     ratio: 1, // 1:1 (cuadrado)
     maxDuration: 300, // 5 minutos
     formats: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi'],
-    description: 'Publicaciones normales del feed principal',
+    description: 'Publicaciones normales del feed principal'
   },
 
   // Reels (Videos cortos estilo TikTok)
@@ -27,7 +27,7 @@ const MEDIA_CONFIG = {
     ratio: 1080 / 1920, // 0.5625 (9:16)
     maxDuration: 90, // 90 segundos máximo
     formats: ['mp4', 'mov', 'avi'],
-    description: 'Videos cortos estilo TikTok/Reels',
+    description: 'Videos cortos estilo TikTok/Reels'
   },
 
   // Videos largos (IGTV, contenido extenso)
@@ -37,7 +37,7 @@ const MEDIA_CONFIG = {
     ratio: 16 / 9, // 16:9 (landscape)
     maxDuration: 3600, // 1 hora
     formats: ['mp4', 'mov', 'avi', 'mkv'],
-    description: 'Videos largos, documentales, IGTV',
+    description: 'Videos largos, documentales, IGTV'
   },
 
   // Avatares de perfil
@@ -46,28 +46,28 @@ const MEDIA_CONFIG = {
     height: 400,
     ratio: 1, // 1:1 (cuadrado)
     formats: ['jpg', 'jpeg', 'png', 'webp'],
-    description: 'Foto de perfil del usuario',
-  },
-};
+    description: 'Foto de perfil del usuario'
+  }
+}
 
 // Función para validar proporción de imagen/video
 const validateAspectRatio = (width, height, targetType) => {
-  if (!width || !height) return true; // Skip validation if dimensions not provided
+  if (!width || !height) return true // Skip validation if dimensions not provided
 
-  const config = MEDIA_CONFIG[targetType];
-  if (!config) return true; // Skip validation if type not found
+  const config = MEDIA_CONFIG[targetType]
+  if (!config) return true // Skip validation if type not found
 
-  const ratio = width / height;
-  const tolerance = 0.1; // 10% tolerance
+  const ratio = width / height
+  const tolerance = 0.1 // 10% tolerance
 
-  return Math.abs(ratio - config.ratio) <= tolerance;
-};
+  return Math.abs(ratio - config.ratio) <= tolerance
+}
 
 // Función para obtener dimensiones recomendadas
 const getRecommendedDimensions = (type) => {
-  const config = MEDIA_CONFIG[type];
+  const config = MEDIA_CONFIG[type]
   if (!config) {
-    throw new Error(`Tipo de medio no válido: ${type}`);
+    throw new Error(`Tipo de medio no válido: ${type}`)
   }
 
   return {
@@ -75,12 +75,12 @@ const getRecommendedDimensions = (type) => {
     height: config.height,
     ratio: config.ratio,
     maxDuration: config.maxDuration,
-    formats: config.formats,
-  };
-};
+    formats: config.formats
+  }
+}
 
 module.exports = {
   MEDIA_CONFIG,
   validateAspectRatio,
-  getRecommendedDimensions,
-};
+  getRecommendedDimensions
+}

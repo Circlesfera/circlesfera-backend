@@ -1,4 +1,4 @@
-const { z } = require('zod');
+const { z } = require('zod')
 
 /**
  * Schema de validación para registro de usuarios
@@ -24,8 +24,8 @@ const registerSchema = z.object({
     .min(2, 'Nombre debe tener al menos 2 caracteres')
     .max(50, 'Nombre no puede exceder 50 caracteres')
     .trim()
-    .optional(),
-});
+    .optional()
+})
 
 /**
  * Schema de validación para login
@@ -34,8 +34,8 @@ const loginSchema = z.object({
   email: z.string()
     .min(1, 'Email o username es requerido'),
   password: z.string()
-    .min(1, 'Password es requerido'),
-});
+    .min(1, 'Password es requerido')
+})
 
 /**
  * Schema de validación para actualizar perfil
@@ -82,8 +82,8 @@ const updateProfileSchema = z.object({
     .optional(),
 
   isPrivate: z.boolean()
-    .optional(),
-});
+    .optional()
+})
 
 /**
  * Schema de validación para cambio de contraseña
@@ -96,13 +96,13 @@ const changePasswordSchema = z.object({
     .min(8, 'Nueva contraseña debe tener al menos 8 caracteres')
     .regex(/[A-Z]/, 'Password debe contener al menos una letra mayúscula')
     .regex(/[a-z]/, 'Password debe contener al menos una letra minúscula')
-    .regex(/[0-9]/, 'Password debe contener al menos un número'),
-});
+    .regex(/[0-9]/, 'Password debe contener al menos un número')
+})
 
 module.exports = {
   registerSchema,
   loginSchema,
   updateProfileSchema,
-  changePasswordSchema,
-};
+  changePasswordSchema
+}
 

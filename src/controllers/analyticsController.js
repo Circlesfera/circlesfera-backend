@@ -1,5 +1,5 @@
-const AnalyticsEvent = require('../models/AnalyticsEvent');
-const logger = require('../utils/logger');
+const AnalyticsEvent = require('../models/AnalyticsEvent')
+const logger = require('../utils/logger')
 
 /**
  * @desc    Registrar evento de analytics
@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 exports.trackEvent = async (req, res) => {
   try {
     const { event, category, action, label, value, metadata, sessionId } =
-      req.body;
+      req.body
 
     // Obtener información adicional del request
     const eventData = {
@@ -24,27 +24,27 @@ exports.trackEvent = async (req, res) => {
       ipAddress: req.ip || req.connection.remoteAddress,
       language: req.get('accept-language'),
       referrer: req.get('referer'),
-      timestamp: new Date(),
-    };
+      timestamp: new Date()
+    }
 
     // Si el usuario está autenticado, agregar su ID
     if (req.user && req.user.id) {
-      eventData.user = req.user.id;
+      eventData.user = req.user.id
     }
 
     // Guardar evento (sin esperar)
     AnalyticsEvent.create(eventData).catch(err => {
-      logger.error('Error guardando evento de analytics:', err);
-    });
+      logger.error('Error guardando evento de analytics:', err)
+    })
 
     // Responder inmediatamente para no afectar performance
-    res.status(204).send();
+    res.status(204).send()
   } catch (error) {
-    logger.error('Error en trackEvent:', error);
+    logger.error('Error en trackEvent:', error)
     // No fallar el request del cliente
-    res.status(204).send();
+    res.status(204).send()
   }
-};
+}
 
 /**
  * @desc    Obtener estadísticas de eventos
@@ -53,53 +53,53 @@ exports.trackEvent = async (req, res) => {
  */
 exports.getStats = async (req, res) => {
   try {
-    const { startDate, endDate, event, category, userId } = req.query;
+    const { startDate, endDate, event, category, userId } = req.query
 
     // Construir filtros
-    const filters = {};
+    const filters = {}
 
     if (startDate || endDate) {
-      filters.timestamp = {};
+      filters.timestamp = {}
       if (startDate) {
-        filters.timestamp.$gte = new Date(startDate);
+        filters.timestamp.$gte = new Date(startDate)
       }
       if (endDate) {
-        filters.timestamp.$lte = new Date(endDate);
+        filters.timestamp.$lte = new Date(endDate)
       }
     }
 
     if (event) {
-      filters.event = event;
+      filters.event = event
     }
 
     if (category) {
-      filters.category = category;
+      filters.category = category
     }
 
     if (userId) {
-      filters.user = userId;
+      filters.user = userId
     }
 
     // Obtener estadísticas
-    const stats = await AnalyticsEvent.getStats(filters);
+    const stats = await AnalyticsEvent.getStats(filters)
 
     // Contar total de eventos
-    const totalEvents = await AnalyticsEvent.countDocuments(filters);
+    const totalEvents = await AnalyticsEvent.countDocuments(filters)
 
     res.json({
       success: true,
       stats,
       totalEvents,
-      filters,
-    });
+      filters
+    })
   } catch (error) {
-    logger.error('Error en getStats:', error);
+    logger.error('Error en getStats:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 /**
  * @desc    Obtener eventos de un usuario
@@ -108,18 +108,18 @@ exports.getStats = async (req, res) => {
  */
 exports.getUserAnalytics = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const skip = (page - 1) * limit;
+    const { userId } = req.params
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 50
+    const skip = (page - 1) * limit
 
     const events = await AnalyticsEvent.find({ user: userId })
       .sort({ timestamp: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean()
 
-    const total = await AnalyticsEvent.countDocuments({ user: userId });
+    const total = await AnalyticsEvent.countDocuments({ user: userId })
 
     res.json({
       success: true,
@@ -128,17 +128,17 @@ exports.getUserAnalytics = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+        pages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
-    logger.error('Error en getUserAnalytics:', error);
+    logger.error('Error en getUserAnalytics:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 /**
  * @desc    Limpiar eventos antiguos
@@ -147,26 +147,26 @@ exports.getUserAnalytics = async (req, res) => {
  */
 exports.cleanup = async (req, res) => {
   try {
-    const daysOld = parseInt(req.query.days) || 90;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    const daysOld = parseInt(req.query.days) || 90
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld)
 
     const result = await AnalyticsEvent.deleteMany({
-      timestamp: { $lt: cutoffDate },
-    });
+      timestamp: { $lt: cutoffDate }
+    })
 
-    logger.info(`Eliminados ${result.deletedCount} eventos de analytics`);
+    logger.info(`Eliminados ${result.deletedCount} eventos de analytics`)
 
     res.json({
       success: true,
       message: `Eliminados ${result.deletedCount} eventos`,
-      deletedCount: result.deletedCount,
-    });
+      deletedCount: result.deletedCount
+    })
   } catch (error) {
-    logger.error('Error en cleanup:', error);
+    logger.error('Error en cleanup:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}

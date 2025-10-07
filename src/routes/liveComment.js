@@ -1,15 +1,15 @@
-const express = require('express');
-const router = express.Router();
-const { body, param, query, validationResult } = require('express-validator');
-const { auth: protect, optionalAuth } = require('../middlewares/auth');
+const express = require('express')
+const router = express.Router()
+const { body, param, query, validationResult } = require('express-validator')
+const { auth: protect, optionalAuth } = require('../middlewares/auth')
 const {
   createComment,
   getComments,
   reactToComment,
   removeReaction,
   moderateComment,
-  getCommentStats,
-} = require('../controllers/liveCommentController');
+  getCommentStats
+} = require('../controllers/liveCommentController')
 
 // Validaciones
 const createCommentValidation = [
@@ -33,15 +33,15 @@ const createCommentValidation = [
   body('clientId')
     .optional()
     .isLength({ max: 100 })
-    .withMessage('El client ID no puede exceder 100 caracteres'),
-];
+    .withMessage('El client ID no puede exceder 100 caracteres')
+]
 
 const reactToCommentValidation = [
   body('reactionType')
     .optional()
     .isIn(['like', 'love', 'laugh', 'wow', 'angry'])
-    .withMessage('Tipo de reacción no válido'),
-];
+    .withMessage('Tipo de reacción no válido')
+]
 
 const moderateCommentValidation = [
   body('action')
@@ -50,20 +50,20 @@ const moderateCommentValidation = [
   body('reason')
     .optional()
     .isIn(['spam', 'inappropriate', 'harassment', 'hate_speech', 'other'])
-    .withMessage('Razón de moderación no válida'),
-];
+    .withMessage('Razón de moderación no válida')
+]
 
 const streamIdValidation = [
   param('streamId')
     .isMongoId()
-    .withMessage('El ID de la transmisión debe ser válido'),
-];
+    .withMessage('El ID de la transmisión debe ser válido')
+]
 
 const commentIdValidation = [
   param('commentId')
     .isMongoId()
-    .withMessage('El ID del comentario debe ser válido'),
-];
+    .withMessage('El ID del comentario debe ser válido')
+]
 
 const queryValidation = [
   query('page')
@@ -85,21 +85,21 @@ const queryValidation = [
   query('sortByPinned')
     .optional()
     .isBoolean()
-    .withMessage('sortByPinned debe ser un valor booleano'),
-];
+    .withMessage('sortByPinned debe ser un valor booleano')
+]
 
 // Middleware para manejar errores de validación
 const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
+  const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
       message: 'Errores de validación',
-      errors: errors.array(),
-    });
+      errors: errors.array()
+    })
   }
-  next();
-};
+  next()
+}
 
 // Rutas de Live Comments
 
@@ -113,7 +113,7 @@ router.post(
   createCommentValidation,
   handleValidationErrors,
   createComment
-);
+)
 
 // @route   GET /api/live-streams/:streamId/comments
 // @desc    Obtener comentarios de una transmisión
@@ -125,7 +125,7 @@ router.get(
   ...queryValidation,
   handleValidationErrors,
   getComments
-);
+)
 
 // @route   POST /api/live-streams/:streamId/comments/:commentId/react
 // @desc    Reaccionar a un comentario
@@ -138,7 +138,7 @@ router.post(
   ...reactToCommentValidation,
   handleValidationErrors,
   reactToComment
-);
+)
 
 // @route   DELETE /api/live-streams/:streamId/comments/:commentId/react
 // @desc    Remover reacción de un comentario
@@ -150,7 +150,7 @@ router.delete(
   ...commentIdValidation,
   handleValidationErrors,
   removeReaction
-);
+)
 
 // @route   PUT /api/live-streams/:streamId/comments/:commentId/moderate
 // @desc    Moderar un comentario (solo streamer y co-hosts)
@@ -163,7 +163,7 @@ router.put(
   ...moderateCommentValidation,
   handleValidationErrors,
   moderateComment
-);
+)
 
 // @route   GET /api/live-streams/:streamId/comments/stats
 // @desc    Obtener estadísticas de comentarios
@@ -174,6 +174,6 @@ router.get(
   streamIdValidation,
   handleValidationErrors,
   getCommentStats
-);
+)
 
-module.exports = router;
+module.exports = router

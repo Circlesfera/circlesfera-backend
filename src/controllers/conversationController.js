@@ -1,23 +1,23 @@
-const Conversation = require('../models/Conversation');
-const User = require('../models/User');
-const logger = require('../utils/logger');
+const Conversation = require('../models/Conversation')
+const User = require('../models/User')
+const logger = require('../utils/logger')
 
 // Obtener conversaciones del usuario
 exports.getConversations = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const skip = (page - 1) * limit
 
     const conversations = await Conversation.findByUser(req.user.id, { skip, limit })
       .populate('participants', 'username avatar fullName')
       .populate('lastMessage')
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
 
     const total = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false,
-    });
+      isDeleted: false
+    })
 
     res.json({
       success: true,
@@ -26,122 +26,122 @@ exports.getConversations = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+        pages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
-    logger.error('Error en getConversations:', error);
+    logger.error('Error en getConversations:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener una conversación específica
 exports.getConversation = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const { conversationId } = req.params
 
     const conversation = await Conversation.findById(conversationId)
       .populate('participants', 'username avatar fullName')
       .populate('lastMessage')
-      .populate('admins', 'username avatar fullName');
+      .populate('admins', 'username avatar fullName')
 
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que el usuario es participante
     if (!conversation.participants.some(p => p._id.toString() === req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación',
-      });
+        message: 'No tienes acceso a esta conversación'
+      })
     }
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en getConversation:', error);
+    logger.error('Error en getConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Crear conversación directa
 exports.createDirectConversation = async (req, res) => {
   try {
-    const { participantId } = req.body;
+    const { participantId } = req.body
 
     if (!participantId) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere el ID del participante',
-      });
+        message: 'Se requiere el ID del participante'
+      })
     }
 
     if (participantId === req.user.id) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes crear una conversación contigo mismo',
-      });
+        message: 'No puedes crear una conversación contigo mismo'
+      })
     }
 
     // Verificar que el usuario existe
-    const participant = await User.findById(participantId);
+    const participant = await User.findById(participantId)
     if (!participant) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado',
-      });
+        message: 'Usuario no encontrado'
+      })
     }
 
     // Buscar o crear conversación directa
-    let conversation = await Conversation.findOrCreateDirectConversation(req.user.id, participantId);
+    let conversation = await Conversation.findOrCreateDirectConversation(req.user.id, participantId)
 
     // Populate participantes
-    conversation = await conversation.populate('participants', 'username avatar fullName');
+    conversation = await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en createDirectConversation:', error);
+    logger.error('Error en createDirectConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Crear conversación grupal
 exports.createGroupConversation = async (req, res) => {
   try {
-    const { name, description, participantIds } = req.body;
+    const { name, description, participantIds } = req.body
 
     if (!name || !participantIds || participantIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Se requiere nombre y al menos un participante',
-      });
+        message: 'Se requiere nombre y al menos un participante'
+      })
     }
 
     // Verificar que todos los usuarios existen
-    const participants = await User.find({ _id: { $in: participantIds } });
+    const participants = await User.find({ _id: { $in: participantIds } })
     if (participants.length !== participantIds.length) {
       return res.status(400).json({
         success: false,
-        message: 'Algunos usuarios no existen',
-      });
+        message: 'Algunos usuarios no existen'
+      })
     }
 
     // Crear conversación grupal
@@ -150,395 +150,395 @@ exports.createGroupConversation = async (req, res) => {
       name,
       description,
       participants: [req.user.id, ...participantIds],
-      admins: [req.user.id],
-    });
+      admins: [req.user.id]
+    })
 
-    await conversation.save();
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.save()
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en createGroupConversation:', error);
+    logger.error('Error en createGroupConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Agregar participante a conversación grupal
 exports.addParticipant = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { participantId } = req.body;
+    const { conversationId } = req.params
+    const { participantId } = req.body
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que es conversación grupal
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden agregar participantes a conversaciones grupales',
-      });
+        message: 'Solo se pueden agregar participantes a conversaciones grupales'
+      })
     }
 
     // Verificar que el usuario es admin
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden agregar participantes',
-      });
+        message: 'Solo los administradores pueden agregar participantes'
+      })
     }
 
-    await conversation.addParticipant(participantId);
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.addParticipant(participantId)
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en addParticipant:', error);
+    logger.error('Error en addParticipant:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Remover participante de conversación grupal
 exports.removeParticipant = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { participantId } = req.body;
+    const { conversationId } = req.params
+    const { participantId } = req.body
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que es conversación grupal
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo se pueden remover participantes de conversaciones grupales',
-      });
+        message: 'Solo se pueden remover participantes de conversaciones grupales'
+      })
     }
 
     // Verificar que el usuario es admin
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden remover participantes',
-      });
+        message: 'Solo los administradores pueden remover participantes'
+      })
     }
 
-    await conversation.removeParticipant(participantId);
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.removeParticipant(participantId)
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en removeParticipant:', error);
+    logger.error('Error en removeParticipant:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Agregar administrador
 exports.addAdmin = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { adminId } = req.body;
+    const { conversationId } = req.params
+    const { adminId } = req.body
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que es conversación grupal
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo las conversaciones grupales tienen administradores',
-      });
+        message: 'Solo las conversaciones grupales tienen administradores'
+      })
     }
 
     // Verificar que el usuario es admin
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden agregar otros administradores',
-      });
+        message: 'Solo los administradores pueden agregar otros administradores'
+      })
     }
 
-    await conversation.addAdmin(adminId);
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.addAdmin(adminId)
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en addAdmin:', error);
+    logger.error('Error en addAdmin:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Remover administrador
 exports.removeAdmin = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { adminId } = req.body;
+    const { conversationId } = req.params
+    const { adminId } = req.body
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que es conversación grupal
     if (conversation.type !== 'group') {
       return res.status(400).json({
         success: false,
-        message: 'Solo las conversaciones grupales tienen administradores',
-      });
+        message: 'Solo las conversaciones grupales tienen administradores'
+      })
     }
 
     // Verificar que el usuario es admin
     if (!conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden remover otros administradores',
-      });
+        message: 'Solo los administradores pueden remover otros administradores'
+      })
     }
 
-    await conversation.removeAdmin(adminId);
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.removeAdmin(adminId)
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en removeAdmin:', error);
+    logger.error('Error en removeAdmin:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Actualizar configuración de conversación
 exports.updateConversation = async (req, res) => {
   try {
-    const { conversationId } = req.params;
-    const { name, description, avatar } = req.body;
+    const { conversationId } = req.params
+    const { name, description, avatar } = req.body
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que el usuario es participante
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación',
-      });
+        message: 'No tienes acceso a esta conversación'
+      })
     }
 
     // Para conversaciones grupales, verificar que es admin
     if (conversation.type === 'group' && !conversation.admins.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'Solo los administradores pueden actualizar la conversación',
-      });
+        message: 'Solo los administradores pueden actualizar la conversación'
+      })
     }
 
     // Actualizar campos
-    if (name) conversation.name = name;
-    if (description) conversation.description = description;
-    if (avatar) conversation.avatar = avatar;
+    if (name) conversation.name = name
+    if (description) conversation.description = description
+    if (avatar) conversation.avatar = avatar
 
-    await conversation.save();
-    await conversation.populate('participants', 'username avatar fullName');
+    await conversation.save()
+    await conversation.populate('participants', 'username avatar fullName')
 
     res.json({
       success: true,
-      conversation,
-    });
+      conversation
+    })
   } catch (error) {
-    logger.error('Error en updateConversation:', error);
+    logger.error('Error en updateConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Archivar conversación
 exports.archiveConversation = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const { conversationId } = req.params
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que el usuario es participante
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación',
-      });
+        message: 'No tienes acceso a esta conversación'
+      })
     }
 
-    await conversation.archive();
+    await conversation.archive()
 
     res.json({
       success: true,
-      message: 'Conversación archivada',
-    });
+      message: 'Conversación archivada'
+    })
   } catch (error) {
-    logger.error('Error en archiveConversation:', error);
+    logger.error('Error en archiveConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Desarchivar conversación
 exports.unarchiveConversation = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const { conversationId } = req.params
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que el usuario es participante
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación',
-      });
+        message: 'No tienes acceso a esta conversación'
+      })
     }
 
-    await conversation.unarchive();
+    await conversation.unarchive()
 
     res.json({
       success: true,
-      message: 'Conversación desarchivada',
-    });
+      message: 'Conversación desarchivada'
+    })
   } catch (error) {
-    logger.error('Error en unarchiveConversation:', error);
+    logger.error('Error en unarchiveConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Eliminar conversación (soft delete)
 exports.deleteConversation = async (req, res) => {
   try {
-    const { conversationId } = req.params;
+    const { conversationId } = req.params
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
     if (!conversation) {
       return res.status(404).json({
         success: false,
-        message: 'Conversación no encontrada',
-      });
+        message: 'Conversación no encontrada'
+      })
     }
 
     // Verificar que el usuario es participante
     if (!conversation.participants.includes(req.user.id)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta conversación',
-      });
+        message: 'No tienes acceso a esta conversación'
+      })
     }
 
-    await conversation.softDelete();
+    await conversation.softDelete()
 
     res.json({
       success: true,
-      message: 'Conversación eliminada',
-    });
+      message: 'Conversación eliminada'
+    })
   } catch (error) {
-    logger.error('Error en deleteConversation:', error);
+    logger.error('Error en deleteConversation:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
 
 // Obtener estadísticas de conversaciones
 exports.getConversationStats = async (req, res) => {
   try {
     const totalConversations = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false,
-    });
+      isDeleted: false
+    })
 
-    const unreadCount = await Conversation.getUnreadCount(req.user.id);
+    const unreadCount = await Conversation.getUnreadCount(req.user.id)
 
     const recentConversations = await Conversation.findByUser(req.user.id, { skip: 0, limit: 5 })
       .populate('participants', 'username avatar fullName')
-      .populate('lastMessage');
+      .populate('lastMessage')
 
     res.json({
       success: true,
       stats: {
         totalConversations,
         unreadCount,
-        recentConversations,
-      },
-    });
+        recentConversations
+      }
+    })
   } catch (error) {
-    logger.error('Error en getConversationStats:', error);
+    logger.error('Error en getConversationStats:', error)
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor',
-    });
+      message: 'Error interno del servidor'
+    })
   }
-};
+}
