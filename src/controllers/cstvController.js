@@ -3,7 +3,7 @@ const User = require('../models/User')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
 const logger = require('../utils/logger')
-// Cache eliminado para simplificar el desarrollo local
+const cache = require('../utils/cache')
 
 // Crear un nuevo video CSTV
 exports.createCSTVVideo = async (req, res) => {
@@ -86,7 +86,16 @@ exports.getCSTVVideos = async (req, res) => {
       sortBy = 'newest'
     } = req.query
 
-    // Cache eliminado para simplificar el desarrollo local
+    // Implementar caché para mejorar rendimiento
+    const cacheKey = `cstv_videos:${page}:${limit}:${category || 'all'}:${userId || 'all'}`
+    logger.info('Cache key generado para videos CSTV:', { cacheKey })
+
+    // Intentar obtener del caché
+    const cachedVideos = await cache.get(cacheKey)
+    if (cachedVideos) {
+      logger.info('Videos CSTV servidos desde caché')
+      return res.json(cachedVideos)
+    }
 
     const options = {
       category,
@@ -152,7 +161,7 @@ exports.getCSTVVideos = async (req, res) => {
     }
 
     // Guardar en caché por 5 minutos
-    // Cache eliminado - await cache.set(cacheKey, response, 300);
+    await cache.set(cacheKey, response, 300)
 
     res.json(response)
   } catch (error) {
@@ -259,8 +268,8 @@ exports.updateCSTVVideo = async (req, res) => {
     await video.save()
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`cstv_video:${videoId}`);
-    // Cache eliminado - await cache.deletePattern('cstv_videos:*');
+    await cache.deletePattern(`cstv_video:${videoId}`)
+    await cache.deletePattern('cstv_videos:*')
 
     logger.info('📺 CSTV video actualizado:', {
       id: videoId,
@@ -306,8 +315,8 @@ exports.deleteCSTVVideo = async (req, res) => {
     await CSTV.findByIdAndDelete(videoId)
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`cstv_video:${videoId}`);
-    // Cache eliminado - await cache.deletePattern('cstv_videos:*');
+    await cache.deletePattern(`cstv_video:${videoId}`)
+    await cache.deletePattern('cstv_videos:*')
 
     logger.info('📺 CSTV video eliminado:', {
       id: videoId,
@@ -363,8 +372,8 @@ exports.likeCSTVVideo = async (req, res) => {
     }
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`cstv_video:${videoId}`);
-    // Cache eliminado - await cache.deletePattern('cstv_videos:*');
+    await cache.deletePattern(`cstv_video:${videoId}`)
+    await cache.deletePattern('cstv_videos:*')
 
     res.json({
       success: true,
@@ -400,8 +409,8 @@ exports.unlikeCSTVVideo = async (req, res) => {
     await video.toggleLike(req.user.id)
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`cstv_video:${videoId}`);
-    // Cache eliminado - await cache.deletePattern('cstv_videos:*');
+    await cache.deletePattern(`cstv_video:${videoId}`)
+    await cache.deletePattern('cstv_videos:*')
 
     res.json({
       success: true,
@@ -549,7 +558,7 @@ exports.searchVideos = async (req, res) => {
     }
 
     // Guardar en caché por 5 minutos
-    // Cache eliminado - await cache.set(cacheKey, response, 300);
+    await cache.set(cacheKey, response, 300)
 
     res.json({
       success: true,

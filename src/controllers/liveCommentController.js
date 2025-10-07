@@ -3,7 +3,7 @@ const LiveStream = require('../models/LiveStream')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
 const logger = require('../utils/logger')
-// Cache eliminado para simplificar el desarrollo local
+const cache = require('../utils/cache')
 
 // Crear un comentario en transmisión en vivo
 exports.createComment = async (req, res) => {
@@ -94,7 +94,7 @@ exports.createComment = async (req, res) => {
     // socketService.emitToStream(streamId, 'new_comment', comment);
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`live_comments:${streamId}:*`);
+    await cache.deletePattern(`live_comments:${streamId}:*`)
 
     logger.info('💬 Live comment creado:', {
       id: comment._id,
@@ -193,7 +193,7 @@ exports.getComments = async (req, res) => {
     }
 
     // Guardar en caché por 10 segundos
-    // Cache eliminado - await cache.set(cacheKey, response, 10);
+    await cache.set(cacheKey, response, 10)
 
     res.json(response)
   } catch (error) {
@@ -388,7 +388,7 @@ exports.getCommentStats = async (req, res) => {
     }
 
     // Guardar en caché por 30 segundos
-    // Cache eliminado - await cache.set(cacheKey, result, 30);
+    await cache.set(cacheKey, result, 30)
 
     res.json({
       success: true,

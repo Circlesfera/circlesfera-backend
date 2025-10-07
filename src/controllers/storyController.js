@@ -3,6 +3,17 @@ const User = require('../models/User')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
 const logger = require('../utils/logger')
+const cache = require('../utils/cache')
+const notificationService = require('../services/notificationService')
+
+// Implementar caché para historias
+const getStoriesCacheKey = (userId, includeExpired = false) => {
+  return `stories:${userId}:${includeExpired ? 'all' : 'active'}`
+}
+
+const getFeedCacheKey = () => {
+  return 'stories:feed:active'
+}
 
 // Crear una nueva historia
 exports.createStory = async (req, res) => {
@@ -145,6 +156,9 @@ exports.createStory = async (req, res) => {
     // Populate user data for response
     await story.populate('user', 'username avatar fullName')
 
+    // Invalidar caché relacionado
+    await cache.del(getFeedCacheKey())
+
     res.status(201).json({
       success: true,
       message: 'Historia creada exitosamente',
@@ -162,8 +176,24 @@ exports.createStory = async (req, res) => {
 // Obtener historias para el feed
 exports.getStoriesForFeed = async (req, res) => {
   try {
+    // Implementar caché para mejorar rendimiento
+    const cacheKey = getFeedCacheKey()
+    logger.info('Cache key generado para feed de historias:', { cacheKey })
+
+    // Intentar obtener del caché
+    let stories = await cache.get(cacheKey)
+    if (stories) {
+      logger.info('Cache hit para feed de historias:', { cacheKey })
+      return res.json({
+        success: true,
+        stories
+      })
+    }
+
+    logger.info('Cache miss para feed de historias:', { cacheKey })
+
     // Obtener todas las stories públicas que no han expirado
-    const stories = await Story.find({
+    stories = await Story.find({
       isDeleted: false,
       isPublic: true,
       expiresAt: { $gt: new Date() }
@@ -171,6 +201,9 @@ exports.getStoriesForFeed = async (req, res) => {
       .populate('user', 'username avatar fullName')
       .sort({ createdAt: -1 })
       .limit(20)
+
+    // Guardar en caché por 5 minutos (300 segundos)
+    await cache.set(cacheKey, stories, 300)
 
     res.json({
       success: true,
@@ -198,9 +231,28 @@ exports.getUserStories = async (req, res) => {
       })
     }
 
-    const stories = await Story.findByUser(user._id, { includeExpired: false })
+    // Implementar caché para historias de usuario
+    const cacheKey = getStoriesCacheKey(user._id, false)
+    logger.info('Cache key generado para historias de usuario:', { cacheKey, userId: user._id })
+
+    // Intentar obtener del caché
+    let stories = await cache.get(cacheKey)
+    if (stories) {
+      logger.info('Cache hit para historias de usuario:', { cacheKey })
+      return res.json({
+        success: true,
+        stories
+      })
+    }
+
+    logger.info('Cache miss para historias de usuario:', { cacheKey })
+
+    stories = await Story.findByUser(user._id, { includeExpired: false })
       .populate('user', 'username avatar fullName')
       .sort({ createdAt: -1 })
+
+    // Guardar en caché por 10 minutos (600 segundos)
+    await cache.set(cacheKey, stories, 600)
 
     res.json({
       success: true,
@@ -246,6 +298,22 @@ exports.getStory = async (req, res) => {
     // Agregar vista si el usuario no es el dueño
     if (story.user._id.toString() !== req.userId) {
       await story.addView(req.userId)
+
+      // Crear notificación para el dueño de la historia si es la primera vista
+      const viewCount = story.views.length
+      if (viewCount === 1) {
+        // Solo notificar en la primera vista para evitar spam
+        await notificationService.createNotification({
+          user: story.user._id,
+          from: req.userId,
+          type: 'story_view',
+          content: 'Alguien vio tu historia',
+          relatedEntity: {
+            type: 'story',
+            id: story._id
+          }
+        })
+      }
     }
 
     res.json({
@@ -282,6 +350,20 @@ exports.addReaction = async (req, res) => {
     }
 
     await story.addReaction(req.userId, reactionType)
+
+    // Notificar al dueño de la historia si no es el mismo usuario
+    if (story.user.toString() !== req.userId) {
+      await notificationService.createNotification({
+        user: story.user,
+        from: req.userId,
+        type: 'story_reaction',
+        content: `Reaccionó a tu historia con ${reactionType}`,
+        relatedEntity: {
+          type: 'story',
+          id: story._id
+        }
+      })
+    }
 
     res.json({
       success: true,
@@ -358,12 +440,15 @@ exports.addReply = async (req, res) => {
 
     // Notificar al dueño de la historia si no es el mismo usuario
     if (story.user.toString() !== req.userId) {
-      await Notification.create({
+      await notificationService.createNotification({
         user: story.user,
-        type: 'story_reply',
         from: req.userId,
-        story: story._id,
-        message: 'Respondió a tu historia'
+        type: 'story_reply',
+        content: 'Respondió a tu historia',
+        relatedEntity: {
+          type: 'story',
+          id: story._id
+        }
       })
     }
 
@@ -440,6 +525,11 @@ exports.deleteStory = async (req, res) => {
     logger.info('🗑️ Después de softDelete - Resultado:', result)
     logger.info('🗑️ Después de softDelete - isDeleted:', result.isDeleted)
     logger.info('🗑️ Después de softDelete - Story guardada:', result._id)
+
+    // Invalidar caché relacionado
+    const cacheKey = getStoriesCacheKey(story.user, false)
+    await cache.del(cacheKey)
+    await cache.del(getFeedCacheKey())
 
     // Verificar directamente en la base de datos si se guardó
     const storyFromDB = await Story.findById(story._id)
@@ -562,6 +652,107 @@ exports.getUsersWithStories = async (req, res) => {
       success: false,
       message: 'Error interno del servidor',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
+  }
+}
+
+// Obtener estadísticas de notificaciones de historias
+exports.getStoryNotificationStats = async (req, res) => {
+  try {
+    const userId = req.userId
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      })
+    }
+
+    // Obtener estadísticas de notificaciones relacionadas con historias
+    const stats = await Notification.aggregate([
+      {
+        $match: {
+          user: userId,
+          type: { $in: ['story_view', 'story_reaction', 'story_reply'] },
+          isDeleted: false
+        }
+      },
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 },
+          unreadCount: {
+            $sum: { $cond: ['$isRead', 0, 1] }
+          }
+        }
+      }
+    ])
+
+    // Formatear estadísticas
+    const formattedStats = {
+      total: stats.reduce((sum, stat) => sum + stat.count, 0),
+      unread: stats.reduce((sum, stat) => sum + stat.unreadCount, 0),
+      byType: {}
+    }
+
+    stats.forEach(stat => {
+      formattedStats.byType[stat._id] = {
+        total: stat.count,
+        unread: stat.unreadCount
+      }
+    })
+
+    res.json({
+      success: true,
+      stats: formattedStats
+    })
+  } catch (error) {
+    logger.error('Error en getStoryNotificationStats:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Marcar notificaciones de historias como leídas
+exports.markStoryNotificationsAsRead = async (req, res) => {
+  try {
+    const userId = req.userId
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado'
+      })
+    }
+
+    // Marcar todas las notificaciones de historias como leídas
+    const result = await Notification.updateMany(
+      {
+        user: userId,
+        type: { $in: ['story_view', 'story_reaction', 'story_reply'] },
+        isRead: false,
+        isDeleted: false
+      },
+      {
+        $set: {
+          isRead: true,
+          readAt: new Date()
+        }
+      }
+    )
+
+    res.json({
+      success: true,
+      message: 'Notificaciones de historias marcadas como leídas',
+      updatedCount: result.modifiedCount
+    })
+  } catch (error) {
+    logger.error('Error en markStoryNotificationsAsRead:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
     })
   }
 }

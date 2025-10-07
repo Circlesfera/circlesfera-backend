@@ -5,7 +5,7 @@ const User = require('../models/User')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
 const logger = require('../utils/logger')
-// Cache eliminado para simplificar el desarrollo local
+const cache = require('../utils/cache')
 
 // Crear una nueva transmisión en vivo
 exports.createLiveStream = async (req, res) => {
@@ -99,6 +99,13 @@ exports.getLiveStreams = async (req, res) => {
     const cacheKey = `live_streams:${status}:${category || 'all'}:${userId || 'all'}:${page}:${limit}`
     logger.info('Cache key generado para streams en vivo:', { cacheKey })
 
+    // Intentar obtener del caché
+    const cachedStreams = await cache.get(cacheKey)
+    if (cachedStreams) {
+      logger.info('Streams en vivo servidos desde caché')
+      return res.json(cachedStreams)
+    }
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -145,7 +152,7 @@ exports.getLiveStreams = async (req, res) => {
     }
 
     // Guardar en caché por 30 segundos
-    // Cache eliminado - await cache.set(cacheKey, response, 30);
+    await cache.set(cacheKey, response, 30)
 
     res.json(response)
   } catch (error) {
@@ -262,8 +269,8 @@ exports.startLiveStream = async (req, res) => {
     }
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`live_stream:${streamId}`);
-    // Cache eliminado - await cache.deletePattern('live_streams:*');
+    await cache.deletePattern(`live_stream:${streamId}`)
+    await cache.deletePattern('live_streams:*')
 
     logger.info('📺 Live stream iniciado:', {
       id: streamId,
@@ -330,8 +337,8 @@ exports.endLiveStream = async (req, res) => {
     }
 
     // Limpiar caché
-    // Cache eliminado - await cache.deletePattern(`live_stream:${streamId}`);
-    // Cache eliminado - await cache.deletePattern('live_streams:*');
+    await cache.deletePattern(`live_stream:${streamId}`)
+    await cache.deletePattern('live_streams:*')
 
     logger.info('📺 Live stream terminado:', {
       id: streamId,

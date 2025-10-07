@@ -3,7 +3,7 @@ const Post = require('../models/Post')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
 const logger = require('../utils/logger')
-// Cache eliminado para simplificar el desarrollo local
+const cache = require('../utils/cache')
 const {
   getPaginationOptions,
   createPaginatedResponse,
@@ -56,8 +56,7 @@ exports.createComment = async (req, res) => {
     await comment.save()
 
     // Invalidar caché de comentarios
-    // Cache eliminado
-    // await cache.deletePattern(`comments:${postId}:*`);
+    await cache.deletePattern(`comments:${postId}:*`)
 
     // Populate user data
     await comment.populate('user', 'username avatar fullName')
@@ -146,8 +145,7 @@ exports.getComments = async (req, res) => {
     })
 
     // Guardar en caché por 1 minuto
-    // Cache eliminado
-    // await cache.set(cacheKey, response, 60);
+    await cache.set(cacheKey, response, 60)
 
     logger.info('getComments respuesta:', {
       success: response.success,

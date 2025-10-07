@@ -28,7 +28,11 @@ try {
   process.exit(1)
 }
 
-// Sentry eliminado para simplificar el desarrollo local
+// Configuración de monitoreo y optimización
+const { initMonitoring } = require('./src/utils/monitoring')
+const { monitoringMiddleware, errorMonitoringMiddleware } = require('./src/middlewares/monitoring')
+const dbOptimizer = require('./src/utils/dbOptimizer')
+const { connectRedis } = require('./src/utils/cache')
 
 // Compresión HTTP
 app.use(compression())
@@ -126,6 +130,9 @@ if (config.isDevelopment) {
       skip: (req) => req.method === 'OPTIONS' // Saltar peticiones OPTIONS para evitar conflictos
     })
   )
+
+  // Middleware de monitoreo
+  app.use(monitoringMiddleware)
 } else {
   // En producción, logging mínimo
   app.use(
@@ -133,6 +140,9 @@ if (config.isDevelopment) {
       skip: (req) => req.method === 'OPTIONS'
     })
   )
+
+  // Middleware de monitoreo
+  app.use(monitoringMiddleware)
 }
 
 // Conexión a la base de datos
@@ -281,7 +291,26 @@ const server = http.createServer(app)
 // Inicializar WebSockets
 socketService.initialize(server)
 
-// Cron jobs eliminados para simplificar el desarrollo local
+// Inicializar Sentry
+initMonitoring(app)
+
+// Configurar middleware de manejo de errores con monitoreo
+app.use(errorMonitoringMiddleware)
+
+// Conectar a Redis
+connectRedis()
+
+// Optimización de base de datos (ejecutar al iniciar)
+dbOptimizer.optimizeIndexes()
+
+// Cron jobs programados para mantenimiento
+setInterval(async () => {
+  try {
+    await dbOptimizer.cleanupOldDocuments()
+  } catch (error) {
+    logger.error('Error en tarea de limpieza programada:', error)
+  }
+}, 24 * 60 * 60 * 1000) // Ejecutar cada 24 horas
 
 // Manejo de errores no capturados
 process.on('unhandledRejection', (reason, promise) => {
