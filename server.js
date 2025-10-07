@@ -32,7 +32,7 @@ try {
 const { initMonitoring } = require('./src/utils/monitoring')
 const { monitoringMiddleware, errorMonitoringMiddleware } = require('./src/middlewares/monitoring')
 const dbOptimizer = require('./src/utils/dbOptimizer')
-const { connectRedis } = require('./src/utils/cache')
+const cache = require('./src/utils/cache')
 
 // Compresión HTTP
 app.use(compression())
@@ -297,8 +297,8 @@ initMonitoring(app)
 // Configurar middleware de manejo de errores con monitoreo
 app.use(errorMonitoringMiddleware)
 
-// Conectar a Redis
-connectRedis()
+// Inicializar caché en memoria
+logger.info('✅ Caché en memoria inicializado correctamente')
 
 // Optimización de base de datos (ejecutar al iniciar)
 dbOptimizer.optimizeIndexes()
