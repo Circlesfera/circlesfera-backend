@@ -109,8 +109,11 @@ exports.getComments = async (req, res) => {
   try {
     const postId = req.params.postId
 
+    logger.info('getComments - Recibido postId:', { postId, type: typeof postId })
+
     // Validar que postId es un ObjectId válido
     if (!mongoose.Types.ObjectId.isValid(postId)) {
+      logger.warn('getComments - ObjectId inválido:', { postId })
       return res.status(400).json({
         success: false,
         message: 'ID de publicación inválido'
@@ -181,7 +184,12 @@ exports.getComments = async (req, res) => {
 
     res.json(response)
   } catch (error) {
-    logger.error('Error en getComments:', error)
+    logger.error('Error en getComments:', {
+      error: error.message,
+      stack: error.stack,
+      postId: req.params.postId,
+      query: req.query
+    })
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
