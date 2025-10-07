@@ -301,12 +301,16 @@ app.use(errorMonitoringMiddleware)
 logger.info('✅ Caché en memoria inicializado correctamente')
 
 // Optimización de base de datos (ejecutar al iniciar)
-dbOptimizer.optimizeIndexes()
+dbOptimizer.createOptimizedIndexes().catch(error => {
+  logger.error('Error creando índices optimizados:', error)
+})
 
 // Cron jobs programados para mantenimiento
 setInterval(async () => {
   try {
-    await dbOptimizer.cleanupOldDocuments()
+    // Limpiar caché en memoria periódicamente
+    cache.cleanup()
+    logger.info('Tarea de limpieza programada ejecutada correctamente')
   } catch (error) {
     logger.error('Error en tarea de limpieza programada:', error)
   }
