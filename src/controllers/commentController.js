@@ -164,21 +164,14 @@ exports.getComments = async (req, res) => {
     ])
 
     // Crear respuesta paginada usando la función optimizada
-    const response = createPaginatedResponse({
-      data: comments,
-      page,
-      limit,
-      total,
-      success: true,
-      message: 'Comentarios obtenidos exitosamente'
-    })
+    const response = createPaginatedResponse(comments, total, page, limit)
 
     // Guardar en caché por 1 minuto
     await cache.set(cacheKey, response, 60)
 
     logger.info('getComments respuesta:', {
       success: response.success,
-      commentsCount: response.comments.length,
+      commentsCount: response.data.length,
       total: response.pagination.total
     })
 
