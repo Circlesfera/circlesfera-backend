@@ -392,19 +392,131 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
-// Obtener posts trending
+// Obtener posts trending con score ponderado y decaimiento temporal
 exports.getTrendingPosts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    const posts = await Post.findTrending(limit).populate(
-      'user',
-      'username avatar fullName'
-    );
 
-    res.json({
-      success: true,
-      posts,
-    });
+    // Pipeline de agregación para calcular score
+    const pipeline = [
+      {
+        $match: {
+          isPublic: true,
+          isArchived: false,
+          isDeleted: false,
+        },
+      },
+      // Contadores y score base
+      {
+        $addFields: {
+          likesCount: { $size: { $ifNull: ['$likes', []] } },
+          commentsCount: { $size: { $ifNull: ['$comments', []] } },
+          sharesCount: { $ifNull: ['$shares', 0] },
+          viewsCount: { $ifNull: ['$views', 0] },
+        },
+      },
+      {
+        $addFields: {
+          baseScore: {
+            $add: [
+              { $multiply: [3, '$likesCount'] },
+              { $multiply: [2, '$commentsCount'] },
+              { $multiply: [1, '$sharesCount'] },
+              { $multiply: [0.2, '$viewsCount'] },
+            ],
+          },
+        },
+      },
+      // Decaimiento temporal: dividir por (1 + horas/12)
+      {
+        $addFields: {
+          ageHours: {
+            $dateDiff: {
+              startDate: '$createdAt',
+              endDate: '$$NOW',
+              unit: 'hour',
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          score: {
+            $cond: [
+              { $gt: ['$baseScore', 0] },
+              {
+                $divide: [
+                  '$baseScore',
+                  { $add: [1, { $divide: ['$ageHours', 12] }] },
+                ],
+              },
+              0,
+            ],
+          },
+        },
+      },
+      // Priorizar últimos 7 días pero sin excluir antiguos (ligero bonus)
+      {
+        $addFields: {
+          isRecent: {
+            $gte: [
+              '$createdAt',
+              { $dateSubtract: { startDate: '$$NOW', unit: 'day', amount: 7 } },
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          boostedScore: {
+            $cond: ['$isRecent', { $add: ['$score', 1] }, '$score'],
+          },
+        },
+      },
+      { $sort: { boostedScore: -1, createdAt: -1 } },
+      { $limit: limit },
+      // Poblar datos básicos del usuario
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 1,
+          user: {
+            _id: '$user._id',
+            username: '$user.username',
+            avatar: '$user.avatar',
+            fullName: '$user.fullName',
+          },
+          type: 1,
+          content: 1,
+          caption: 1,
+          likes: 1,
+          comments: 1,
+          views: 1,
+          shares: 1,
+          isPublic: 1,
+          isArchived: 1,
+          isDeleted: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          // métricas calculadas (por si queremos depurar)
+          likesCount: 1,
+          commentsCount: 1,
+          boostedScore: 1,
+        },
+      },
+    ];
+
+    const posts = await Post.aggregate(pipeline);
+
+    res.json({ success: true, posts });
   } catch (error) {
     logger.error('Error en getTrendingPosts:', error);
     res.status(500).json({
