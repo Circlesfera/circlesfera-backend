@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, param, query, validationResult } = require('express-validator');
-const { protect, optionalAuth } = require('../middlewares/auth');
+const { auth: protect, optionalAuth } = require('../middlewares/auth');
 const {
   createComment,
   getComments,
