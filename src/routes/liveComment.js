@@ -121,8 +121,8 @@ router.post(
 router.get(
   '/:streamId/comments',
   optionalAuth,
-  streamIdValidation,
-  queryValidation,
+  ...streamIdValidation,
+  ...queryValidation,
   handleValidationErrors,
   getComments
 );
@@ -133,9 +133,9 @@ router.get(
 router.post(
   '/:streamId/comments/:commentId/react',
   protect,
-  streamIdValidation,
-  commentIdValidation,
-  reactToCommentValidation,
+  ...streamIdValidation,
+  ...commentIdValidation,
+  ...reactToCommentValidation,
   handleValidationErrors,
   reactToComment
 );
@@ -146,8 +146,8 @@ router.post(
 router.delete(
   '/:streamId/comments/:commentId/react',
   protect,
-  streamIdValidation,
-  commentIdValidation,
+  ...streamIdValidation,
+  ...commentIdValidation,
   handleValidationErrors,
   removeReaction
 );
@@ -158,9 +158,9 @@ router.delete(
 router.put(
   '/:streamId/comments/:commentId/moderate',
   protect,
-  streamIdValidation,
-  commentIdValidation,
-  moderateCommentValidation,
+  ...streamIdValidation,
+  ...commentIdValidation,
+  ...moderateCommentValidation,
   handleValidationErrors,
   moderateComment
 );

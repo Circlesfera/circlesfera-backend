@@ -224,7 +224,7 @@ const handleValidationErrors = (req, res, next) => {
 router.post(
   '/',
   protect,
-  createCSTVValidation,
+  ...createCSTVValidation,
   handleValidationErrors,
   createCSTVVideo
 );
@@ -279,8 +279,8 @@ router.get(
 router.put(
   '/:videoId',
   protect,
-  videoIdValidation,
-  updateCSTVValidation,
+  ...videoIdValidation,
+  ...updateCSTVValidation,
   handleValidationErrors,
   updateCSTVVideo
 );

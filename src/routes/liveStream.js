@@ -147,7 +147,7 @@ const queryValidation = [
 router.post(
   '/',
   protect,
-  createLiveStreamValidation,
+  ...createLiveStreamValidation,
   handleValidationErrors,
   createLiveStream
 );
@@ -180,8 +180,8 @@ router.get(
 router.put(
   '/:streamId/start',
   protect,
-  streamIdValidation,
-  startLiveStreamValidation,
+  ...streamIdValidation,
+  ...startLiveStreamValidation,
   handleValidationErrors,
   startLiveStream
 );
@@ -192,8 +192,8 @@ router.put(
 router.put(
   '/:streamId/end',
   protect,
-  streamIdValidation,
-  endLiveStreamValidation,
+  ...streamIdValidation,
+  ...endLiveStreamValidation,
   handleValidationErrors,
   endLiveStream
 );
@@ -226,8 +226,8 @@ router.delete(
 router.post(
   '/:streamId/invite-cohost',
   protect,
-  streamIdValidation,
-  inviteCoHostValidation,
+  ...streamIdValidation,
+  ...inviteCoHostValidation,
   handleValidationErrors,
   inviteCoHost
 );
