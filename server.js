@@ -300,11 +300,6 @@ app.use(errorMonitoringMiddleware)
 // Inicializar caché en memoria
 logger.info('✅ Caché en memoria inicializado correctamente')
 
-// Optimización de base de datos (ejecutar al iniciar)
-dbOptimizer.createOptimizedIndexes().catch(error => {
-  logger.error('Error creando índices optimizados:', error)
-})
-
 // Cron jobs programados para mantenimiento
 setInterval(async () => {
   try {
@@ -342,10 +337,14 @@ process.on('SIGTERM', () => {
   })
 })
 
-server.listen(config.port, () => {
+server.listen(config.port, async () => {
   logger.info(`🚀 Servidor CircleSfera corriendo en puerto ${config.port}`)
   logger.info(`📊 Ambiente: ${config.nodeEnv}`)
   logger.info(`🔗 Health check: http://localhost:${config.port}/api/health`)
   logger.info(`🔌 WebSockets habilitados en ws://localhost:${config.port}`)
   logger.info(`📝 Nivel de logging: ${config.logLevel}`)
+
+  // Los índices ya están definidos en los schemas de Mongoose
+  // No es necesario crearlos manualmente
+  logger.info('✅ Índices de base de datos ya definidos en schemas')
 })
