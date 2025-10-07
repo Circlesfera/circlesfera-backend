@@ -305,4 +305,27 @@ class MonitoringService {
 // Instancia singleton del servicio de monitoreo
 const monitoringService = new MonitoringService()
 
+/**
+ * Inicializar monitoreo con la aplicación Express
+ * @param {Object} app - Aplicación Express
+ */
+function initMonitoring(app) {
+  logger.info('📊 Inicializando sistema de monitoreo')
+
+  // Middleware para registrar peticiones
+  app.use((req, res, next) => {
+    const startTime = Date.now()
+
+    res.on('finish', () => {
+      const responseTime = Date.now() - startTime
+      monitoringService.recordRequest(req, res, responseTime)
+    })
+
+    next()
+  })
+
+  logger.info('✅ Sistema de monitoreo inicializado')
+}
+
 module.exports = monitoringService
+module.exports.initMonitoring = initMonitoring
