@@ -2,6 +2,7 @@ const Comment = require('../models/Comment')
 const Post = require('../models/Post')
 const Notification = require('../models/Notification')
 const { validationResult } = require('express-validator')
+const mongoose = require('mongoose')
 const logger = require('../utils/logger')
 const cache = require('../utils/cache')
 const {
@@ -25,6 +26,14 @@ exports.createComment = async (req, res) => {
     const { content, parentComment } = req.body
     const postId = req.params.postId
 
+    // Validar que postId es un ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de publicación inválido'
+      })
+    }
+
     // Verificar que el post existe
     const post = await Post.findById(postId)
     if (!post) {
@@ -42,6 +51,14 @@ exports.createComment = async (req, res) => {
 
     // Si es una respuesta a otro comentario
     if (parentComment) {
+      // Validar que parentComment es un ObjectId válido
+      if (!mongoose.Types.ObjectId.isValid(parentComment)) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de comentario padre inválido'
+        })
+      }
+
       const parent = await Comment.findById(parentComment)
       if (!parent) {
         return res.status(404).json({
@@ -91,6 +108,15 @@ exports.createComment = async (req, res) => {
 exports.getComments = async (req, res) => {
   try {
     const postId = req.params.postId
+
+    // Validar que postId es un ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de publicación inválido'
+      })
+    }
+
     const { page, limit, skip } = getPaginationOptions(
       req.query.page,
       req.query.limit
