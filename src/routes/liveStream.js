@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const { protect, optionalAuth } = require('../middlewares/auth');
 const {
   createLiveStream,
@@ -52,6 +52,19 @@ const createLiveStreamValidation = [
     .isBoolean()
     .withMessage('saveToCSTV debe ser un valor booleano'),
 ];
+
+// Middleware para manejar errores de validación
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Errores de validación',
+      errors: errors.array(),
+    });
+  }
+  next();
+};
 
 const startLiveStreamValidation = [
   body('streamKey').notEmpty().withMessage('El stream key es requerido'),
@@ -131,17 +144,35 @@ const queryValidation = [
 // @route   POST /api/live-streams
 // @desc    Crear una nueva transmisión en vivo
 // @access  Private
-router.post('/', protect, createLiveStreamValidation, createLiveStream);
+router.post(
+  '/',
+  protect,
+  createLiveStreamValidation,
+  handleValidationErrors,
+  createLiveStream
+);
 
 // @route   GET /api/live-streams
 // @desc    Obtener transmisiones en vivo
 // @access  Public
-router.get('/', optionalAuth, queryValidation, getLiveStreams);
+router.get(
+  '/',
+  optionalAuth,
+  queryValidation,
+  handleValidationErrors,
+  getLiveStreams
+);
 
 // @route   GET /api/live-streams/:streamId
 // @desc    Obtener una transmisión específica
 // @access  Public
-router.get('/:streamId', optionalAuth, streamIdValidation, getLiveStream);
+router.get(
+  '/:streamId',
+  optionalAuth,
+  streamIdValidation,
+  handleValidationErrors,
+  getLiveStream
+);
 
 // @route   PUT /api/live-streams/:streamId/start
 // @desc    Iniciar una transmisión en vivo
@@ -151,6 +182,7 @@ router.put(
   protect,
   streamIdValidation,
   startLiveStreamValidation,
+  handleValidationErrors,
   startLiveStream
 );
 
@@ -162,13 +194,20 @@ router.put(
   protect,
   streamIdValidation,
   endLiveStreamValidation,
+  handleValidationErrors,
   endLiveStream
 );
 
 // @route   POST /api/live-streams/:streamId/viewer
 // @desc    Agregar viewer a la transmisión
 // @access  Public
-router.post('/:streamId/viewer', optionalAuth, streamIdValidation, addViewer);
+router.post(
+  '/:streamId/viewer',
+  optionalAuth,
+  streamIdValidation,
+  handleValidationErrors,
+  addViewer
+);
 
 // @route   DELETE /api/live-streams/:streamId/viewer
 // @desc    Remover viewer de la transmisión
@@ -177,6 +216,7 @@ router.delete(
   '/:streamId/viewer',
   optionalAuth,
   streamIdValidation,
+  handleValidationErrors,
   removeViewer
 );
 
@@ -188,6 +228,7 @@ router.post(
   protect,
   streamIdValidation,
   inviteCoHostValidation,
+  handleValidationErrors,
   inviteCoHost
 );
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const { protect, optionalAuth } = require('../middlewares/auth');
 const {
   createCSTVVideo,
@@ -203,32 +203,75 @@ const searchValidation = [
     .withMessage('El límite debe estar entre 1 y 50'),
 ];
 
+// Middleware para manejar errores de validación
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Errores de validación',
+      errors: errors.array(),
+    });
+  }
+  next();
+};
+
 // Rutas de CSTV
 
 // @route   POST /api/cstv
 // @desc    Crear un nuevo video CSTV
 // @access  Private
-router.post('/', protect, createCSTVValidation, createCSTVVideo);
+router.post(
+  '/',
+  protect,
+  createCSTVValidation,
+  handleValidationErrors,
+  createCSTVVideo
+);
 
 // @route   GET /api/cstv
 // @desc    Obtener videos CSTV
 // @access  Public
-router.get('/', optionalAuth, queryValidation, getCSTVVideos);
+router.get(
+  '/',
+  optionalAuth,
+  queryValidation,
+  handleValidationErrors,
+  getCSTVVideos
+);
 
 // @route   GET /api/cstv/trending
 // @desc    Obtener videos trending
 // @access  Public
-router.get('/trending', optionalAuth, queryValidation, getTrendingVideos);
+router.get(
+  '/trending',
+  optionalAuth,
+  queryValidation,
+  handleValidationErrors,
+  getTrendingVideos
+);
 
 // @route   GET /api/cstv/search
 // @desc    Buscar videos
 // @access  Public
-router.get('/search', optionalAuth, searchValidation, searchVideos);
+router.get(
+  '/search',
+  optionalAuth,
+  searchValidation,
+  handleValidationErrors,
+  searchVideos
+);
 
 // @route   GET /api/cstv/:videoId
 // @desc    Obtener un video específico
 // @access  Public
-router.get('/:videoId', optionalAuth, videoIdValidation, getCSTVVideo);
+router.get(
+  '/:videoId',
+  optionalAuth,
+  videoIdValidation,
+  handleValidationErrors,
+  getCSTVVideo
+);
 
 // @route   PUT /api/cstv/:videoId
 // @desc    Actualizar un video CSTV
@@ -238,32 +281,63 @@ router.put(
   protect,
   videoIdValidation,
   updateCSTVValidation,
+  handleValidationErrors,
   updateCSTVVideo
 );
 
 // @route   DELETE /api/cstv/:videoId
 // @desc    Eliminar un video CSTV
 // @access  Private (solo propietario)
-router.delete('/:videoId', protect, videoIdValidation, deleteCSTVVideo);
+router.delete(
+  '/:videoId',
+  protect,
+  videoIdValidation,
+  handleValidationErrors,
+  deleteCSTVVideo
+);
 
 // @route   POST /api/cstv/:videoId/like
 // @desc    Dar like a un video CSTV
 // @access  Private
-router.post('/:videoId/like', protect, videoIdValidation, likeCSTVVideo);
+router.post(
+  '/:videoId/like',
+  protect,
+  videoIdValidation,
+  handleValidationErrors,
+  likeCSTVVideo
+);
 
 // @route   DELETE /api/cstv/:videoId/like
 // @desc    Quitar like de un video CSTV
 // @access  Private
-router.delete('/:videoId/like', protect, videoIdValidation, unlikeCSTVVideo);
+router.delete(
+  '/:videoId/like',
+  protect,
+  videoIdValidation,
+  handleValidationErrors,
+  unlikeCSTVVideo
+);
 
 // @route   POST /api/cstv/:videoId/save
 // @desc    Guardar un video CSTV
 // @access  Private
-router.post('/:videoId/save', protect, videoIdValidation, saveCSTVVideo);
+router.post(
+  '/:videoId/save',
+  protect,
+  videoIdValidation,
+  handleValidationErrors,
+  saveCSTVVideo
+);
 
 // @route   DELETE /api/cstv/:videoId/save
 // @desc    Quitar de guardados un video CSTV
 // @access  Private
-router.delete('/:videoId/save', protect, videoIdValidation, unsaveCSTVVideo);
+router.delete(
+  '/:videoId/save',
+  protect,
+  videoIdValidation,
+  handleValidationErrors,
+  unsaveCSTVVideo
+);
 
 module.exports = router;

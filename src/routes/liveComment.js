@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const { protect, optionalAuth } = require('../middlewares/auth');
 const {
   createComment,
@@ -88,6 +88,19 @@ const queryValidation = [
     .withMessage('sortByPinned debe ser un valor booleano'),
 ];
 
+// Middleware para manejar errores de validación
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Errores de validación',
+      errors: errors.array(),
+    });
+  }
+  next();
+};
+
 // Rutas de Live Comments
 
 // @route   POST /api/live-streams/:streamId/comments
@@ -98,6 +111,7 @@ router.post(
   protect,
   streamIdValidation,
   createCommentValidation,
+  handleValidationErrors,
   createComment
 );
 
@@ -109,6 +123,7 @@ router.get(
   optionalAuth,
   streamIdValidation,
   queryValidation,
+  handleValidationErrors,
   getComments
 );
 
@@ -121,6 +136,7 @@ router.post(
   streamIdValidation,
   commentIdValidation,
   reactToCommentValidation,
+  handleValidationErrors,
   reactToComment
 );
 
@@ -132,6 +148,7 @@ router.delete(
   protect,
   streamIdValidation,
   commentIdValidation,
+  handleValidationErrors,
   removeReaction
 );
 
@@ -144,6 +161,7 @@ router.put(
   streamIdValidation,
   commentIdValidation,
   moderateCommentValidation,
+  handleValidationErrors,
   moderateComment
 );
 
@@ -154,6 +172,7 @@ router.get(
   '/:streamId/comments/stats',
   optionalAuth,
   streamIdValidation,
+  handleValidationErrors,
   getCommentStats
 );
 
