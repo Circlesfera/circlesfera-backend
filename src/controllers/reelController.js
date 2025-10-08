@@ -185,7 +185,13 @@ exports.getReelsForFeed = async (req, res) => {
 
     res.json(response)
   } catch (error) {
-    logger.error('Error en getReelsForFeed:', error)
+    logger.error('Error en getReelsForFeed:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.userId,
+      page: req.query.page,
+      limit: req.query.limit
+    })
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
