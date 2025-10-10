@@ -10,7 +10,10 @@ const logger = require('../utils/logger')
 exports.getUserProfile = async (req, res) => {
   try {
     const { username } = req.params
-    const user = await User.findOne({ username })
+    logger.info('getUserProfile - Buscando usuario:', { username, params: req.params })
+
+    // Buscar case-insensitive para manejar datos legacy
+    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } })
       .select('-password -email -phone -preferences')
       .populate({
         path: 'posts',
@@ -18,6 +21,8 @@ exports.getUserProfile = async (req, res) => {
         select: 'caption content createdAt type likes comments'
       })
       .populate('savedPosts', 'caption content createdAt')
+
+    logger.info('getUserProfile - Usuario encontrado:', { found: !!user, username })
 
     if (!user) {
       return res.status(404).json({
@@ -77,7 +82,7 @@ exports.getUserProfile = async (req, res) => {
           // Convertir ambos a string para comparación correcta
           const profileUserIdStr = user._id.toString()
           isFollowing = currentUser.following.some(followingId => followingId.toString() === profileUserIdStr)
-          
+
           logger.info('Follow status check:', {
             currentUserId: req.userId,
             profileUserId: profileUserIdStr,
@@ -233,7 +238,7 @@ exports.followUser = async (req, res) => {
     // Verificar si ya está siguiendo usando comparación de strings
     const userToFollowIdStr = userToFollow._id.toString()
     const isAlreadyFollowing = currentUser.following.some(followingId => followingId.toString() === userToFollowIdStr)
-    
+
     if (isAlreadyFollowing) {
       return res.status(400).json({
         success: false,
@@ -295,7 +300,7 @@ exports.unfollowUser = async (req, res) => {
     // Verificar si está siguiendo usando comparación de strings
     const userToUnfollowIdStr = userToUnfollow._id.toString()
     const isCurrentlyFollowing = currentUser.following.some(followingId => followingId.toString() === userToUnfollowIdStr)
-    
+
     if (!isCurrentlyFollowing) {
       return res.status(400).json({
         success: false,
