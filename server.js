@@ -211,7 +211,7 @@ app.use('/api/cstv', require('./src/routes/cstv'))
 // Sentry error handler eliminado
 
 // Middleware de manejo de errores global
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   // Loguear el error con formato correcto
   const errorInfo = {
     error: err.message,
