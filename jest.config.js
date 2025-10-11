@@ -31,9 +31,6 @@ export default {
   // Transformaciones
   transform: {},
 
-  // Soporte para ES Modules
-  extensionsToTreatAsEsm: ['.js'],
-
   // Tiempo máximo de ejecución de un test
   testTimeout: 10000,
 
