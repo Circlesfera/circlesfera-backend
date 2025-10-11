@@ -7,7 +7,8 @@ import cache from '../utils/cache.js'
 import { config } from '../utils/config.js'
 import {
   createPaginatedResponse,
-  getPaginationOptions
+  getPaginationOptions,
+  USER_BASIC_FIELDS
 } from '../utils/queryOptimizer.js'
 
 // Crear un nuevo reel

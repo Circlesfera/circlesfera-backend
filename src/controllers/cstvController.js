@@ -558,7 +558,7 @@ export const searchVideos = async (req, res) => {
     }
 
     // Guardar en caché por 5 minutos
-    await cache.set(cacheKey, response, 300)
+    // Cache eliminado - await cache.set(cacheKey, response, 300)
 
     res.json({
       success: true,
