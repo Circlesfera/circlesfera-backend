@@ -3,15 +3,7 @@ import jwt from 'jsonwebtoken'
 import { validationResult } from 'express-validator'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
-
-// Generar token JWT
-const generateToken = (userId) => {
-  return jwt.sign(
-    { id: userId },
-    config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
-  )
-}
+import tokenService from '../services/tokenService.js'
 
 // Respuesta de usuario sin información sensible
 const sanitizeUser = (user) => {
@@ -67,13 +59,14 @@ export const register = async (req, res) => {
     // Bloquear el username para este usuario
     await User.blockUsername(user._id, username)
 
-    // Generar token
-    const token = generateToken(user._id)
+    // Generar par de tokens (access + refresh)
+    const tokens = tokenService.generateTokenPair(user._id)
 
     res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente',
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: sanitizeUser(user)
     })
 
@@ -136,13 +129,14 @@ export const login = async (req, res) => {
     // Actualizar último acceso
     await user.updateLastSeen()
 
-    // Generar token
-    const token = generateToken(user._id)
+    // Generar par de tokens (access + refresh)
+    const tokens = tokenService.generateTokenPair(user._id)
 
     res.json({
       success: true,
       message: 'Inicio de sesión exitoso',
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: sanitizeUser(user)
     })
 
@@ -216,12 +210,12 @@ export const updateProfile = async (req, res) => {
     // Manejar archivo de avatar si se subió
     if (req.files && req.files.avatar && req.files.avatar.length > 0) {
       const avatarFile = req.files.avatar[0]
-      
+
       // Construir la URL del avatar usando la misma lógica que otros controladores
       const baseUrl = `${req.protocol}://${req.get('host')}`
       const avatarUrl = `${baseUrl}/uploads/${avatarFile.filename}`
       user.avatar = avatarUrl
-      
+
       logger.info(`Avatar actualizado para usuario ${user.username}: ${avatarUrl}`)
     }
 
@@ -309,9 +303,13 @@ export const changePassword = async (req, res) => {
     user.password = newPassword
     await user.save()
 
+    // Invalidar todos los tokens existentes del usuario
+    await tokenService.blacklistAllUserTokens(user._id)
+    logger.info(`Todos los tokens del usuario ${user._id} invalidados tras cambio de contraseña`)
+
     res.json({
       success: true,
-      message: 'Contraseña actualizada exitosamente'
+      message: 'Contraseña actualizada exitosamente. Por seguridad, debes iniciar sesión nuevamente.'
     })
 
   } catch (error) {
@@ -325,8 +323,11 @@ export const changePassword = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    // En una implementación más avanzada, podrías invalidar el token
-    // agregándolo a una lista negra en Redis
+    // Agregar token actual a la blacklist
+    if (req.token) {
+      await tokenService.blacklistToken(req.token)
+      logger.info(`Token agregado a blacklist para usuario ${req.user._id}`)
+    }
 
     res.json({
       success: true,
@@ -344,20 +345,41 @@ export const logout = async (req, res) => {
 
 export const refreshToken = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
+    // Obtener refresh token del body o header
+    const refreshToken = req.body.refreshToken || req.headers['x-refresh-token']
 
-    if (!user) {
-      return res.status(404).json({
+    if (!refreshToken) {
+      return res.status(400).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Refresh token requerido'
       })
     }
 
-    const token = generateToken(user._id)
+    // Renovar access token usando refresh token
+    const result = await tokenService.refreshAccessToken(refreshToken)
+
+    if (!result) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token inválido o expirado'
+      })
+    }
+
+    // Obtener información del usuario
+    const decoded = tokenService.decodeToken(refreshToken)
+    const user = await User.findById(decoded.id).select('-password')
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no encontrado o inactivo'
+      })
+    }
 
     res.json({
       success: true,
-      token,
+      message: 'Token renovado exitosamente',
+      accessToken: result.accessToken,
       user: sanitizeUser(user)
     })
 

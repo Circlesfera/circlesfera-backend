@@ -20,25 +20,29 @@ import {
   changePasswordSchema
 } from '../schemas/userSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'
+import { provideCsrfToken, refreshCsrfToken, clearCsrfCookie, csrfProtection } from '../middlewares/csrf.js'
+import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
 
-// Rutas públicas
-router.post('/register', validate(registerSchema), register)
-router.post('/login', validate(loginSchema), login)
+// Rutas públicas (proporcionar token CSRF después de login/register)
+router.post('/register', validate(registerSchema), register, refreshCsrfToken)
+router.post('/login', rateLimitByUser('login', { enforceInDev: true }), validate(loginSchema), login, refreshCsrfToken)
 router.get('/check-username/:username', checkUsernameAvailability)
 
-// Rutas protegidas
+// Rutas protegidas (con protección CSRF)
 router.get('/profile', auth, getProfile)
 router.put(
   '/profile',
   auth,
+  csrfProtection(),
   uploadFields,
   imageOptimizer,
   validate(updateProfileSchema),
   updateProfile,
   handleUploadError
 )
-router.put('/change-password', auth, validate(changePasswordSchema), changePassword)
-router.post('/logout', auth, logout)
-router.post('/refresh-token', auth, refreshToken)
+router.put('/change-password', auth, csrfProtection(), rateLimitByUser('changePassword', { enforceInDev: true }), validate(changePasswordSchema), changePassword)
+router.post('/logout', auth, csrfProtection(), logout, clearCsrfCookie)
+// Ruta para refrescar token (NO protegida - usa refresh token en el body)
+router.post('/refresh-token', refreshToken)
 
 export default router

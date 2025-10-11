@@ -15,6 +15,9 @@ import {
 } from '../controllers/messageController.js'
 import { auth } from '../middlewares/auth.js'
 import { uploadSingle, handleUploadError } from '../middlewares/upload.js'
+import { csrfProtection } from '../middlewares/csrf.js'
+import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
+import { checkMessageOwnership, checkConversationParticipant } from '../middlewares/checkOwnership.js'
 
 // Validaciones
 const sendTextMessageValidation = [
@@ -72,15 +75,15 @@ router.get('/conversation/:conversationId', auth, getMessages)
 router.get('/conversation/:conversationId/stats', auth, getMessageStats)
 router.get('/conversation/:conversationId/search', auth, searchMessagesValidation, searchMessages)
 
-// Enviar mensajes
-router.post('/conversation/:conversationId/text', auth, sendTextMessageValidation, sendTextMessage)
-router.post('/conversation/:conversationId/image', auth, uploadSingle, sendImageMessage, handleUploadError)
-router.post('/conversation/:conversationId/video', auth, uploadSingle, sendVideoMessage, handleUploadError)
-router.post('/conversation/:conversationId/location', auth, sendLocationMessageValidation, sendLocationMessage)
+// Enviar mensajes (con CSRF y rate limiting)
+router.post('/conversation/:conversationId/text', auth, csrfProtection(), checkConversationParticipant('conversationId'), rateLimitByUser('sendMessage'), sendTextMessageValidation, sendTextMessage)
+router.post('/conversation/:conversationId/image', auth, csrfProtection(), checkConversationParticipant('conversationId'), rateLimitByUser('sendMessage'), uploadSingle, sendImageMessage, handleUploadError)
+router.post('/conversation/:conversationId/video', auth, csrfProtection(), checkConversationParticipant('conversationId'), rateLimitByUser('sendMessage'), uploadSingle, sendVideoMessage, handleUploadError)
+router.post('/conversation/:conversationId/location', auth, csrfProtection(), checkConversationParticipant('conversationId'), rateLimitByUser('sendMessage'), sendLocationMessageValidation, sendLocationMessage)
 
-// Mensajes individuales
-router.put('/message/:messageId', auth, editMessageValidation, editMessage)
-router.delete('/message/:messageId', auth, deleteMessage)
-router.post('/message/:messageId/forward', auth, forwardMessageValidation, forwardMessage)
+// Mensajes individuales (con ownership)
+router.put('/message/:messageId', auth, csrfProtection(), checkMessageOwnership('messageId'), editMessageValidation, editMessage)
+router.delete('/message/:messageId', auth, csrfProtection(), checkMessageOwnership('messageId'), deleteMessage)
+router.post('/message/:messageId/forward', auth, csrfProtection(), rateLimitByUser('sendMessage'), forwardMessageValidation, forwardMessage)
 
 export default router

@@ -22,7 +22,9 @@ const configFull = {
 
   // Seguridad
   jwtSecret: process.env.JWT_SECRET,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
+  jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m', // Access token corto
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d', // Refresh token largo
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m', // Legacy, usar jwtAccessExpiresIn
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 
   // CORS

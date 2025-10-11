@@ -9,9 +9,11 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import compression from 'compression'
+import cookieParser from 'cookie-parser'
 import http from 'http'
 import connectDB from './src/config/db.js'
 import socketService from './src/services/socketService.js'
+import redisService from './src/services/redisService.js'
 import logger from './src/utils/logger.js'
 import { config, validateConfig } from './src/utils/config.js'
 
@@ -136,12 +138,15 @@ app.use(
   })
 )
 
+// Cookie parser para CSRF
+app.use(cookieParser())
+
 // CORS para desarrollo local
 app.use(cors({
   origin: config.corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Range'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-CSRF-Token', 'Range'],
   exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges']
 }))
 
@@ -337,14 +342,37 @@ process.on('SIGTERM', () => {
   })
 })
 
-server.listen(config.port, async () => {
-  logger.info(`🚀 Servidor CircleSfera corriendo en puerto ${config.port}`)
-  logger.info(`📊 Ambiente: ${config.nodeEnv}`)
-  logger.info(`🔗 Health check: http://localhost:${config.port}/api/health`)
-  logger.info(`🔌 WebSockets habilitados en ws://localhost:${config.port}`)
-  logger.info(`📝 Nivel de logging: ${config.logLevel}`)
+// Función para iniciar el servidor
+const startServer = async () => {
+  try {
+    // Conectar a MongoDB
+    await connectDB()
+    logger.info('✅ MongoDB conectado')
 
-  // Los índices ya están definidos en los schemas de Mongoose
-  // No es necesario crearlos manualmente
-  logger.info('✅ Índices de base de datos ya definidos en schemas')
-})
+    // Conectar a Redis para tokens y blacklist
+    try {
+      await redisService.connect()
+      logger.info('✅ Redis conectado (blacklist de tokens + caché)')
+    } catch (error) {
+      logger.warn('⚠️ Redis no disponible, usando memoria (solo desarrollo)', error.message)
+    }
+
+    // Iniciar servidor
+    server.listen(config.port, () => {
+      logger.info('========================================')
+      logger.info(`🚀 Servidor CircleSfera corriendo en puerto ${config.port}`)
+      logger.info(`   📊 Ambiente: ${config.nodeEnv}`)
+      logger.info(`   🔗 Health check: http://localhost:${config.port}/api/health`)
+      logger.info(`   🔌 WebSockets habilitados en ws://localhost:${config.port}`)
+      logger.info(`   📝 Nivel de logging: ${config.logLevel}`)
+      logger.info('========================================')
+      logger.info('✅ Índices de base de datos ya definidos en schemas')
+    })
+  } catch (error) {
+    logger.error('❌ Error al iniciar el servidor:', error)
+    process.exit(1)
+  }
+}
+
+// Iniciar servidor
+startServer()

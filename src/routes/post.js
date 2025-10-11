@@ -17,6 +17,9 @@ import { uploadFields, handleUploadError } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
 import { createPostSchema, updatePostSchema } from '../schemas/postSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'
+import { checkPostOwnership } from '../middlewares/checkOwnership.js'
+import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
+import { csrfProtection } from '../middlewares/csrf.js'
 
 // Rutas públicas
 router.get('/trending', getTrendingPosts)
@@ -33,6 +36,8 @@ router.get('/:id/likes', getLikes)
 router.post(
   '/',
   auth,
+  csrfProtection(),
+  rateLimitByUser('createPost'),
   uploadFields,
   imageOptimizer,
   validate(createPostSchema),
@@ -40,14 +45,14 @@ router.post(
   handleUploadError
 )
 
-// Ruta para actualizar posts
-router.put('/:id', auth, validate(updatePostSchema), updatePost)
+// Ruta para actualizar posts (con validación de ownership)
+router.put('/:id', auth, csrfProtection(), checkPostOwnership(), validate(updatePostSchema), updatePost)
 
 // Rutas para likes (consistente con reels: POST para like, DELETE para unlike)
-router.post('/:id/like', auth, likePost)
-router.delete('/:id/like', auth, unlikePost)
+router.post('/:id/like', auth, csrfProtection(), rateLimitByUser('like'), likePost)
+router.delete('/:id/like', auth, csrfProtection(), unlikePost)
 
-// Eliminar post
-router.delete('/:id', auth, deletePost)
+// Eliminar post (con validación de ownership)
+router.delete('/:id', auth, csrfProtection(), checkPostOwnership(), rateLimitByUser('deletePost'), deletePost)
 
 export default router

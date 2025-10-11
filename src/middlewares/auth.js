@@ -2,10 +2,10 @@ import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
+import tokenService from '../services/tokenService.js'
 
 const auth = async (req, res, next) => {
   try {
-
     // Obtener token del header
     const authHeader = req.header('Authorization')
 
@@ -33,14 +33,33 @@ const auth = async (req, res, next) => {
       })
     }
 
-    // Verificar JWT
-    const decoded = jwt.verify(token, config.jwtSecret)
+    // Verificar token con tokenService (incluye blacklist)
+    const decoded = await tokenService.verifyToken(token)
 
     if (!decoded || !decoded.id) {
       return res.status(401).json({
         success: false,
-        message: 'Token inválido'
+        message: 'Token inválido o expirado'
       })
+    }
+
+    // Verificar que sea un access token
+    if (decoded.type !== 'access') {
+      return res.status(401).json({
+        success: false,
+        message: 'Tipo de token inválido. Use un access token'
+      })
+    }
+
+    // Verificar si todos los tokens del usuario fueron invalidados
+    if (decoded.iat) {
+      const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.id, decoded.iat)
+      if (areInvalidated) {
+        return res.status(401).json({
+          success: false,
+          message: 'Sesión invalidada, por favor inicia sesión nuevamente'
+        })
+      }
     }
 
     // Verificar que el usuario existe y está activo
@@ -60,9 +79,10 @@ const auth = async (req, res, next) => {
       })
     }
 
-    // Agregar usuario a la request
+    // Agregar usuario y token a la request
     req.user = user
     req.userId = user._id
+    req.token = token // Guardar token para blacklist en logout
 
     if (config.isDevelopment) {
       logger.info('Auth middleware - Usuario autenticado:', {
@@ -117,13 +137,20 @@ const optionalAuth = async (req, res, next) => {
     }
 
     const token = authHeader.replace('Bearer ', '')
-    const decoded = jwt.verify(token, config.jwtSecret)
+    const decoded = await tokenService.verifyToken(token)
 
-    if (decoded && decoded.id) {
-      const user = await User.findById(decoded.id).select('-password')
-      if (user && user.isActive) {
-        req.user = user
-        req.userId = user._id
+    if (decoded && decoded.id && decoded.type === 'access') {
+      // Verificar invalidación de tokens
+      if (decoded.iat) {
+        const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.id, decoded.iat)
+        if (!areInvalidated) {
+          const user = await User.findById(decoded.id).select('-password')
+          if (user && user.isActive) {
+            req.user = user
+            req.userId = user._id
+            req.token = token
+          }
+        }
       }
     }
 
