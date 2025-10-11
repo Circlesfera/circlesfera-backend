@@ -5,123 +5,218 @@ import Reel from '../models/Reel.js'
 import Notification from '../models/Notification.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
+import cacheService from '../services/cacheService.js'
 
-// Obtener perfil de usuario público
+// Obtener perfil de usuario público (OPTIMIZADO - Fase 2)
 export const getUserProfile = async (req, res) => {
   try {
     const { username } = req.params
     logger.info('getUserProfile - Buscando usuario:', { username, params: req.params })
 
-    // Buscar case-insensitive para manejar datos legacy
-    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } })
-      .select('-password -email -phone -preferences')
-      .populate({
-        path: 'posts',
-        match: { isDeleted: false, isArchived: false },
-        select: 'caption content createdAt type likes comments'
+    // OPTIMIZACIÓN 1: Intentar obtener del caché
+    const cachedProfile = await cacheService.getUserProfile(username)
+    if (cachedProfile) {
+      logger.info('getUserProfile - Cache HIT:', { username })
+
+      // Actualizar isFollowing si hay usuario autenticado
+      if (req.userId && req.userId !== cachedProfile._id.toString()) {
+        const followCheck = await User.findById(req.userId).select('following').lean()
+        if (followCheck) {
+          cachedProfile.isFollowing = followCheck.following.some(
+            followingId => followingId.toString() === cachedProfile._id.toString()
+          )
+        }
+      }
+
+      return res.json({
+        success: true,
+        user: cachedProfile
       })
-      .populate('savedPosts', 'caption content createdAt')
+    }
 
-    logger.info('getUserProfile - Usuario encontrado:', { found: !!user, username })
+    logger.info('getUserProfile - Cache MISS, consultando DB:', { username })
 
-    if (!user) {
+    // OPTIMIZACIÓN 2: Usar agregación para obtener todo en una sola query
+    const userAggregation = await User.aggregate([
+      // Match username case-insensitive
+      {
+        $match: {
+          username: { $regex: new RegExp(`^${username}$`, 'i') }
+        }
+      },
+
+      // Lookup para contar posts
+      {
+        $lookup: {
+          from: 'posts',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$user', '$$userId'] },
+                    { $eq: ['$isDeleted', false] },
+                    { $eq: ['$isArchived', false] }
+                  ]
+                }
+              }
+            },
+            { $count: 'count' }
+          ],
+          as: 'postsStats'
+        }
+      },
+
+      // Lookup para contar reels
+      {
+        $lookup: {
+          from: 'reels',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$user', '$$userId'] },
+                    { $eq: ['$isDeleted', false] }
+                  ]
+                }
+              }
+            },
+            { $count: 'count' }
+          ],
+          as: 'reelsStats'
+        }
+      },
+
+      // Lookup para obtener total de likes y comentarios
+      {
+        $lookup: {
+          from: 'posts',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$user', '$$userId'] },
+                    { $eq: ['$isDeleted', false] },
+                    { $eq: ['$isArchived', false] }
+                  ]
+                }
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                totalLikes: { $sum: { $size: { $ifNull: ['$likes', []] } } },
+                totalComments: { $sum: { $size: { $ifNull: ['$comments', []] } } }
+              }
+            }
+          ],
+          as: 'engagementStats'
+        }
+      },
+
+      // Lookup para obtener stories activas
+      {
+        $lookup: {
+          from: 'stories',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$user', '$$userId'] },
+                    { $eq: ['$isDeleted', false] },
+                    { $eq: ['$isPublic', true] },
+                    { $gt: ['$expiresAt', new Date()] }
+                  ]
+                }
+              }
+            },
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 } // Limitar stories para performance
+          ],
+          as: 'stories'
+        }
+      },
+
+      // Proyectar campos finales
+      {
+        $project: {
+          password: 0,
+          email: 0,
+          phone: 0,
+          preferences: 0,
+          blockedUsers: 0,
+          postsCount: { $arrayElemAt: ['$postsStats.count', 0] },
+          reelsCount: { $arrayElemAt: ['$reelsStats.count', 0] },
+          storiesCount: { $size: '$stories' },
+          followersCount: { $size: { $ifNull: ['$followers', []] } },
+          followingCount: { $size: { $ifNull: ['$following', []] } },
+          totalLikes: { $ifNull: [{ $arrayElemAt: ['$engagementStats.totalLikes', 0] }, 0] },
+          totalComments: { $ifNull: [{ $arrayElemAt: ['$engagementStats.totalComments', 0] }, 0] }
+        }
+      }
+    ])
+
+    if (!userAggregation || userAggregation.length === 0) {
+      logger.info('getUserProfile - Usuario no encontrado:', { username })
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado'
       })
     }
 
-    // Obtener stories del usuario
-    const stories = await Story.find({
-      user: user._id,
-      isDeleted: false,
-      isPublic: true,
-      expiresAt: { $gt: new Date() }
-    })
-      .populate('user', 'username avatar fullName')
-      .sort({ createdAt: -1 })
+    const user = userAggregation[0]
 
-    // Calcular estadísticas directamente desde la base de datos
-    const postsCount = await Post.countDocuments({
-      user: user._id,
-      isDeleted: false,
-      isArchived: false
-    })
-
-    const storiesCount = stories.length
-    const reelsCount = await Reel.countDocuments({
-      user: user._id,
-      isDeleted: false
-    })
-
-
-    const followersCount = user.followers.length
-    const followingCount = user.following.length
-
-    // Calcular likes y comentarios totales
-    const postsWithStats = await Post.find({
-      user: user._id,
-      isDeleted: false,
-      isArchived: false
-    }).select('likes comments')
-
-    const totalLikes = postsWithStats.reduce((total, post) => {
-      return total + (post.likes ? post.likes.length : 0)
-    }, 0)
-
-    const totalComments = postsWithStats.reduce((total, post) => {
-      return total + (post.comments ? post.comments.length : 0)
-    }, 0)
-
-    // Verificar si el usuario actual está siguiendo a este usuario
+    // Verificar si el usuario actual está siguiendo (query paralela si es necesario)
     let isFollowing = false
-    if (req.userId) {
-      try {
-        const currentUser = await User.findById(req.userId)
-        if (currentUser) {
-          // Convertir ambos a string para comparación correcta
-          const profileUserIdStr = user._id.toString()
-          isFollowing = currentUser.following.some(followingId => followingId.toString() === profileUserIdStr)
+    if (req.userId && req.userId !== user._id.toString()) {
+      // Query optimizada solo para verificar existencia
+      const followCheck = await User.findById(req.userId)
+        .select('following')
+        .lean()
 
-          logger.info('Follow status check:', {
-            currentUserId: req.userId,
-            profileUserId: profileUserIdStr,
-            isFollowing,
-            currentUserFollowing: currentUser.following.map(id => id.toString())
-          })
-        }
-      } catch (error) {
-        logger.error('Error checking follow status:', error)
-        // Si hay error, asumir que no está siguiendo
-        isFollowing = false
+      if (followCheck) {
+        isFollowing = followCheck.following.some(
+          followingId => followingId.toString() === user._id.toString()
+        )
       }
     }
 
+    // Asegurar valores por defecto
     const responseData = {
-      ...user.toObject(),
-      stories,
-      postsCount,
-      storiesCount,
-      reelsCount,
-      followersCount,
-      followingCount,
-      totalLikes,
-      totalComments,
+      ...user,
+      postsCount: user.postsCount || 0,
+      reelsCount: user.reelsCount || 0,
+      storiesCount: user.storiesCount || 0,
+      followersCount: user.followersCount || 0,
+      followingCount: user.followingCount || 0,
+      totalLikes: user.totalLikes || 0,
+      totalComments: user.totalComments || 0,
       isFollowing
     }
 
-    logger.info('getUserProfile response:', {
+    logger.info('getUserProfile optimizado:', {
       username: user.username,
-      userId: user._id.toString(),
-      isFollowing,
-      reqUserId: req.userId,
-      responseData: {
-        ...responseData,
-        followers: responseData.followers?.length || 0,
-        following: responseData.following?.length || 0,
-        posts: responseData.posts?.length || 0
+      stats: {
+        posts: responseData.postsCount,
+        reels: responseData.reelsCount,
+        stories: responseData.storiesCount,
+        followers: responseData.followersCount,
+        following: responseData.followingCount
       }
     })
+
+    // OPTIMIZACIÓN 3: Guardar en caché (sin isFollowing para reutilización)
+    const cacheData = { ...responseData }
+    delete cacheData.isFollowing
+    await cacheService.setUserProfile(username, cacheData)
+    logger.info('getUserProfile - Guardado en caché:', { username })
 
     res.json({
       success: true,

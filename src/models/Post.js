@@ -142,10 +142,13 @@ PostSchema.index({ tags: 1 })
 PostSchema.index({ 'location.coordinates': '2dsphere' })
 PostSchema.index({ isPublic: 1, isArchived: 1, isDeleted: 1 })
 PostSchema.index({ createdAt: -1 })
-// Índices compuestos para queries complejas optimizadas
+// Índices compuestos para queries complejas optimizadas (Fase 1 + Fase 2)
 PostSchema.index({ user: 1, isPublic: 1, isDeleted: 1, isArchived: 1, createdAt: -1 })
 PostSchema.index({ isPublic: 1, isDeleted: 1, createdAt: -1 })
 PostSchema.index({ user: 1, type: 1, isDeleted: 1, createdAt: -1 })
+// Índices adicionales Fase 2 para trending y búsquedas
+PostSchema.index({ createdAt: -1, views: -1 }) // Para posts recientes y populares
+PostSchema.index({ tags: 1, isPublic: 1, isDeleted: 1 }) // Para búsqueda por tags
 
 // Virtuals
 PostSchema.virtual('likesCount').get(function() {

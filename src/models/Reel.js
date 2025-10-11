@@ -248,10 +248,12 @@ ReelSchema.index({ isPublic: 1, isDeleted: 1, isArchived: 1 })
 ReelSchema.index({ hashtags: 1 })
 ReelSchema.index({ createdAt: -1 })
 ReelSchema.index({ 'location.coordinates': '2dsphere' })
-// Índices compuestos para queries optimizadas
+// Índices compuestos para queries optimizadas (Fase 1 + Fase 2)
 ReelSchema.index({ isPublic: 1, isDeleted: 1, isArchived: 1, createdAt: -1 })
 ReelSchema.index({ user: 1, isPublic: 1, isDeleted: 1 })
 ReelSchema.index({ isPublic: 1, isDeleted: 1, hashtags: 1 })
+// Índices adicionales Fase 2 para trending
+ReelSchema.index({ createdAt: -1, views: 1 }) // Para reels trending por vistas
 
 // Virtuals para estadísticas
 ReelSchema.virtual('viewsCount').get(function() {

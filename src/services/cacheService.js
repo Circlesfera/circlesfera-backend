@@ -1,0 +1,386 @@
+/**
+ * Servicio de Caché Inteligente con Redis
+ * Fase 2: Performance Crítico
+ *
+ * Implementa caché para:
+ * - Perfiles de usuario
+ * - Feeds personalizados
+ * - Stories activas
+ * - Posts populares
+ * - Estadísticas de usuario
+ */
+
+import redisService from './redisService.js'
+import logger from '../utils/logger.js'
+import { config } from '../utils/config.js'
+
+class CacheService {
+  constructor() {
+    // Configuración de TTL (tiempo de vida) por tipo de dato
+    this.TTL = {
+      USER_PROFILE: 15 * 60, // 15 minutos
+      USER_STATS: 10 * 60, // 10 minutos
+      FEED: 5 * 60, // 5 minutos
+      STORIES: 2 * 60, // 2 minutos (cambian frecuentemente)
+      TRENDING_POSTS: 30 * 60, // 30 minutos
+      TRENDING_REELS: 30 * 60, // 30 minutos
+      POST_DETAIL: 10 * 60, // 10 minutos
+      REEL_DETAIL: 10 * 60, // 10 minutos
+      CONVERSATIONS: 5 * 60 // 5 minutos
+    }
+
+    // Prefijos de claves para organización
+    this.KEYS = {
+      USER_PROFILE: 'user:profile:',
+      USER_STATS: 'user:stats:',
+      FEED: 'feed:',
+      STORIES: 'stories:',
+      TRENDING_POSTS: 'trending:posts',
+      TRENDING_REELS: 'trending:reels',
+      POST: 'post:',
+      REEL: 'reel:',
+      CONVERSATIONS: 'conversations:'
+    }
+  }
+
+  /**
+   * Obtener datos del caché con manejo de JSON
+   * @param {string} key - Clave del caché
+   * @returns {Promise<any|null>}
+   */
+  async get(key) {
+    try {
+      const cached = await redisService.get(key)
+
+      if (!cached) {
+        return null
+      }
+
+      // Intentar parsear JSON
+      try {
+        return JSON.parse(cached)
+      } catch (e) {
+        // Si no es JSON, devolver string
+        return cached
+      }
+    } catch (error) {
+      logger.error(`Error al obtener del caché (${key}):`, error)
+      return null
+    }
+  }
+
+  /**
+   * Guardar datos en el caché con serialización JSON
+   * @param {string} key - Clave del caché
+   * @param {any} value - Valor a guardar
+   * @param {number} ttl - Tiempo de vida en segundos
+   * @returns {Promise<boolean>}
+   */
+  async set(key, value, ttl = null) {
+    try {
+      // Serializar a JSON si es objeto
+      const serialized = typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value)
+
+      await redisService.set(key, serialized, ttl)
+      return true
+    } catch (error) {
+      logger.error(`Error al guardar en caché (${key}):`, error)
+      return false
+    }
+  }
+
+  /**
+   * Eliminar del caché
+   * @param {string} key - Clave del caché
+   * @returns {Promise<boolean>}
+   */
+  async del(key) {
+    try {
+      await redisService.del(key)
+      return true
+    } catch (error) {
+      logger.error(`Error al eliminar del caché (${key}):`, error)
+      return false
+    }
+  }
+
+  /**
+   * Eliminar múltiples claves por patrón
+   * @param {string} pattern - Patrón de búsqueda (ej: 'user:*')
+   * @returns {Promise<number>} Número de claves eliminadas
+   */
+  async delPattern(pattern) {
+    try {
+      const keys = await redisService.keys(pattern)
+      if (keys.length === 0) return 0
+
+      let deleted = 0
+      for (const key of keys) {
+        await redisService.del(key)
+        deleted++
+      }
+
+      logger.info(`Caché invalidado: ${deleted} claves eliminadas (${pattern})`)
+      return deleted
+    } catch (error) {
+      logger.error(`Error al eliminar patrón de caché (${pattern}):`, error)
+      return 0
+    }
+  }
+
+  /**
+   * Wrapper para obtener o ejecutar función si no existe en caché
+   * @param {string} key - Clave del caché
+   * @param {Function} fn - Función a ejecutar si no hay caché
+   * @param {number} ttl - TTL en segundos
+   * @returns {Promise<any>}
+   */
+  async getOrSet(key, fn, ttl) {
+    // Intentar obtener del caché
+    const cached = await this.get(key)
+
+    if (cached !== null) {
+      logger.debug(`Cache HIT: ${key}`)
+      return cached
+    }
+
+    // Si no existe, ejecutar función
+    logger.debug(`Cache MISS: ${key}`)
+    const result = await fn()
+
+    // Guardar en caché si el resultado no es null/undefined
+    if (result !== null && result !== undefined) {
+      await this.set(key, result, ttl)
+    }
+
+    return result
+  }
+
+  // ========== MÉTODOS ESPECÍFICOS PARA ENTIDADES ==========
+
+  /**
+   * Obtener perfil de usuario del caché
+   * @param {string} username - Username del usuario
+   * @returns {Promise<object|null>}
+   */
+  async getUserProfile(username) {
+    const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    return await this.get(key)
+  }
+
+  /**
+   * Guardar perfil de usuario en caché
+   * @param {string} username - Username del usuario
+   * @param {object} profile - Datos del perfil
+   * @returns {Promise<boolean>}
+   */
+  async setUserProfile(username, profile) {
+    const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    return await this.set(key, profile, this.TTL.USER_PROFILE)
+  }
+
+  /**
+   * Invalidar caché de perfil de usuario
+   * @param {string} username - Username del usuario
+   * @returns {Promise<boolean>}
+   */
+  async invalidateUserProfile(username) {
+    const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    return await this.del(key)
+  }
+
+  /**
+   * Obtener feed personalizado del caché
+   * @param {string} userId - ID del usuario
+   * @param {number} page - Página
+   * @returns {Promise<object|null>}
+   */
+  async getFeed(userId, page = 1) {
+    const key = `${this.KEYS.FEED}${userId}:page:${page}`
+    return await this.get(key)
+  }
+
+  /**
+   * Guardar feed personalizado en caché
+   * @param {string} userId - ID del usuario
+   * @param {number} page - Página
+   * @param {object} feed - Datos del feed
+   * @returns {Promise<boolean>}
+   */
+  async setFeed(userId, page, feed) {
+    const key = `${this.KEYS.FEED}${userId}:page:${page}`
+    return await this.set(key, feed, this.TTL.FEED)
+  }
+
+  /**
+   * Invalidar caché de feed de usuario
+   * @param {string} userId - ID del usuario
+   * @returns {Promise<number>}
+   */
+  async invalidateFeed(userId) {
+    const pattern = `${this.KEYS.FEED}${userId}:*`
+    return await this.delPattern(pattern)
+  }
+
+  /**
+   * Invalidar feed de todos los seguidores de un usuario
+   * (Útil cuando un usuario crea nuevo contenido)
+   * @param {Array<string>} followerIds - IDs de los seguidores
+   * @returns {Promise<number>}
+   */
+  async invalidateFollowersFeeds(followerIds) {
+    let totalDeleted = 0
+    for (const followerId of followerIds) {
+      const deleted = await this.invalidateFeed(followerId)
+      totalDeleted += deleted
+    }
+    return totalDeleted
+  }
+
+  /**
+   * Obtener stories activas del caché
+   * @param {string} userId - ID del usuario solicitante
+   * @returns {Promise<object|null>}
+   */
+  async getStories(userId) {
+    const key = `${this.KEYS.STORIES}${userId}`
+    return await this.get(key)
+  }
+
+  /**
+   * Guardar stories activas en caché
+   * @param {string} userId - ID del usuario solicitante
+   * @param {object} stories - Datos de stories
+   * @returns {Promise<boolean>}
+   */
+  async setStories(userId, stories) {
+    const key = `${this.KEYS.STORIES}${userId}`
+    return await this.set(key, stories, this.TTL.STORIES)
+  }
+
+  /**
+   * Invalidar caché de stories
+   * @param {string} userId - ID del usuario (opcional)
+   * @returns {Promise<number>}
+   */
+  async invalidateStories(userId = null) {
+    const pattern = userId
+      ? `${this.KEYS.STORIES}${userId}`
+      : `${this.KEYS.STORIES}*`
+
+    if (userId) {
+      return await this.del(pattern) ? 1 : 0
+    } else {
+      return await this.delPattern(pattern)
+    }
+  }
+
+  /**
+   * Obtener posts trending del caché
+   * @returns {Promise<object|null>}
+   */
+  async getTrendingPosts() {
+    return await this.get(this.KEYS.TRENDING_POSTS)
+  }
+
+  /**
+   * Guardar posts trending en caché
+   * @param {object} posts - Posts trending
+   * @returns {Promise<boolean>}
+   */
+  async setTrendingPosts(posts) {
+    return await this.set(this.KEYS.TRENDING_POSTS, posts, this.TTL.TRENDING_POSTS)
+  }
+
+  /**
+   * Obtener reels trending del caché
+   * @returns {Promise<object|null>}
+   */
+  async getTrendingReels() {
+    return await this.get(this.KEYS.TRENDING_REELS)
+  }
+
+  /**
+   * Guardar reels trending en caché
+   * @param {object} reels - Reels trending
+   * @returns {Promise<boolean>}
+   */
+  async setTrendingReels(reels) {
+    return await this.set(this.KEYS.TRENDING_REELS, reels, this.TTL.TRENDING_REELS)
+  }
+
+  /**
+   * Obtener post específico del caché
+   * @param {string} postId - ID del post
+   * @returns {Promise<object|null>}
+   */
+  async getPost(postId) {
+    const key = `${this.KEYS.POST}${postId}`
+    return await this.get(key)
+  }
+
+  /**
+   * Guardar post específico en caché
+   * @param {string} postId - ID del post
+   * @param {object} post - Datos del post
+   * @returns {Promise<boolean>}
+   */
+  async setPost(postId, post) {
+    const key = `${this.KEYS.POST}${postId}`
+    return await this.set(key, post, this.TTL.POST_DETAIL)
+  }
+
+  /**
+   * Invalidar caché de post específico
+   * @param {string} postId - ID del post
+   * @returns {Promise<boolean>}
+   */
+  async invalidatePost(postId) {
+    const key = `${this.KEYS.POST}${postId}`
+    return await this.del(key)
+  }
+
+  /**
+   * Obtener estadísticas de caché
+   * @returns {Promise<object>}
+   */
+  async getStats() {
+    try {
+      const patterns = [
+        { name: 'User Profiles', pattern: 'user:profile:*' },
+        { name: 'Feeds', pattern: 'feed:*' },
+        { name: 'Stories', pattern: 'stories:*' },
+        { name: 'Posts', pattern: 'post:*' },
+        { name: 'Reels', pattern: 'reel:*' }
+      ]
+
+      const stats = {}
+      for (const { name, pattern } of patterns) {
+        const keys = await redisService.keys(pattern)
+        stats[name] = keys.length
+      }
+
+      return stats
+    } catch (error) {
+      logger.error('Error al obtener estadísticas de caché:', error)
+      return {}
+    }
+  }
+
+  /**
+   * Limpiar todo el caché (usar con precaución)
+   * @returns {Promise<number>}
+   */
+  async flush() {
+    logger.warn('⚠️ Limpiando TODO el caché...')
+    return await this.delPattern('*')
+  }
+}
+
+// Singleton
+const cacheService = new CacheService()
+
+export default cacheService
+
