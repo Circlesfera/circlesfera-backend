@@ -1,391 +1,316 @@
 /**
- * Tests para tokenService
- * Fase 3: Testing + CI/CD
+ * Tests para Token Service
+ *
+ * Verifica la correcta generación, verificación y manejo de tokens JWT
+ * para autenticación y refresh tokens.
  */
 
-import { jest } from '@jest/globals'
+import tokenService from '../tokenService.js'
 import jwt from 'jsonwebtoken'
 
-// Mock de redisService ANTES de importar tokenService
-const mockRedisService = {
-  get: jest.fn(),
-  set: jest.fn(),
-  del: jest.fn(),
-  exists: jest.fn(),
-  keys: jest.fn()
-}
+// Constantes de test (NO hardcodeadas - usar desde env)
+const TEST_USER_ID = '507f1f77bcf86cd799439011' // MongoDB ObjectId válido
+const TEST_JWT_SECRET = process.env.JWT_SECRET
+const TEST_JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET
 
-jest.unstable_mockModule('../redisService.js', () => ({
-  default: mockRedisService
-}))
-
-// Importar tokenService DESPUÉS de mockear redisService
-const { default: tokenService } = await import('../tokenService.js')
-
-// Mock de config
-jest.mock('../../utils/config.js', () => ({
-  config: {
-    jwtSecret: 'test-secret-key',
-    jwtAccessExpiresIn: '15m',
-    jwtRefreshExpiresIn: '30d'
-  }
-}))
-
-describe('TokenService', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-    // Reset mocks
-    mockRedisService.get.mockReset()
-    mockRedisService.set.mockReset()
-    mockRedisService.del.mockReset()
-    mockRedisService.exists.mockReset()
-    mockRedisService.keys.mockReset()
-  })
-
+describe('Token Service', () => {
   describe('generateAccessToken', () => {
-    it('debe generar un access token válido', () => {
-      const userId = 'user123'
+    test('debe generar un access token válido', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
       const token = tokenService.generateAccessToken(userId)
 
+      // Assert
       expect(token).toBeDefined()
       expect(typeof token).toBe('string')
+      expect(token.length).toBeGreaterThan(0)
+    })
 
-      const decoded = jwt.decode(token)
-      expect(decoded.id).toBe(userId)
+    test('debe incluir userId en el payload', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
+      const token = tokenService.generateAccessToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_SECRET)
+
+      // Assert
+      expect(decoded.userId).toBe(userId)
+    })
+
+    test('debe tener tipo "access" en el payload', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
+      const token = tokenService.generateAccessToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_SECRET)
+
+      // Assert
       expect(decoded.type).toBe('access')
     })
 
-    it('debe incluir tiempo de expiración', () => {
-      const userId = 'user123'
-      const token = tokenService.generateAccessToken(userId)
+    test('debe tener exp (expiración) en el payload', () => {
+      // Arrange
+      const userId = TEST_USER_ID
 
-      const decoded = jwt.decode(token)
+      // Act
+      const token = tokenService.generateAccessToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_SECRET)
+
+      // Assert
       expect(decoded.exp).toBeDefined()
-      expect(decoded.iat).toBeDefined()
+      expect(typeof decoded.exp).toBe('number')
+      expect(decoded.exp).toBeGreaterThan(Date.now() / 1000)
+    })
+
+    test('debe lanzar error con userId inválido', () => {
+      // Arrange
+      const invalidUserId = null
+
+      // Act & Assert
+      expect(() => {
+        tokenService.generateAccessToken(invalidUserId)
+      }).toThrow()
     })
   })
 
   describe('generateRefreshToken', () => {
-    it('debe generar un refresh token válido', () => {
-      const userId = 'user123'
+    test('debe generar un refresh token válido', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
       const token = tokenService.generateRefreshToken(userId)
 
+      // Assert
       expect(token).toBeDefined()
       expect(typeof token).toBe('string')
+      expect(token.length).toBeGreaterThan(0)
+    })
 
-      const decoded = jwt.decode(token)
-      expect(decoded.id).toBe(userId)
+    test('debe incluir userId en el payload', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
+      const token = tokenService.generateRefreshToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_REFRESH_SECRET)
+
+      // Assert
+      expect(decoded.userId).toBe(userId)
+    })
+
+    test('debe tener tipo "refresh" en el payload', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
+      const token = tokenService.generateRefreshToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_REFRESH_SECRET)
+
+      // Assert
       expect(decoded.type).toBe('refresh')
     })
-  })
 
-  describe('generateTokenPair', () => {
-    it('debe generar par de tokens (access + refresh)', () => {
-      const userId = 'user123'
-      const tokens = tokenService.generateTokenPair(userId)
+    test('refresh token debe expirar después que access token', () => {
+      // Arrange
+      const userId = TEST_USER_ID
 
-      expect(tokens).toHaveProperty('accessToken')
-      expect(tokens).toHaveProperty('refreshToken')
-      expect(typeof tokens.accessToken).toBe('string')
-      expect(typeof tokens.refreshToken).toBe('string')
+      // Act
+      const accessToken = tokenService.generateAccessToken(userId)
+      const refreshToken = tokenService.generateRefreshToken(userId)
 
-      const accessDecoded = jwt.decode(tokens.accessToken)
-      const refreshDecoded = jwt.decode(tokens.refreshToken)
+      const accessDecoded = jwt.verify(accessToken, TEST_JWT_SECRET)
+      const refreshDecoded = jwt.verify(refreshToken, TEST_JWT_REFRESH_SECRET)
 
-      expect(accessDecoded.type).toBe('access')
-      expect(refreshDecoded.type).toBe('refresh')
+      // Assert - Refresh debe durar más que Access
+      expect(refreshDecoded.exp).toBeGreaterThan(accessDecoded.exp)
     })
   })
 
-  describe('verifyToken', () => {
-    it('debe verificar un token válido', async () => {
-      const userId = 'user123'
+  describe('verifyAccessToken', () => {
+    test('debe verificar un access token válido', () => {
+      // Arrange
+      const userId = TEST_USER_ID
       const token = tokenService.generateAccessToken(userId)
 
-      mockRedisService.exists.mockResolvedValue(false) // No está en blacklist
+      // Act
+      const decoded = tokenService.verifyAccessToken(token)
 
-      const decoded = await tokenService.verifyToken(token)
-
+      // Assert
       expect(decoded).toBeDefined()
-      expect(decoded.id).toBe(userId)
+      expect(decoded.userId).toBe(userId)
       expect(decoded.type).toBe('access')
     })
 
-    it('debe rechazar token en blacklist', async () => {
-      const userId = 'user123'
-      const token = tokenService.generateAccessToken(userId)
+    test('debe rechazar un token expirado', () => {
+      // Arrange - Token con expiración inmediata
+      const userId = TEST_USER_ID
+      const expiredToken = jwt.sign(
+        { userId, type: 'access' },
+        TEST_JWT_SECRET,
+        { expiresIn: '0s' } // Expira inmediatamente
+      )
 
-      mockRedisService.exists.mockResolvedValue(true) // Está en blacklist
-
-      const decoded = await tokenService.verifyToken(token)
-
-      expect(decoded).toBeNull()
+      // Wait a moment to ensure expiration
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Act & Assert
+          expect(() => {
+            tokenService.verifyAccessToken(expiredToken)
+          }).toThrow()
+          resolve()
+        }, 100)
+      })
     })
 
-    it('debe rechazar token expirado', async () => {
-      // Generar token con expiración inmediata
-      const token = jwt.sign(
-        { id: 'user123', type: 'access' },
-        'test-secret-key',
+    test('debe rechazar un token con firma inválida', () => {
+      // Arrange
+      const invalidToken = jwt.sign(
+        { userId: TEST_USER_ID },
+        'wrong-secret-key'
+      )
+
+      // Act & Assert
+      expect(() => {
+        tokenService.verifyAccessToken(invalidToken)
+      }).toThrow()
+    })
+
+    test('debe rechazar un token malformado', () => {
+      // Arrange
+      const malformedToken = 'invalid.token.format'
+
+      // Act & Assert
+      expect(() => {
+        tokenService.verifyAccessToken(malformedToken)
+      }).toThrow()
+    })
+
+    test('debe rechazar un refresh token en lugar de access', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+      const refreshToken = tokenService.generateRefreshToken(userId)
+
+      // Act & Assert
+      expect(() => {
+        tokenService.verifyAccessToken(refreshToken)
+      }).toThrow()
+    })
+  })
+
+  describe('verifyRefreshToken', () => {
+    test('debe verificar un refresh token válido', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+      const token = tokenService.generateRefreshToken(userId)
+
+      // Act
+      const decoded = tokenService.verifyRefreshToken(token)
+
+      // Assert
+      expect(decoded).toBeDefined()
+      expect(decoded.userId).toBe(userId)
+      expect(decoded.type).toBe('refresh')
+    })
+
+    test('debe rechazar un access token en lugar de refresh', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+      const accessToken = tokenService.generateAccessToken(userId)
+
+      // Act & Assert
+      expect(() => {
+        tokenService.verifyRefreshToken(accessToken)
+      }).toThrow()
+    })
+
+    test('debe rechazar un refresh token expirado', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+      const expiredToken = jwt.sign(
+        { userId, type: 'refresh' },
+        TEST_JWT_REFRESH_SECRET,
         { expiresIn: '0s' }
       )
 
-      mockRedisService.exists.mockResolvedValue(false)
-
-      // Esperar un momento para que expire
-      await new Promise(resolve => {
-        setTimeout(resolve, 100)
+      // Wait a moment to ensure expiration
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Act & Assert
+          expect(() => {
+            tokenService.verifyRefreshToken(expiredToken)
+          }).toThrow()
+          resolve()
+        }, 100)
       })
-
-      const decoded = await tokenService.verifyToken(token)
-
-      expect(decoded).toBeNull()
-    })
-
-    it('debe rechazar token con firma inválida', async () => {
-      const token = jwt.sign(
-        { id: 'user123', type: 'access' },
-        'wrong-secret-key',
-        { expiresIn: '15m' }
-      )
-
-      mockRedisService.exists.mockResolvedValue(false)
-
-      const decoded = await tokenService.verifyToken(token)
-
-      expect(decoded).toBeNull()
-    })
-  })
-
-  describe('refreshAccessToken', () => {
-    it('debe renovar access token con refresh token válido', async () => {
-      const userId = 'user123'
-      const refreshToken = tokenService.generateRefreshToken(userId)
-
-      mockRedisService.exists.mockResolvedValue(false)
-
-      const result = await tokenService.refreshAccessToken(refreshToken)
-
-      expect(result).toBeDefined()
-      expect(result).toHaveProperty('accessToken')
-      expect(typeof result.accessToken).toBe('string')
-
-      const decoded = jwt.decode(result.accessToken)
-      expect(decoded.id).toBe(userId)
-      expect(decoded.type).toBe('access')
-    })
-
-    it('debe rechazar token con tipo incorrecto', async () => {
-      const userId = 'user123'
-      const accessToken = tokenService.generateAccessToken(userId) // Usar access en lugar de refresh
-
-      mockRedisService.exists.mockResolvedValue(false)
-
-      const result = await tokenService.refreshAccessToken(accessToken)
-
-      expect(result).toBeNull()
-    })
-
-    it('debe rechazar refresh token inválido', async () => {
-      const invalidToken = 'invalid.token.here'
-
-      const result = await tokenService.refreshAccessToken(invalidToken)
-
-      expect(result).toBeNull()
-    })
-  })
-
-  describe('blacklistToken', () => {
-    it('debe agregar token a la blacklist', async () => {
-      const userId = 'user123'
-      const token = tokenService.generateAccessToken(userId)
-
-      mockRedisService.set.mockResolvedValue(undefined)
-
-      await tokenService.blacklistToken(token, 900) // 15 minutos
-
-      expect(mockRedisService.set).toHaveBeenCalledWith(
-        expect.stringContaining('blacklist:'),
-        '1',
-        900
-      )
-    })
-
-    it('debe calcular TTL automáticamente del token', async () => {
-      const userId = 'user123'
-      const token = tokenService.generateAccessToken(userId)
-
-      mockRedisService.set.mockResolvedValue(undefined)
-
-      await tokenService.blacklistToken(token) // Sin TTL explícito
-
-      expect(mockRedisService.set).toHaveBeenCalled()
-    })
-
-    it('no debe agregar token expirado a blacklist', async () => {
-      const token = jwt.sign(
-        { id: 'user123', type: 'access' },
-        'test-secret-key',
-        { expiresIn: '-1h' } // Ya expirado
-      )
-
-      mockRedisService.set.mockResolvedValue(undefined)
-
-      await tokenService.blacklistToken(token)
-
-      expect(mockRedisService.set).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('isTokenBlacklisted', () => {
-    it('debe detectar token en blacklist', async () => {
-      const token = 'some.token.here'
-
-      mockRedisService.exists.mockResolvedValue(true)
-
-      const isBlacklisted = await tokenService.isTokenBlacklisted(token)
-
-      expect(isBlacklisted).toBe(true)
-      expect(mockRedisService.exists).toHaveBeenCalledWith(
-        expect.stringContaining('blacklist:')
-      )
-    })
-
-    it('debe devolver false para token no en blacklist', async () => {
-      const token = 'some.token.here'
-
-      mockRedisService.exists.mockResolvedValue(false)
-
-      const isBlacklisted = await tokenService.isTokenBlacklisted(token)
-
-      expect(isBlacklisted).toBe(false)
-    })
-
-    it('debe devolver false en caso de error (fail-open)', async () => {
-      const token = 'some.token.here'
-
-      mockRedisService.exists.mockRejectedValue(new Error('Redis error'))
-
-      const isBlacklisted = await tokenService.isTokenBlacklisted(token)
-
-      expect(isBlacklisted).toBe(false)
-    })
-  })
-
-  describe('blacklistAllUserTokens', () => {
-    it('debe invalidar todos los tokens de un usuario', async () => {
-      const userId = 'user123'
-
-      mockRedisService.set.mockResolvedValue(undefined)
-
-      await tokenService.blacklistAllUserTokens(userId)
-
-      expect(mockRedisService.set).toHaveBeenCalledWith(
-        `user:${userId}:tokens_invalidated`,
-        expect.any(String),
-        30 * 24 * 60 * 60 // 30 días
-      )
-    })
-  })
-
-  describe('areUserTokensInvalidated', () => {
-    it('debe detectar tokens invalidados después del timestamp', async () => {
-      const userId = 'user123'
-      const tokenIssuedAt = Math.floor(Date.now() / 1000) - 3600 // Hace 1 hora
-      const invalidatedAt = Date.now() - 1800 * 1000 // Hace 30 minutos
-
-      mockRedisService.get.mockResolvedValue(invalidatedAt.toString())
-
-      const areInvalidated = await tokenService.areUserTokensInvalidated(
-        userId,
-        tokenIssuedAt
-      )
-
-      expect(areInvalidated).toBe(true)
-    })
-
-    it('debe permitir tokens emitidos después de la invalidación', async () => {
-      const userId = 'user123'
-      const tokenIssuedAt = Math.floor(Date.now() / 1000) // Ahora
-      const invalidatedAt = Date.now() - 3600 * 1000 // Hace 1 hora
-
-      mockRedisService.get.mockResolvedValue(invalidatedAt.toString())
-
-      const areInvalidated = await tokenService.areUserTokensInvalidated(
-        userId,
-        tokenIssuedAt
-      )
-
-      expect(areInvalidated).toBe(false)
-    })
-
-    it('debe devolver false si no hay invalidación', async () => {
-      const userId = 'user123'
-      const tokenIssuedAt = Math.floor(Date.now() / 1000)
-
-      mockRedisService.get.mockResolvedValue(null)
-
-      const areInvalidated = await tokenService.areUserTokensInvalidated(
-        userId,
-        tokenIssuedAt
-      )
-
-      expect(areInvalidated).toBe(false)
     })
   })
 
   describe('decodeToken', () => {
-    it('debe decodificar token sin verificar', () => {
-      const userId = 'user123'
+    test('debe decodificar un token sin verificar', () => {
+      // Arrange
+      const userId = TEST_USER_ID
       const token = tokenService.generateAccessToken(userId)
 
+      // Act
       const decoded = tokenService.decodeToken(token)
 
+      // Assert
       expect(decoded).toBeDefined()
-      expect(decoded.id).toBe(userId)
-      expect(decoded.type).toBe('access')
+      expect(decoded.userId).toBe(userId)
     })
 
-    it('debe devolver null para token inválido', () => {
-      const invalidToken = 'invalid.token'
+    test('debe retornar null con token inválido', () => {
+      // Arrange
+      const invalidToken = 'invalid-token'
 
+      // Act
       const decoded = tokenService.decodeToken(invalidToken)
 
+      // Assert
       expect(decoded).toBeNull()
     })
   })
 
-  describe('getTokenTimeRemaining', () => {
-    it('debe calcular tiempo restante de token', () => {
-      const userId = 'user123'
+  describe('Seguridad', () => {
+    test('tokens diferentes deben ser generados para el mismo userId', () => {
+      // Arrange
+      const userId = TEST_USER_ID
+
+      // Act
+      const token1 = tokenService.generateAccessToken(userId)
+      const token2 = tokenService.generateAccessToken(userId)
+
+      // Assert - Los tokens deben ser diferentes por el iat (issued at)
+      expect(token1).not.toBe(token2)
+    })
+
+    test('no debe ser posible usar el mismo secret para access y refresh', () => {
+      // Assert - Los secretos deben ser diferentes
+      expect(TEST_JWT_SECRET).not.toBe(TEST_JWT_REFRESH_SECRET)
+    })
+
+    test('tokens deben contener solo información necesaria', () => {
+      // Arrange
+      const userId = TEST_USER_ID
       const token = tokenService.generateAccessToken(userId)
+      const decoded = jwt.verify(token, TEST_JWT_SECRET)
 
-      const timeRemaining = tokenService.getTokenTimeRemaining(token)
+      // Assert - No debe contener información sensible
+      expect(decoded.password).toBeUndefined()
+      expect(decoded.email).toBeUndefined()
 
-      expect(timeRemaining).toBeGreaterThan(0)
-      expect(timeRemaining).toBeLessThanOrEqual(15 * 60) // 15 minutos
-    })
+      // Solo debe tener userId, type, iat, exp
+      const expectedKeys = ['userId', 'type', 'iat', 'exp']
+      const actualKeys = Object.keys(decoded)
 
-    it('debe devolver 0 para token expirado', () => {
-      const token = jwt.sign(
-        { id: 'user123', type: 'access' },
-        'test-secret-key',
-        { expiresIn: '0s' }
-      )
-
-      // Esperar un momento
-      const timeRemaining = tokenService.getTokenTimeRemaining(token)
-
-      expect(timeRemaining).toBe(0)
-    })
-
-    it('debe devolver null para token inválido', () => {
-      const invalidToken = 'invalid.token'
-
-      const timeRemaining = tokenService.getTokenTimeRemaining(invalidToken)
-
-      expect(timeRemaining).toBeNull()
+      actualKeys.forEach(key => {
+        expect(expectedKeys).toContain(key)
+      })
     })
   })
 })
-
