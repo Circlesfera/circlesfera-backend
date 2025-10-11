@@ -53,44 +53,52 @@ const updateProfileSchema = z.object({
     .trim()
     .optional(),
 
-  bio: z.string()
-    .max(160, 'Bio no puede exceder 160 caracteres')
-    .trim()
+  bio: z.union([
+    z.string().max(160, 'Bio no puede exceder 160 caracteres').trim(),
+    z.literal(''),
+    z.null()
+  ])
     .optional()
-    .nullable()
     .transform(val => val || ''),
 
-  website: z.string()
-    .url('URL inválida')
+  website: z.union([
+    z.string().url('URL inválida'),
+    z.literal(''),
+    z.null()
+  ])
     .optional()
-    .or(z.literal(''))
-    .nullable()
     .transform(val => val || ''),
 
-  location: z.string()
-    .max(100, 'Ubicación no puede exceder 100 caracteres')
-    .trim()
+  location: z.union([
+    z.string().max(100, 'Ubicación no puede exceder 100 caracteres').trim(),
+    z.literal(''),
+    z.null()
+  ])
     .optional()
-    .nullable()
     .transform(val => val || ''),
 
-  phone: z.string()
-    .regex(/^\+?[1-9]\d{1,14}$/, 'Teléfono inválido')
+  phone: z.union([
+    z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Teléfono inválido'),
+    z.literal(''),
+    z.null()
+  ])
     .optional()
-    .or(z.literal(''))
-    .nullable()
     .transform(val => val || ''),
 
   gender: z.enum(['male', 'female', 'other', 'prefer-not-to-say'])
     .optional(),
 
-  birthDate: z.string()
-    .optional()
-    .nullable()
-    .refine(
-      (val) => !val || !isNaN(Date.parse(val)),
+  birthDate: z.union([
+    z.string().refine(
+      (val) => !isNaN(Date.parse(val)),
       { message: 'Fecha de nacimiento inválida' }
     ),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ])
+    .optional()
+    .transform(val => val || null),
 
   isPrivate: z.boolean()
     .optional()
