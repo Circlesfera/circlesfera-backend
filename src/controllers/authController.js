@@ -180,6 +180,11 @@ export const updateProfile = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
+      logger.error('Errores de validación en updateProfile:', {
+        errors: errors.array(),
+        body: req.body,
+        userId: req.user?.id
+      })
       return res.status(400).json({
         success: false,
         message: 'Error de validación',
