@@ -4,7 +4,8 @@ import {
   createPost,
   getFeed,
   getPost,
-  toggleLike,
+  likePost,
+  unlikePost,
   getLikes,
   getTrendingPosts,
   getRecentPosts,
@@ -28,9 +29,9 @@ router.get('/feed', auth, getFeed)
 router.get('/:id', getPost)
 router.get('/:id/likes', getLikes)
 
-// Ruta para posts con archivos (imagen/video)
+// Ruta para crear posts (solo image/video, sin texto)
 router.post(
-  '/media',
+  '/',
   auth,
   uploadFields,
   imageOptimizer,
@@ -39,12 +40,14 @@ router.post(
   handleUploadError
 )
 
-// Ruta para posts (solo image/video, sin texto)
-router.post('/', auth, validate(createPostSchema), createPost)
-
+// Ruta para actualizar posts
 router.put('/:id', auth, validate(updatePostSchema), updatePost)
 
-router.post('/:id/like', auth, toggleLike)
+// Rutas para likes (consistente con reels: POST para like, DELETE para unlike)
+router.post('/:id/like', auth, likePost)
+router.delete('/:id/like', auth, unlikePost)
+
+// Eliminar post
 router.delete('/:id', auth, deletePost)
 
 export default router

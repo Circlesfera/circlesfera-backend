@@ -1,6 +1,5 @@
 import express from 'express'
 const router = express.Router()
-import { body } from 'express-validator'
 import {
   getNotifications,
   getUnreadCount,
@@ -13,31 +12,8 @@ import {
   cleanupOldNotifications
 } from '../controllers/notificationController.js'
 import { auth } from '../middlewares/auth.js'
-
-// Validaciones
-const createNotificationValidation = [
-  body('userId')
-    .isMongoId()
-    .withMessage('ID de usuario inválido'),
-  body('fromUserId')
-    .isMongoId()
-    .withMessage('ID de usuario que genera la notificación inválido'),
-  body('type')
-    .isIn([
-      'follow', 'unfollow', 'like', 'comment', 'comment_like',
-      'story', 'story_reply', 'reel', 'reel_like', 'reel_comment',
-      'mention', 'post_share', 'account_update', 'security_alert'
-    ])
-    .withMessage('Tipo de notificación no válido'),
-  body('title')
-    .optional()
-    .isLength({ max: 100 })
-    .withMessage('El título no puede exceder 100 caracteres'),
-  body('message')
-    .optional()
-    .isLength({ max: 500 })
-    .withMessage('El mensaje no puede exceder 500 caracteres')
-]
+import { validate } from '../middlewares/validate.js'
+import { createNotificationSchema } from '../schemas/notificationSchema.js'
 
 // Rutas protegidas
 router.get('/', auth, getNotifications)
@@ -45,13 +21,13 @@ router.get('/unread/count', auth, getUnreadCount)
 router.get('/stats', auth, getNotificationStats)
 
 router.put('/:id/read', auth, markAsRead)
-router.put('/read/all', auth, markAllAsRead)
+router.put('/read-all', auth, markAllAsRead)
 
 router.delete('/:id', auth, deleteNotification)
-router.delete('/read/all', auth, deleteReadNotifications)
+router.delete('/read-all', auth, deleteReadNotifications)
 
 // Rutas administrativas (para testing o casos especiales)
-router.post('/', auth, createNotificationValidation, createNotification)
-router.post('/cleanup/old', auth, cleanupOldNotifications)
+router.post('/', auth, validate(createNotificationSchema), createNotification)
+router.post('/cleanup-old', auth, cleanupOldNotifications)
 
 export default router

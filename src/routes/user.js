@@ -15,7 +15,6 @@ import {
   updatePrivacySettings,
   updateNotificationSettings,
   updateSecuritySettings,
-  changePassword,
   toggleTwoFactor,
   muteUser,
   unmuteUser,
@@ -49,7 +48,6 @@ router.get('/settings', auth, getUserSettings)
 router.put('/settings/privacy', auth, updatePrivacySettings)
 router.put('/settings/notifications', auth, updateNotificationSettings)
 router.put('/settings/security', auth, updateSecuritySettings)
-router.put('/change-password', auth, changePassword)
 router.put('/two-factor', auth, toggleTwoFactor)
 
 export default router
