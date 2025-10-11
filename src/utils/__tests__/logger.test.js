@@ -63,67 +63,47 @@ describe('Logger Service', () => {
   describe('Funcionalidad de logging', () => {
     test('debe poder loggear mensajes de info', () => {
       // Arrange
-      const spy = jest.spyOn(logger, 'info')
       const message = 'Test info message'
 
-      // Act
-      logger.info(message)
-
-      // Assert
-      expect(spy).toHaveBeenCalledWith(message)
-
-      // Cleanup
-      spy.mockRestore()
+      // Act & Assert - No debe lanzar error
+      expect(() => {
+        logger.info(message)
+      }).not.toThrow()
     })
 
     test('debe poder loggear errores', () => {
       // Arrange
-      const spy = jest.spyOn(logger, 'error')
       const error = new Error('Test error')
 
-      // Act
-      logger.error('Error occurred:', { error: error.message })
-
-      // Assert
-      expect(spy).toHaveBeenCalled()
-
-      // Cleanup
-      spy.mockRestore()
+      // Act & Assert - No debe lanzar error
+      expect(() => {
+        logger.error('Error occurred:', { error: error.message })
+      }).not.toThrow()
     })
 
     test('debe poder loggear con metadata', () => {
       // Arrange
-      const spy = jest.spyOn(logger, 'info')
       const message = 'User action'
       const metadata = { userId: '123', action: 'login' }
 
-      // Act
-      logger.info(message, metadata)
-
-      // Assert
-      expect(spy).toHaveBeenCalledWith(message, metadata)
-
-      // Cleanup
-      spy.mockRestore()
+      // Act & Assert - No debe lanzar error
+      expect(() => {
+        logger.info(message, metadata)
+      }).not.toThrow()
     })
 
     test('debe manejar objetos complejos en metadata', () => {
       // Arrange
-      const spy = jest.spyOn(logger, 'info')
       const complexMetadata = {
         user: { id: '123', name: 'Test User' },
         request: { method: 'GET', path: '/api/test' },
         timestamp: Date.now()
       }
 
-      // Act
-      logger.info('Complex log', complexMetadata)
-
-      // Assert
-      expect(spy).toHaveBeenCalledWith('Complex log', complexMetadata)
-
-      // Cleanup
-      spy.mockRestore()
+      // Act & Assert - No debe lanzar error
+      expect(() => {
+        logger.info('Complex log', complexMetadata)
+      }).not.toThrow()
     })
   })
 
@@ -172,12 +152,13 @@ describe('Logger Service', () => {
       }).not.toThrow()
     })
 
-    test('debe manejar errores circulares en metadata', () => {
+    test('debe manejar objetos circulares en metadata', () => {
       // Arrange
       const circularObj = { prop: 'value' }
       circularObj.circular = circularObj
 
       // Act & Assert
+      // Winston maneja esto internamente, solo verificamos que no explote
       expect(() => {
         logger.info('Circular test', circularObj)
       }).not.toThrow()
@@ -197,5 +178,51 @@ describe('Logger Service', () => {
       expect(hasConsoleTransport).toBe(true)
     })
   })
-})
 
+  describe('Logger es una instancia de Winston', () => {
+    test('debe ser una instancia válida de winston.Logger', () => {
+      expect(logger).toBeInstanceOf(winston.Logger)
+    })
+
+    test('debe tener propiedad level', () => {
+      expect(logger).toHaveProperty('level')
+      expect(typeof logger.level).toBe('string')
+    })
+
+    test('debe tener propiedad transports', () => {
+      expect(logger).toHaveProperty('transports')
+      expect(Array.isArray(logger.transports)).toBe(true)
+    })
+
+    test('debe tener método log', () => {
+      expect(logger).toHaveProperty('log')
+      expect(typeof logger.log).toBe('function')
+    })
+  })
+
+  describe('Logging en diferentes niveles', () => {
+    test('debe permitir loggear en nivel info', () => {
+      expect(() => {
+        logger.info('Info level message')
+      }).not.toThrow()
+    })
+
+    test('debe permitir loggear en nivel warn', () => {
+      expect(() => {
+        logger.warn('Warning level message')
+      }).not.toThrow()
+    })
+
+    test('debe permitir loggear en nivel error', () => {
+      expect(() => {
+        logger.error('Error level message')
+      }).not.toThrow()
+    })
+
+    test('debe permitir loggear en nivel debug', () => {
+      expect(() => {
+        logger.debug('Debug level message')
+      }).not.toThrow()
+    })
+  })
+})

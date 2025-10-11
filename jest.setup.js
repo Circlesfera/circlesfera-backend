@@ -130,18 +130,54 @@ global.mockRequest = (overrides = {}) => ({
 
 /**
  * Helper para crear mock de response
+ * Nota: No podemos usar jest.fn() aquí porque jest no está disponible en setup
+ * Los tests individuales deben mockear con sus propias herramientas
  */
 global.mockResponse = () => {
-  const res = {}
-  const fn = (value) => ({ then: () => value })
-  res.status = fn
-  res.json = fn
-  res.send = fn
-  res.cookie = fn
-  res.clearCookie = fn
-  // Agregar tracking manual
-  res.status.calls = []
-  res.json.calls = []
+  const res = {
+    statusCode: 200,
+    statusCalled: false,
+    jsonCalled: false,
+    sendCalled: false,
+    statusValue: null,
+    jsonValue: null,
+    sendValue: null
+  }
+
+  res.status = function (code) {
+    res.statusCalled = true
+    res.statusCode = code
+    res.statusValue = code
+    return res
+  }
+
+  res.json = function (data) {
+    res.jsonCalled = true
+    res.jsonValue = data
+    // Si no se llamó status antes, usar 200 por defecto
+    if (!res.statusCalled) {
+      res.statusValue = 200
+    }
+    return res
+  }
+
+  res.send = function (data) {
+    res.sendCalled = true
+    res.sendValue = data
+    if (!res.statusCalled) {
+      res.statusValue = 200
+    }
+    return res
+  }
+
+  res.cookie = function () {
+    return res
+  }
+
+  res.clearCookie = function () {
+    return res
+  }
+
   return res
 }
 
@@ -149,9 +185,13 @@ global.mockResponse = () => {
  * Helper para crear mock de next
  */
 global.mockNext = () => {
-  const fn = () => { }
-  fn.calls = []
-  return fn
+  const next = function (error) {
+    next.called = true
+    next.error = error
+  }
+  next.called = false
+  next.error = null
+  return next
 }
 
 // ========================================
