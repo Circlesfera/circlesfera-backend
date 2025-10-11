@@ -56,30 +56,41 @@ const updateProfileSchema = z.object({
   bio: z.string()
     .max(160, 'Bio no puede exceder 160 caracteres')
     .trim()
-    .optional(),
+    .optional()
+    .nullable()
+    .transform(val => val || ''),
 
   website: z.string()
     .url('URL inválida')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .nullable()
+    .transform(val => val || ''),
 
   location: z.string()
     .max(100, 'Ubicación no puede exceder 100 caracteres')
     .trim()
-    .optional(),
+    .optional()
+    .nullable()
+    .transform(val => val || ''),
 
   phone: z.string()
     .regex(/^\+?[1-9]\d{1,14}$/, 'Teléfono inválido')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .nullable()
+    .transform(val => val || ''),
 
   gender: z.enum(['male', 'female', 'other', 'prefer-not-to-say'])
     .optional(),
 
   birthDate: z.string()
-    .datetime()
-    .or(z.date())
-    .optional(),
+    .optional()
+    .nullable()
+    .refine(
+      (val) => !val || !isNaN(Date.parse(val)),
+      { message: 'Fecha de nacimiento inválida' }
+    ),
 
   isPrivate: z.boolean()
     .optional()
