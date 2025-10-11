@@ -2,6 +2,8 @@ import express from 'express'
 const router = express.Router()
 import { auth } from '../middlewares/auth.js'
 import { uploadFields } from '../middlewares/upload.js'
+import { validate } from '../middlewares/validate.js'
+import { createReelSchema, updateReelSchema, reelCommentSchema } from '../schemas/reelSchema.js'
 import reelController from '../controllers/reelController.js'
 
 
@@ -13,11 +15,11 @@ router.get('/search/hashtag/:hashtag', reelController.searchReelsByHashtag)
 router.get('/:id', reelController.getReel)
 
 // Rutas protegidas (requieren autenticación)
-router.post('/', auth, uploadFields, reelController.createReel)
+router.post('/', auth, uploadFields, validate(createReelSchema), reelController.createReel)
 
 router.post('/:id/like', auth, reelController.likeReel)
 router.delete('/:id/like', auth, reelController.unlikeReel)
-router.post('/:id/comment', auth, reelController.commentReel)
+router.post('/:id/comment', auth, validate(reelCommentSchema), reelController.commentReel)
 router.delete('/:id', auth, reelController.deleteReel)
 
 export default router
