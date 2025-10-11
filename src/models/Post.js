@@ -52,6 +52,11 @@ const PostSchema = new mongoose.Schema({
         type: Number,
         default: 0
       }
+    },
+    aspectRatio: {
+      type: String,
+      enum: ['1:1', '4:5'], // Instagram aspect ratios (cuadrado y vertical)
+      default: '1:1'
     }
   },
   caption: {

@@ -26,14 +26,10 @@ const StorySchema = new mongoose.Schema({
       width: {
         type: Number,
         default: 1080,
-        min: [1080, 'El ancho mínimo para stories es 1080px'],
-        max: [1080, 'El ancho máximo para stories es 1080px']
       },
       height: {
         type: Number,
-        default: 1350,
-        min: [1350, 'El alto mínimo para stories es 1350px'],
-        max: [1350, 'El alto máximo para stories es 1350px']
+        default: 1920,
       }
     },
     video: {
@@ -54,14 +50,10 @@ const StorySchema = new mongoose.Schema({
       width: {
         type: Number,
         default: 1080,
-        min: [1080, 'El ancho mínimo para stories es 1080px'],
-        max: [1080, 'El ancho máximo para stories es 1080px']
       },
       height: {
         type: Number,
-        default: 1350,
-        min: [1350, 'El alto mínimo para stories es 1350px'],
-        max: [1350, 'El alto máximo para stories es 1350px']
+        default: 1920,
       }
     },
     text: {
@@ -340,16 +332,16 @@ StorySchema.pre('save', function (next) {
     return next(new Error('Las historias de texto deben tener contenido'))
   }
 
-  // Validar proporción 4:5 para imágenes y videos usando configuración centralizada
+  // Validar proporción 9:16 para imágenes y videos usando configuración centralizada
   if (this.type === 'image' && this.content.image.width && this.content.image.height) {
     if (!validateAspectRatio(this.content.image.width, this.content.image.height, 'STORY')) {
-      return next(new Error(`Las historias de imagen deben tener proporción 4:5 (${MEDIA_CONFIG.STORY.width}x${MEDIA_CONFIG.STORY.height}px)`))
+      return next(new Error(`Las historias de imagen deben tener proporción 9:16 (${MEDIA_CONFIG.STORY.width}x${MEDIA_CONFIG.STORY.height}px)`))
     }
   }
 
   if (this.type === 'video' && this.content.video.width && this.content.video.height) {
     if (!validateAspectRatio(this.content.video.width, this.content.video.height, 'STORY')) {
-      return next(new Error(`Las historias de video deben tener proporción 4:5 (${MEDIA_CONFIG.STORY.width}x${MEDIA_CONFIG.STORY.height}px)`))
+      return next(new Error(`Las historias de video deben tener proporción 9:16 (${MEDIA_CONFIG.STORY.width}x${MEDIA_CONFIG.STORY.height}px)`))
     }
   }
 
