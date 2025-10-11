@@ -143,16 +143,24 @@ export const getUserProfile = async (req, res) => {
         }
       },
 
-      // Proyectar campos finales
+      // Proyectar campos finales (usando solo inclusiones con expresiones)
       {
         $project: {
-          password: 0,
-          email: 0,
-          phone: 0,
-          preferences: 0,
-          blockedUsers: 0,
-          postsCount: { $arrayElemAt: ['$postsStats.count', 0] },
-          reelsCount: { $arrayElemAt: ['$reelsStats.count', 0] },
+          _id: 1,
+          username: 1,
+          fullName: 1,
+          avatar: 1,
+          bio: 1,
+          website: 1,
+          isVerified: 1,
+          isPrivate: 1,
+          createdAt: 1,
+          followers: 1,
+          following: 1,
+          stories: 1,
+          // Campos calculados
+          postsCount: { $ifNull: [{ $arrayElemAt: ['$postsStats.count', 0] }, 0] },
+          reelsCount: { $ifNull: [{ $arrayElemAt: ['$reelsStats.count', 0] }, 0] },
           storiesCount: { $size: '$stories' },
           followersCount: { $size: { $ifNull: ['$followers', []] } },
           followingCount: { $size: { $ifNull: ['$following', []] } },
