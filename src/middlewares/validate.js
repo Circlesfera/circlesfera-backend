@@ -24,7 +24,7 @@ const validate = (schema) => async (req, res, next) => {
     })
 
     // Formatear errores de Zod
-    const errors = error.errors.map(err => ({
+    const errors = (error.errors || []).map(err => ({
       field: err.path.join('.'),
       message: err.message,
       code: err.code

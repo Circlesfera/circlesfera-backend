@@ -10,12 +10,12 @@ import cacheService from '../services/cacheService.js'
 export const getUserProfile = async (req, res) => {
   try {
     const { username } = req.params
-    logger.info('getUserProfile - Buscando usuario:', { username, params: req.params })
+    logger.debug('getUserProfile - Buscando usuario:', { username, params: req.params })
 
     // OPTIMIZACIÓN 1: Intentar obtener del caché
     const cachedProfile = await cacheService.getUserProfile(username)
     if (cachedProfile) {
-      logger.info('getUserProfile - Cache HIT:', { username })
+      logger.debug('getUserProfile - Cache HIT:', { username })
 
       // Actualizar isFollowing si hay usuario autenticado
       if (req.userId && req.userId !== cachedProfile._id.toString()) {
@@ -33,7 +33,7 @@ export const getUserProfile = async (req, res) => {
       })
     }
 
-    logger.info('getUserProfile - Cache MISS, consultando DB:', { username })
+    logger.debug('getUserProfile - Cache MISS, consultando DB:', { username })
 
     // OPTIMIZACIÓN 2: Usar agregación para obtener todo en una sola query
     const userAggregation = await User.aggregate([
@@ -208,7 +208,7 @@ export const getUserProfile = async (req, res) => {
       isFollowing
     }
 
-    logger.info('getUserProfile optimizado:', {
+    logger.debug('getUserProfile optimizado:', {
       username: user.username,
       stats: {
         posts: responseData.postsCount,
@@ -223,7 +223,7 @@ export const getUserProfile = async (req, res) => {
     const cacheData = { ...responseData }
     delete cacheData.isFollowing
     await cacheService.setUserProfile(username, cacheData)
-    logger.info('getUserProfile - Guardado en caché:', { username })
+    logger.debug('getUserProfile - Guardado en caché:', { username })
 
     res.json({
       success: true,

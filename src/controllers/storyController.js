@@ -175,7 +175,7 @@ export const getStoriesForFeed = async (req, res) => {
   try {
     // Implementar caché para mejorar rendimiento
     const cacheKey = getFeedCacheKey()
-    logger.info('Cache key generado para feed de historias:', { cacheKey })
+    logger.debug('Cache key generado para feed de historias:', { cacheKey })
 
     // Intentar obtener del caché
     let stories = await cache.get(cacheKey)

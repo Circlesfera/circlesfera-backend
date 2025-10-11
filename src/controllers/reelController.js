@@ -146,7 +146,7 @@ export const getReelsForFeed = async (req, res) => {
 
     // Implementar caché para mejorar rendimiento
     const cacheKey = `reels_feed:${page}:${limit}`
-    logger.info('Cache key generado para feed de reels:', { cacheKey })
+    logger.debug('Cache key generado para feed de reels:', { cacheKey })
 
     // Intentar obtener del caché
     const cachedReels = await cache.get(cacheKey)

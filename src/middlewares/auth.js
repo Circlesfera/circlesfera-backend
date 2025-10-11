@@ -83,8 +83,9 @@ const auth = async (req, res, next) => {
     req.userId = user._id
     req.token = token // Guardar token para blacklist en logout
 
-    if (config.isDevelopment) {
-      logger.info('Auth middleware - Usuario autenticado:', {
+    // Solo loggear en modo debug para reducir ruido
+    if (config.isDevelopment && process.env.LOG_LEVEL === 'debug') {
+      logger.debug('Auth middleware - Usuario autenticado:', {
         userId: user._id.toString(),
         username: user.username,
         email: user.email

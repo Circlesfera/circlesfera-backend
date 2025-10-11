@@ -138,12 +138,12 @@ export const getFeed = async (req, res) => {
 
     // Implementar caché para mejorar rendimiento
     const cacheKey = `feed:${userId}:${page}:${limit}`
-    logger.info('Cache key generado para feed:', { cacheKey })
+    logger.debug('Cache key generado para feed:', { cacheKey })
 
     // Intentar obtener del caché
     const cachedFeed = await cache.get(cacheKey)
     if (cachedFeed) {
-      logger.info(`Feed servido desde caché para usuario ${userId}`)
+      logger.debug(`Feed servido desde caché para usuario ${userId}`)
       return res.json(cachedFeed)
     }
 

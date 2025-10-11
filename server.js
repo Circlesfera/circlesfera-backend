@@ -152,37 +152,41 @@ connectDB()
 
 // Redis eliminado para simplificar el desarrollo local
 
-// Configurar Swagger en desarrollo (importación dinámica)
+
+// Configurar Swagger en desarrollo (ANTES de las rutas de API)
 if (config.isDevelopment) {
-  import('swagger-ui-express').then(swaggerUi => {
-    import('./src/config/swagger.js').then(({ default: swaggerSpec }) => {
-      /**
-       * @swagger
-       * /:
-       *   get:
-       *     summary: Redirigir a documentación de API
-       *     responses:
-       *       302:
-       *         description: Redirige a /api-docs
-       */
-      app.get('/', (req, res) => {
-        res.redirect('/api-docs')
-      })
+  try {
+    const swaggerUi = await import('swagger-ui-express')
+    const { default: swaggerSpec } = await import('./src/config/swagger.js')
 
-      app.use(
-        '/api-docs',
-        swaggerUi.default.serve,
-        swaggerUi.default.setup(swaggerSpec, {
-          customSiteTitle: 'CircleSfera API Docs',
-          customCss: '.swagger-ui .topbar { display: none }'
-        })
-      )
-
-      logger.info(
-        `📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`
-      )
+    /**
+     * @swagger
+     * /:
+     *   get:
+     *     summary: Redirigir a documentación de API
+     *     responses:
+     *       302:
+     *         description: Redirige a /api-docs
+     */
+    app.get('/', (req, res) => {
+      res.redirect('/api-docs')
     })
-  })
+
+    app.use(
+      '/api-docs',
+      swaggerUi.default.serve,
+      swaggerUi.default.setup(swaggerSpec, {
+        customSiteTitle: 'CircleSfera API Docs',
+        customCss: '.swagger-ui .topbar { display: none }'
+      })
+    )
+
+    logger.info(
+      `📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`
+    )
+  } catch (error) {
+    logger.error('Error cargando Swagger:', error)
+  }
 }
 
 // Health check endpoints (sin rate limiting ni autenticación)
@@ -351,6 +355,7 @@ const startServer = async () => {
     } catch (error) {
       logger.warn('⚠️ Redis no disponible, usando memoria (solo desarrollo)', error.message)
     }
+
 
     // Iniciar servidor
     server.listen(config.port, () => {
