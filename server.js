@@ -191,9 +191,8 @@ app.use('/api/health', healthRoutes)
 // Servir imágenes de uploads
 app.use('/uploads', express.static('uploads'))
 
-// Rutas de la aplicación
+// Rutas de la aplicación (orden importante: específicas primero)
 app.use('/api/auth', authRoutes)
-app.use('/api', userContentRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/comments', commentRoutes)
@@ -205,6 +204,8 @@ app.use('/api/messages', messageRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/live-streams', liveStreamRoutes)
 app.use('/api/cstv', cstvRoutes)
+// User content routes al final (captura /:username/*)
+app.use('/api', userContentRoutes)
 
 // Sentry error handler eliminado
 
