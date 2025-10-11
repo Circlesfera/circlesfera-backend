@@ -25,7 +25,13 @@ import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
 
 // Rutas públicas
 // Proporcionar CSRF token inicial (para formularios que no requieren auth)
-router.get('/csrf-token', provideCsrfToken)
+router.get('/csrf-token', provideCsrfToken, (req, res) => {
+  res.json({
+    success: true,
+    message: 'CSRF token provided',
+    token: req.csrfToken
+  })
+})
 
 // Registro y login (refrescar token CSRF después de autenticación exitosa)
 router.post('/register', validate(registerSchema), register, refreshCsrfToken)

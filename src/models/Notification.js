@@ -26,6 +26,7 @@ const NotificationSchema = new mongoose.Schema({
       'reel_comment',
       'mention',
       'post_share',
+      'message',
       'account_update',
       'security_alert'
     ],
