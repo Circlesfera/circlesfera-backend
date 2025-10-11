@@ -362,8 +362,10 @@ export const getUserPosts = async (req, res) => {
     const { username } = req.params
     logger.info('getUserPosts - Buscando usuario:', { username, params: req.params })
 
-    // Buscar usuario case-insensitive
-    const user = await User.findOne({ username: username.toLowerCase() })
+    // Buscar usuario case-insensitive con regex
+    const user = await User.findOne({
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    })
 
     logger.info('getUserPosts - Resultado búsqueda:', { found: !!user, username: user?.username })
 
