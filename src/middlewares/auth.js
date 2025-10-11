@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'

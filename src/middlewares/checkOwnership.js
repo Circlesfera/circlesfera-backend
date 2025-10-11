@@ -223,6 +223,12 @@ export function checkOwnershipOrAdmin(resourceType, idParam = 'id') {
         })
       }
 
+      // Si es admin, permitir acceso directo
+      if (userRole === 'admin') {
+        logger.info(`Admin ${userId} accediendo a ${resourceType} ${resourceId}`)
+        return next()
+      }
+
       // Si es admin/moderador, permitir sin verificar ownership
       if (userRole === 'admin' || userRole === 'moderator') {
         return next()

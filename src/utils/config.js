@@ -27,10 +27,10 @@ const configFull = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m', // Legacy, usar jwtAccessExpiresIn
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 
-  // CORS
+  // CORS - NO usar fallback en producción
   corsOrigin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',')
-    : ['http://localhost:3001'],
+    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3001']),
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min
@@ -51,7 +51,23 @@ const configFull = {
   minPasswordLength: parseInt(process.env.MIN_PASSWORD_LENGTH, 10) || 8,
 
   // Logging
-  logLevel: process.env.LOG_LEVEL || 'info'
+  logLevel: process.env.LOG_LEVEL || 'info',
+
+  // URLs Públicas
+  appUrl: process.env.APP_URL || (configFull.isProduction ? null : `http://localhost:${configFull.port}`),
+  apiUrl: process.env.API_URL || (configFull.isProduction ? null : `http://localhost:${configFull.port}`),
+
+  // Contacto
+  contactEmail: process.env.CONTACT_EMAIL || 'contact@circlesfera.com',
+  supportEmail: process.env.SUPPORT_EMAIL || 'support@circlesfera.com',
+
+  // Features Flags
+  features: {
+    stories: process.env.FEATURES_STORIES !== 'false',
+    reels: process.env.FEATURES_REELS !== 'false',
+    live: process.env.FEATURES_LIVE !== 'false',
+    messages: process.env.FEATURES_MESSAGES !== 'false'
+  }
 }
 
 /**
@@ -69,12 +85,28 @@ const validateConfig = () => {
     if (!configFull.jwtSecret) {
       errors.push('JWT_SECRET es requerido en producción')
     }
+    if (!configFull.appUrl) {
+      errors.push('APP_URL es requerido en producción')
+    }
+    if (!configFull.apiUrl) {
+      errors.push('API_URL es requerido en producción')
+    }
+    if (configFull.corsOrigin.length === 0) {
+      errors.push('CORS_ORIGIN es requerido en producción')
+    }
   }
 
   // Variables requeridas siempre
   if (!configFull.jwtSecret) {
     errors.push(
       'JWT_SECRET debe estar configurado (genera uno con: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+    )
+  }
+
+  // Validar longitud mínima del JWT secret (seguridad)
+  if (configFull.jwtSecret && configFull.jwtSecret.length < 32) {
+    errors.push(
+      'JWT_SECRET debe tener al menos 32 caracteres para ser seguro (actualmente: ' + configFull.jwtSecret.length + ' caracteres)'
     )
   }
 

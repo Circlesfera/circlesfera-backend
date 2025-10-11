@@ -10,8 +10,8 @@ const options = {
       description: 'API REST para la red social CircleSfera - Instagram + TikTok moderna',
       contact: {
         name: 'CircleSfera Team',
-        url: 'https://github.com/circlesfera',
-        email: 'dev@circlesfera.com'
+        url: process.env.CONTACT_URL || 'https://github.com/circlesfera',
+        email: config.contactEmail
       },
       license: {
         name: 'MIT',
@@ -20,12 +20,8 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${config.port}`,
-        description: 'Servidor de desarrollo'
-      },
-      {
-        url: 'https://api.circlesfera.com',
-        description: 'Servidor de producción'
+        url: config.apiUrl || `http://localhost:${config.port}`,
+        description: config.isProduction ? 'Servidor de producción' : 'Servidor de desarrollo'
       }
     ],
     components: {

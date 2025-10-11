@@ -1,7 +1,6 @@
 import User from '../models/User.js'
 import Post from '../models/Post.js'
 import Story from '../models/Story.js'
-import Reel from '../models/Reel.js'
 import Notification from '../models/Notification.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'

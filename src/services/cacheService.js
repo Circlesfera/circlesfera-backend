@@ -12,21 +12,22 @@
 
 import redisService from './redisService.js'
 import logger from '../utils/logger.js'
-import { config } from '../utils/config.js'
+import { CACHE_TTL } from '../config/constants.js'
 
 class CacheService {
   constructor() {
     // Configuración de TTL (tiempo de vida) por tipo de dato
+    // Usar constantes centralizadas en lugar de hardcodear valores
     this.TTL = {
-      USER_PROFILE: 15 * 60, // 15 minutos
-      USER_STATS: 10 * 60, // 10 minutos
-      FEED: 5 * 60, // 5 minutos
-      STORIES: 2 * 60, // 2 minutos (cambian frecuentemente)
-      TRENDING_POSTS: 30 * 60, // 30 minutos
-      TRENDING_REELS: 30 * 60, // 30 minutos
-      POST_DETAIL: 10 * 60, // 10 minutos
-      REEL_DETAIL: 10 * 60, // 10 minutos
-      CONVERSATIONS: 5 * 60 // 5 minutos
+      USER_PROFILE: CACHE_TTL.USER_PROFILE, // 15 minutos
+      USER_STATS: CACHE_TTL.USER_STATS, // 10 minutos
+      FEED: CACHE_TTL.FEED, // 5 minutos
+      STORIES: CACHE_TTL.STORIES, // 2 minutos
+      TRENDING_POSTS: CACHE_TTL.TRENDING_POSTS, // 30 minutos
+      TRENDING_REELS: CACHE_TTL.TRENDING_POSTS, // 30 minutos
+      POST_DETAIL: CACHE_TTL.USER_STATS, // 10 minutos
+      REEL_DETAIL: CACHE_TTL.USER_STATS, // 10 minutos
+      CONVERSATIONS: CACHE_TTL.FEED // 5 minutos
     }
 
     // Prefijos de claves para organización
@@ -59,8 +60,9 @@ class CacheService {
       // Intentar parsear JSON
       try {
         return JSON.parse(cached)
-      } catch (e) {
-        // Si no es JSON, devolver string
+      } catch {
+        // Si no es JSON, devolver string (comportamiento esperado para algunos valores)
+        // No loggeamos en debug porque es comportamiento normal
         return cached
       }
     } catch (error) {

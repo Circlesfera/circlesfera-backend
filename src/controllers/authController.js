@@ -1,5 +1,4 @@
 import User from '../models/User.js'
-import jwt from 'jsonwebtoken'
 import { validationResult } from 'express-validator'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
@@ -211,8 +210,8 @@ export const updateProfile = async (req, res) => {
     if (req.files && req.files.avatar && req.files.avatar.length > 0) {
       const avatarFile = req.files.avatar[0]
 
-      // Construir la URL del avatar usando la misma lógica que otros controladores
-      const baseUrl = `${req.protocol}://${req.get('host')}`
+      // Obtener la URL base del servidor desde config (o fallback a request)
+      const baseUrl = config.appUrl || `${req.protocol}://${req.get('host')}`
       const avatarUrl = `${baseUrl}/uploads/${avatarFile.filename}`
       user.avatar = avatarUrl
 

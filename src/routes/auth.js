@@ -23,7 +23,11 @@ import imageOptimizer from '../middlewares/imageOptimizer.js'
 import { provideCsrfToken, refreshCsrfToken, clearCsrfCookie, csrfProtection } from '../middlewares/csrf.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
 
-// Rutas públicas (proporcionar token CSRF después de login/register)
+// Rutas públicas
+// Proporcionar CSRF token inicial (para formularios que no requieren auth)
+router.get('/csrf-token', provideCsrfToken)
+
+// Registro y login (refrescar token CSRF después de autenticación exitosa)
 router.post('/register', validate(registerSchema), register, refreshCsrfToken)
 router.post('/login', rateLimitByUser('login', { enforceInDev: true }), validate(loginSchema), login, refreshCsrfToken)
 router.get('/check-username/:username', checkUsernameAvailability)

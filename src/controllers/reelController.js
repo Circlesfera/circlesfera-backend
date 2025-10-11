@@ -4,6 +4,7 @@ import Notification from '../models/Notification.js'
 import { validationResult } from 'express-validator'
 import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
+import { config } from '../utils/config.js'
 import {
   getPaginationOptions,
   createPaginatedResponse
@@ -46,8 +47,8 @@ export const createReel = async (req, res) => {
       })
     }
 
-    // Construir URL completa del servidor
-    const baseUrl = `${req.protocol}://${req.get('host')}`
+    // Obtener la URL base del servidor desde config (o fallback a request)
+    const baseUrl = config.appUrl || `${req.protocol}://${req.get('host')}`
     const videoUrl = `${baseUrl}/uploads/${req.files.video[0].filename}`
 
     // Crear objeto del reel

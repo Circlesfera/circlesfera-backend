@@ -11,7 +11,11 @@ const connectDB = async () => {
     }
 
     logger.info('🔗 Intentando conectar a MongoDB...')
-    logger.info(`📊 URI: ${mongoURI}`)
+    // Ocultar credenciales en logs - solo mostrar host
+    const sanitizedUri = mongoURI.includes('@')
+      ? `mongodb://${mongoURI.split('@')[1]}`
+      : 'mongodb://localhost'
+    logger.info(`📊 Conectando a: ${sanitizedUri}`)
 
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,
