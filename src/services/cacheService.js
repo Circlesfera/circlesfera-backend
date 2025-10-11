@@ -118,11 +118,8 @@ class CacheService {
       const keys = await redisService.keys(pattern)
       if (keys.length === 0) { return 0 }
 
-      let deleted = 0
-      for (const key of keys) {
-        await redisService.del(key)
-        deleted++
-      }
+      await Promise.all(keys.map(key => redisService.del(key)))
+      const deleted = keys.length
 
       logger.info(`Caché invalidado: ${deleted} claves eliminadas (${pattern})`)
       return deleted
@@ -167,7 +164,7 @@ class CacheService {
    * @param {string} username - Username del usuario
    * @returns {Promise<object|null>}
    */
-  async getUserProfile(username) {
+  getUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
     return this.get(key)
   }
@@ -178,7 +175,7 @@ class CacheService {
    * @param {object} profile - Datos del perfil
    * @returns {Promise<boolean>}
    */
-  async setUserProfile(username, profile) {
+  setUserProfile(username, profile) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
     return this.set(key, profile, this.TTL.USER_PROFILE)
   }
@@ -188,7 +185,7 @@ class CacheService {
    * @param {string} username - Username del usuario
    * @returns {Promise<boolean>}
    */
-  async invalidateUserProfile(username) {
+  invalidateUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
     return this.del(key)
   }
@@ -199,7 +196,7 @@ class CacheService {
    * @param {number} page - Página
    * @returns {Promise<object|null>}
    */
-  async getFeed(userId, page = 1) {
+  getFeed(userId, page = 1) {
     const key = `${this.KEYS.FEED}${userId}:page:${page}`
     return this.get(key)
   }
@@ -211,7 +208,7 @@ class CacheService {
    * @param {object} feed - Datos del feed
    * @returns {Promise<boolean>}
    */
-  async setFeed(userId, page, feed) {
+  setFeed(userId, page, feed) {
     const key = `${this.KEYS.FEED}${userId}:page:${page}`
     return this.set(key, feed, this.TTL.FEED)
   }
@@ -221,7 +218,7 @@ class CacheService {
    * @param {string} userId - ID del usuario
    * @returns {Promise<number>}
    */
-  async invalidateFeed(userId) {
+  invalidateFeed(userId) {
     const pattern = `${this.KEYS.FEED}${userId}:*`
     return this.delPattern(pattern)
   }
@@ -233,12 +230,10 @@ class CacheService {
    * @returns {Promise<number>}
    */
   async invalidateFollowersFeeds(followerIds) {
-    let totalDeleted = 0
-    for (const followerId of followerIds) {
-      const deleted = await this.invalidateFeed(followerId)
-      totalDeleted += deleted
-    }
-    return totalDeleted
+    const deletedCounts = await Promise.all(
+      followerIds.map(followerId => this.invalidateFeed(followerId))
+    )
+    return deletedCounts.reduce((sum, count) => sum + count, 0)
   }
 
   /**
@@ -246,7 +241,7 @@ class CacheService {
    * @param {string} userId - ID del usuario solicitante
    * @returns {Promise<object|null>}
    */
-  async getStories(userId) {
+  getStories(userId) {
     const key = `${this.KEYS.STORIES}${userId}`
     return this.get(key)
   }
@@ -257,7 +252,7 @@ class CacheService {
    * @param {object} stories - Datos de stories
    * @returns {Promise<boolean>}
    */
-  async setStories(userId, stories) {
+  setStories(userId, stories) {
     const key = `${this.KEYS.STORIES}${userId}`
     return this.set(key, stories, this.TTL.STORIES)
   }
@@ -284,7 +279,7 @@ class CacheService {
    * Obtener posts trending del caché
    * @returns {Promise<object|null>}
    */
-  async getTrendingPosts() {
+  getTrendingPosts() {
     return this.get(this.KEYS.TRENDING_POSTS)
   }
 
@@ -293,7 +288,7 @@ class CacheService {
    * @param {object} posts - Posts trending
    * @returns {Promise<boolean>}
    */
-  async setTrendingPosts(posts) {
+  setTrendingPosts(posts) {
     return this.set(this.KEYS.TRENDING_POSTS, posts, this.TTL.TRENDING_POSTS)
   }
 
@@ -301,7 +296,7 @@ class CacheService {
    * Obtener reels trending del caché
    * @returns {Promise<object|null>}
    */
-  async getTrendingReels() {
+  getTrendingReels() {
     return this.get(this.KEYS.TRENDING_REELS)
   }
 
@@ -310,7 +305,7 @@ class CacheService {
    * @param {object} reels - Reels trending
    * @returns {Promise<boolean>}
    */
-  async setTrendingReels(reels) {
+  setTrendingReels(reels) {
     return this.set(this.KEYS.TRENDING_REELS, reels, this.TTL.TRENDING_REELS)
   }
 
@@ -319,7 +314,7 @@ class CacheService {
    * @param {string} postId - ID del post
    * @returns {Promise<object|null>}
    */
-  async getPost(postId) {
+  getPost(postId) {
     const key = `${this.KEYS.POST}${postId}`
     return this.get(key)
   }
@@ -330,7 +325,7 @@ class CacheService {
    * @param {object} post - Datos del post
    * @returns {Promise<boolean>}
    */
-  async setPost(postId, post) {
+  setPost(postId, post) {
     const key = `${this.KEYS.POST}${postId}`
     return this.set(key, post, this.TTL.POST_DETAIL)
   }
@@ -340,7 +335,7 @@ class CacheService {
    * @param {string} postId - ID del post
    * @returns {Promise<boolean>}
    */
-  async invalidatePost(postId) {
+  invalidatePost(postId) {
     const key = `${this.KEYS.POST}${postId}`
     return this.del(key)
   }
@@ -360,10 +355,16 @@ class CacheService {
       ]
 
       const stats = {}
-      for (const { name, pattern } of patterns) {
-        const keys = await redisService.keys(pattern)
-        stats[name] = keys.length
-      }
+      const results = await Promise.all(
+        patterns.map(async ({ name, pattern }) => ({
+          name,
+          count: (await redisService.keys(pattern)).length
+        }))
+      )
+
+      results.forEach(({ name, count }) => {
+        stats[name] = count
+      })
 
       return stats
     } catch (error) {
@@ -376,7 +377,7 @@ class CacheService {
    * Limpiar todo el caché (usar con precaución)
    * @returns {Promise<number>}
    */
-  async flush() {
+  flush() {
     logger.warn('⚠️ Limpiando TODO el caché...')
     return this.delPattern('*')
   }

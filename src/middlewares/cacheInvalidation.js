@@ -190,7 +190,7 @@ export const invalidateMultiple = (types = []) => async (req, res, next) => {
  * Helper para invalidar caché en respuesta exitosa
  * Solo invalida si la operación fue exitosa (status 2xx)
  */
-export const invalidateOnSuccess = (invalidationFn) => async (req, res, next) => {
+export const invalidateOnSuccess = (invalidationFn) => (req, res, next) => {
   // Interceptar res.json para detectar respuesta exitosa
   const originalJson = res.json.bind(res)
 

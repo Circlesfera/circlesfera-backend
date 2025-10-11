@@ -308,10 +308,12 @@ MessageSchema.statics.searchMessages = function (conversationId, query, options 
 MessageSchema.statics.getMessageStats = function (conversationId) {
   return this.aggregate([
     { $match: { conversation: mongoose.Types.ObjectId(conversationId), isDeleted: false } },
-    { $group: {
-      _id: '$type',
-      count: { $sum: 1 }
-    } },
+    {
+      $group: {
+        _id: '$type',
+        count: { $sum: 1 }
+      }
+    },
     { $sort: { count: -1 } }
   ])
 }
@@ -366,11 +368,14 @@ MessageSchema.post('save', async function () {
   // Incrementar contador de no leídos para otros participantes
   const conversation = await Conversation.findById(this.conversation)
   if (conversation) {
-    for (const participantId of conversation.participants) {
-      if (participantId.toString() !== this.sender.toString()) {
-        await conversation.incrementUnreadCount(participantId)
-      }
-    }
+    const participantsToNotify = conversation.participants.filter(
+      participantId => participantId.toString() !== this.sender.toString()
+    )
+    await Promise.all(
+      participantsToNotify.map(participantId =>
+        conversation.incrementUnreadCount(participantId)
+      )
+    )
   }
 })
 

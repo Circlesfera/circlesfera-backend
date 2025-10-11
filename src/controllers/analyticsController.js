@@ -32,12 +32,14 @@ export const trackEvent = async (req, res) => {
       eventData.user = req.user.id
     }
 
-    // Guardar evento (sin esperar)
-    AnalyticsEvent.create(eventData).catch(err => {
+    // Guardar evento
+    try {
+      await AnalyticsEvent.create(eventData)
+    } catch (err) {
       logger.error('Error guardando evento de analytics:', err)
-    })
+    }
 
-    // Responder inmediatamente para no afectar performance
+    // Responder inmediatamente
     res.status(204).send()
   } catch (error) {
     logger.error('Error en trackEvent:', error)

@@ -76,7 +76,7 @@ class SocketService {
         logger.info(`💬 ${socket.user.username} salió de la conversación ${conversationId}`)
       })
 
-      socket.on('send_message', async (data) => {
+      socket.on('send_message', (data) => {
         try {
           const { conversationId, content, replyTo } = data
 

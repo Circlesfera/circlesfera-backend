@@ -210,28 +210,33 @@ export const validateMultipleFiles = (fileType) => async (req, res, next) => {
       return next()
     }
 
-    // Validar cada archivo
+    // Obtener todos los archivos en un solo array
+    const allFiles = []
     for (const fieldname in files) {
       const fileArray = Array.isArray(files[fieldname]) ? files[fieldname] : [files[fieldname]]
+      allFiles.push(...fileArray)
+    }
 
-      for (const file of fileArray) {
-        // Validar tamaño
-        if (!validateFileSize(file.size, fileType)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Uno de los archivos excede el tamaño máximo permitido'
-          })
-        }
-
-        // Validar tipo
-        const isValid = await validateFileType(file.buffer, fileType)
-        if (!isValid) {
-          return res.status(400).json({
-            success: false,
-            message: 'Uno de los archivos no es del tipo permitido'
-          })
-        }
+    // Validar tamaños
+    for (const file of allFiles) {
+      if (!validateFileSize(file.size, fileType)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Uno de los archivos excede el tamaño máximo permitido'
+        })
       }
+    }
+
+    // Validar tipos en paralelo
+    const validations = await Promise.all(
+      allFiles.map(file => validateFileType(file.buffer, fileType))
+    )
+
+    if (validations.some(isValid => !isValid)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Uno de los archivos no es del tipo permitido'
+      })
     }
 
     next()

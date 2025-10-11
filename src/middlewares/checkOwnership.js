@@ -210,7 +210,7 @@ export const checkConversationParticipant = (idParam = 'id') => async (req, res,
  * @param {string} idParam - Nombre del parámetro de ID
  * @returns {Function} Middleware
  */
-export const checkOwnershipOrAdmin = (resourceType, idParam = 'id') => async (req, res, next) => {
+export const checkOwnershipOrAdmin = (resourceType, idParam = 'id') => (req, res, next) => {
   try {
     const resourceId = req.params[idParam]
     const userId = req.user?._id || req.userId

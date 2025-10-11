@@ -301,7 +301,7 @@ app.use(errorMonitoringMiddleware)
 logger.info('✅ Caché en memoria inicializado correctamente')
 
 // Cron jobs programados para mantenimiento
-setInterval(async () => {
+setInterval(() => {
   try {
     // Limpiar caché en memoria periódicamente
     cache.cleanup()

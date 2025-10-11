@@ -30,9 +30,12 @@ const configFull = {
   bcryptSaltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12,
 
   // CORS - NO usar fallback en producción
-  corsOrigin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-    : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3001']),
+  corsOrigin: (() => {
+    if (process.env.CORS_ORIGIN) {
+      return process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+    }
+    return process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3001']
+  })(),
 
   // Rate Limiting
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min

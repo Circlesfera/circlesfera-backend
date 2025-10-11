@@ -109,18 +109,19 @@ export const sendTextMessage = async (req, res) => {
 
     // Enviar notificaciones a otros participantes
     const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
-    for (const participantId of otherParticipants) {
-      await Notification.create({
-        user: participantId,
-        from: req.user.id,
-        type: 'message',
-        title: 'Nuevo mensaje',
-        message: `${req.user.username} te envió un mensaje`,
-        data: {
-          conversation: conversationId,
-          message: message._id
-        }
-      })
+    const notifications = otherParticipants.map(participantId => ({
+      user: participantId,
+      from: req.user.id,
+      type: 'message',
+      title: 'Nuevo mensaje',
+      message: `${req.user.username} te envió un mensaje`,
+      data: {
+        conversation: conversationId,
+        message: message._id
+      }
+    }))
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications)
     }
 
     // Emitir evento de nuevo mensaje via WebSocket
@@ -208,18 +209,19 @@ export const sendImageMessage = async (req, res) => {
 
     // Enviar notificaciones
     const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
-    for (const participantId of otherParticipants) {
-      await Notification.create({
-        user: participantId,
-        from: req.user.id,
-        type: 'message',
-        title: 'Nueva imagen',
-        message: `${req.user.username} te envió una imagen`,
-        data: {
-          conversation: conversationId,
-          message: message._id
-        }
-      })
+    const notifications = otherParticipants.map(participantId => ({
+      user: participantId,
+      from: req.user.id,
+      type: 'message',
+      title: 'Nueva imagen',
+      message: `${req.user.username} te envió una imagen`,
+      data: {
+        conversation: conversationId,
+        message: message._id
+      }
+    }))
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications)
     }
 
     res.json({
@@ -288,18 +290,19 @@ export const sendVideoMessage = async (req, res) => {
 
     // Enviar notificaciones
     const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
-    for (const participantId of otherParticipants) {
-      await Notification.create({
-        user: participantId,
-        from: req.user.id,
-        type: 'message',
-        title: 'Nuevo video',
-        message: `${req.user.username} te envió un video`,
-        data: {
-          conversation: conversationId,
-          message: message._id
-        }
-      })
+    const notifications = otherParticipants.map(participantId => ({
+      user: participantId,
+      from: req.user.id,
+      type: 'message',
+      title: 'Nuevo video',
+      message: `${req.user.username} te envió un video`,
+      data: {
+        conversation: conversationId,
+        message: message._id
+      }
+    }))
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications)
     }
 
     res.json({
@@ -366,18 +369,19 @@ export const sendLocationMessage = async (req, res) => {
 
     // Enviar notificaciones
     const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
-    for (const participantId of otherParticipants) {
-      await Notification.create({
-        user: participantId,
-        from: req.user.id,
-        type: 'message',
-        title: 'Nueva ubicación',
-        message: `${req.user.username} compartió su ubicación`,
-        data: {
-          conversation: conversationId,
-          message: message._id
-        }
-      })
+    const notifications = otherParticipants.map(participantId => ({
+      user: participantId,
+      from: req.user.id,
+      type: 'message',
+      title: 'Nueva ubicación',
+      message: `${req.user.username} compartió su ubicación`,
+      data: {
+        conversation: conversationId,
+        message: message._id
+      }
+    }))
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications)
     }
 
     res.json({
@@ -529,28 +533,26 @@ export const forwardMessage = async (req, res) => {
       })
     }
 
-    const forwardedMessages = []
+    const forwardedMessages = await Promise.all(
+      conversations.map(async conversation => {
+        const forwardedMessage = new Message({
+          conversation: conversation._id,
+          sender: req.user.id,
+          type: originalMessage.type,
+          content: originalMessage.content,
+          isForwarded: true,
+          originalMessage: originalMessage._id
+        })
 
-    for (const conversation of conversations) {
-      const forwardedMessage = new Message({
-        conversation: conversation._id,
-        sender: req.user.id,
-        type: originalMessage.type,
-        content: originalMessage.content,
-        isForwarded: true,
-        originalMessage: originalMessage._id
-      })
+        await forwardedMessage.save()
+        await forwardedMessage.populate('sender', 'username avatar fullName')
 
-      await forwardedMessage.save()
-      await forwardedMessage.populate('sender', 'username avatar fullName')
+        // Actualizar último mensaje de la conversación
+        await conversation.updateLastMessage(forwardedMessage)
 
-      // Actualizar último mensaje de la conversación
-      await conversation.updateLastMessage(forwardedMessage)
-
-      // Enviar notificaciones
-      const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
-      for (const participantId of otherParticipants) {
-        await Notification.create({
+        // Enviar notificaciones
+        const otherParticipants = conversation.participants.filter(p => p.toString() !== req.user.id)
+        const notifs = otherParticipants.map(participantId => ({
           user: participantId,
           from: req.user.id,
           type: 'message',
@@ -560,11 +562,14 @@ export const forwardMessage = async (req, res) => {
             conversation: conversation._id,
             message: forwardedMessage._id
           }
-        })
-      }
+        }))
+        if (notifs.length > 0) {
+          await Notification.insertMany(notifs)
+        }
 
-      forwardedMessages.push(forwardedMessage)
-    }
+        return forwardedMessage
+      })
+    )
 
     res.json({
       success: true,

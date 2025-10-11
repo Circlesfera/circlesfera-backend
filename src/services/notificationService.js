@@ -118,7 +118,7 @@ class NotificationService {
    * Enviar notificación en tiempo real
    * @param {Notification} notification - Notificación a enviar
    */
-  async sendRealTimeNotification(notification) {
+  sendRealTimeNotification(notification) {
     try {
       if (this.socketService) {
         this.socketService.emitToUser(notification.user.toString(), 'notification', {

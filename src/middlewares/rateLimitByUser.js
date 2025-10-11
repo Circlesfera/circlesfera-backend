@@ -155,9 +155,7 @@ export const resetRateLimitForUser = async (userId, operation = null) => {
       // Resetear todas las operaciones
       const pattern = `ratelimit:user:${userId}:*`
       const keys = await redisService.keys(pattern)
-      for (const key of keys) {
-        await redisService.del(key)
-      }
+      await Promise.all(keys.map(key => redisService.del(key)))
       logger.info(`Todos los rate limits reseteados para usuario ${userId}`)
     }
   } catch (error) {
@@ -176,18 +174,22 @@ export const getRateLimitStats = async (userId) => {
     const keys = await redisService.keys(pattern)
 
     const stats = {}
-    for (const key of keys) {
-      const operation = key.split(':')[3]
-      const count = await redisService.get(key)
-      const limit = getLimitForOperation(operation)
+    const keysData = await Promise.all(
+      keys.map(async key => ({
+        operation: key.split(':')[3],
+        count: await redisService.get(key)
+      }))
+    )
 
+    keysData.forEach(({ operation, count }) => {
+      const limit = getLimitForOperation(operation)
       stats[operation] = {
         current: parseInt(count || '0'),
         max: limit.max,
         remaining: limit.max - parseInt(count || '0'),
         window: limit.window
       }
-    }
+    })
 
     return stats
   } catch (error) {

@@ -121,9 +121,7 @@ class DatabaseOptimizer {
       { isPrivate: 1, isActive: 1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(User, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(User, index)))
   }
 
   /**
@@ -147,9 +145,7 @@ class DatabaseOptimizer {
       { type: 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Post, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Post, index)))
   }
 
   /**
@@ -173,9 +169,7 @@ class DatabaseOptimizer {
       { views: 1, likes: 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Reel, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Reel, index)))
   }
 
   /**
@@ -197,9 +191,7 @@ class DatabaseOptimizer {
       { expiresAt: 1, isDeleted: 1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Story, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Story, index)))
   }
 
   /**
@@ -219,9 +211,7 @@ class DatabaseOptimizer {
       { 'likes': 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Comment, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Comment, index)))
   }
 
   /**
@@ -241,9 +231,7 @@ class DatabaseOptimizer {
       { createdAt: 1, isRead: 1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Notification, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Notification, index)))
   }
 
   /**
@@ -263,9 +251,7 @@ class DatabaseOptimizer {
       { isPublic: 1, status: 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(LiveStream, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(LiveStream, index)))
   }
 
   /**
@@ -287,9 +273,7 @@ class DatabaseOptimizer {
       { isPublished: 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(CSTV, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(CSTV, index)))
   }
 
   /**
@@ -307,9 +291,7 @@ class DatabaseOptimizer {
       { isActive: 1, updatedAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Conversation, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Conversation, index)))
   }
 
   /**
@@ -329,9 +311,7 @@ class DatabaseOptimizer {
       { 'readBy': 1, createdAt: -1 }
     ]
 
-    for (const index of indexes) {
-      await this.createIndex(Message, index)
-    }
+    await Promise.all(indexes.map(index => this.createIndex(Message, index)))
   }
 
   /**
@@ -421,15 +401,20 @@ class DatabaseOptimizer {
     try {
       const collections = await mongoose.connection.db.listCollections().toArray()
       const indexesInfo = {}
+      const indexesData = await Promise.all(
+        collections.map(async collection => ({
+          collectionName: collection.name,
+          indexes: await mongoose.connection.db.collection(collection.name).indexes()
+        }))
+      )
 
-      for (const collection of collections) {
-        const indexes = await mongoose.connection.db.collection(collection.name).indexes()
-        indexesInfo[collection.name] = indexes.map(index => ({
+      indexesData.forEach(({ collectionName, indexes }) => {
+        indexesInfo[collectionName] = indexes.map(index => ({
           name: index.name,
           key: index.key,
           size: index.size || 0
         }))
-      }
+      })
 
       return indexesInfo
     } catch (error) {

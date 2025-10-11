@@ -205,7 +205,7 @@ UserSchema.pre('save', function (next) {
   next()
 })
 
-UserSchema.methods.comparePassword = async function (candidatePassword) {
+UserSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password)
 }
 
@@ -272,7 +272,7 @@ UserSchema.statics.isUsernameAvailable = async function (username) {
 }
 
 // Método para bloquear un username
-UserSchema.statics.blockUsername = async function (userId, username) {
+UserSchema.statics.blockUsername = function (userId, username) {
   const normalizedUsername = username.toLowerCase().trim()
   return this.findByIdAndUpdate(
     userId,
@@ -282,7 +282,7 @@ UserSchema.statics.blockUsername = async function (userId, username) {
 }
 
 // Método para desbloquear un username
-UserSchema.statics.unblockUsername = async function (userId, username) {
+UserSchema.statics.unblockUsername = function (userId, username) {
   const normalizedUsername = username.toLowerCase().trim()
   return this.findByIdAndUpdate(
     userId,

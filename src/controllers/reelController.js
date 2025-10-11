@@ -99,18 +99,18 @@ export const createReel = async (req, res) => {
       if (user && user.followers && user.followers.length > 0) {
         // Notificar a los primeros 10 seguidores para evitar spam
         const followersToNotify = user.followers.slice(0, 10)
-
-        for (const followerId of followersToNotify) {
-          await Notification.create({
-            user: followerId,
-            type: 'new_reel',
-            fromUser: req.userId,
-            content: `${user.username} subió un nuevo reel`,
-            relatedContent: {
-              type: 'reel',
-              id: reel._id
-            }
-          })
+        const notificationsData = followersToNotify.map(followerId => ({
+          user: followerId,
+          type: 'new_reel',
+          fromUser: req.userId,
+          content: `${user.username} subió un nuevo reel`,
+          relatedContent: {
+            type: 'reel',
+            id: reel._id
+          }
+        }))
+        if (notificationsData.length > 0) {
+          await Notification.insertMany(notificationsData)
         }
       }
     } catch (notifError) {

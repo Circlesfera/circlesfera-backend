@@ -273,13 +273,13 @@ CSTVSchema.virtual('savesCount').get(function () {
 })
 
 // Virtual para verificar si un usuario le dio like
-CSTVSchema.virtual('isLikedByUser').get(() => 
+CSTVSchema.virtual('isLikedByUser').get(() =>
   // Este virtual se poblará dinámicamente
   false
 )
 
 // Virtual para verificar si un usuario guardó el video
-CSTVSchema.virtual('isSavedByUser').get(() => 
+CSTVSchema.virtual('isSavedByUser').get(() =>
   // Este virtual se poblará dinámicamente
   false
 )
@@ -292,9 +292,9 @@ CSTVSchema.virtual('formattedDuration').get(function () {
 
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-  } 
+  }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  
+
 })
 
 // Método para agregar view
@@ -432,7 +432,7 @@ CSTVSchema.pre('save', function (next) {
 })
 
 // Middleware post-save para notificar followers
-CSTVSchema.post('save', async function () {
+CSTVSchema.post('save', function () {
   if (this.isNew && this.isPublished) {
     // Aquí podrías agregar lógica para notificar a los seguidores
     // sobre el nuevo video de CSTV usando notificationService
