@@ -1,6 +1,6 @@
-const mongoose = require('mongoose')
-const bcrypt = require('bcryptjs')
-const { config } = require('../utils/config')
+import mongoose from 'mongoose'
+import bcrypt from 'bcryptjs'
+import { config } from '../utils/config.js'
 
 const UserSchema = new mongoose.Schema({
   username: {
@@ -189,14 +189,14 @@ UserSchema.pre('save', function(next) {
     error.name = 'ValidationError'
     return next(error)
   }
-  
+
   // Validar que no se bloquee a sí mismo
   if (this.blockedUsers && this.blockedUsers.includes(this._id)) {
     const error = new Error('Un usuario no puede bloquearse a sí mismo')
     error.name = 'ValidationError'
     return next(error)
   }
-  
+
   next()
 })
 
@@ -286,4 +286,4 @@ UserSchema.statics.unblockUsername = async function(userId, username) {
   )
 }
 
-module.exports = mongoose.model('User', UserSchema)
+export default mongoose.model('User', UserSchema)

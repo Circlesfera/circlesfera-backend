@@ -1,18 +1,19 @@
 // Solo cargar dotenv si no hay variables de entorno ya configuradas (Docker, etc.)
+import dotenv from 'dotenv'
 if (!process.env.JWT_SECRET && !process.env.MONGODB_URI) {
-  require('dotenv').config()
+  dotenv.config()
 }
-const express = require('express')
-const cors = require('cors')
-const morgan = require('morgan')
-const helmet = require('helmet')
-const rateLimit = require('express-rate-limit')
-const compression = require('compression')
-const http = require('http')
-const connectDB = require('./src/config/db')
-const socketService = require('./src/services/socketService')
-const logger = require('./src/utils/logger')
-const { config, validateConfig } = require('./src/utils/config')
+
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import compression from 'compression'
+import http from 'http'
+import connectDB from './src/config/db.js'
+import socketService from './src/services/socketService.js'
+import logger from './src/utils/logger.js'
+import { config, validateConfig } from './src/utils/config.js'
 
 const app = express()
 
@@ -29,10 +30,33 @@ try {
 }
 
 // Configuración de monitoreo y optimización
-const { initMonitoring } = require('./src/utils/monitoring')
-const { monitoringMiddleware, errorMonitoringMiddleware } = require('./src/middlewares/monitoring')
-const dbOptimizer = require('./src/utils/dbOptimizer')
-const cache = require('./src/utils/cache')
+import { initMonitoring } from './src/utils/monitoring.js'
+import { monitoringMiddleware, errorMonitoringMiddleware } from './src/middlewares/monitoring.js'
+import cache from './src/utils/cache.js'
+
+// Request ID tracking
+import requestId from './src/middlewares/requestId.js'
+
+// Sanitización - Compatible con Express 5
+import { sanitizeMongo, sanitizeBody } from './src/middlewares/sanitize.js'
+
+// Health check endpoints
+import healthRoutes from './src/routes/health.js'
+
+// Rutas
+import authRoutes from './src/routes/auth.js'
+import userContentRoutes from './src/routes/userContent.js'
+import postRoutes from './src/routes/post.js'
+import userRoutes from './src/routes/user.js'
+import commentRoutes from './src/routes/comment.js'
+import storyRoutes from './src/routes/story.js'
+import reelRoutes from './src/routes/reel.js'
+import notificationRoutes from './src/routes/notification.js'
+import conversationRoutes from './src/routes/conversation.js'
+import messageRoutes from './src/routes/message.js'
+import analyticsRoutes from './src/routes/analytics.js'
+import liveStreamRoutes from './src/routes/liveStream.js'
+import cstvRoutes from './src/routes/cstv.js'
 
 // Compresión HTTP
 app.use(compression())
@@ -94,11 +118,9 @@ app.use('/api/cstv', limiter)
 app.use('/api/:username', limiter)
 
 // Request ID tracking
-const requestId = require('./src/middlewares/requestId')
 app.use(requestId)
 
 // Sanitización - Compatible con Express 5
-const { sanitizeMongo, sanitizeBody } = require('./src/middlewares/sanitize')
 app.use(sanitizeMongo)
 app.use(sanitizeBody)
 
@@ -123,90 +145,67 @@ app.use(cors({
   exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges']
 }))
 
-// Logging HTTP con Morgan
-if (config.isDevelopment) {
-  app.use(
-    morgan('dev', {
-      skip: (req) => req.method === 'OPTIONS' // Saltar peticiones OPTIONS para evitar conflictos
-    })
-  )
-
-  // Middleware de monitoreo
-  app.use(monitoringMiddleware)
-} else {
-  // En producción, logging mínimo
-  app.use(
-    morgan('combined', {
-      skip: (req) => req.method === 'OPTIONS'
-    })
-  )
-
-  // Middleware de monitoreo
-  app.use(monitoringMiddleware)
-}
+// Middleware de monitoreo (sin Morgan - usamos Winston)
+app.use(monitoringMiddleware)
 
 // Conexión a la base de datos
 connectDB()
 
 // Redis eliminado para simplificar el desarrollo local
 
-// Swagger Documentation
+// Configurar Swagger en desarrollo (importación dinámica)
 if (config.isDevelopment) {
-  const swaggerUi = require('swagger-ui-express')
-  const swaggerSpec = require('./src/config/swagger')
+  import('swagger-ui-express').then(swaggerUi => {
+    import('./src/config/swagger.js').then(({ default: swaggerSpec }) => {
+      /**
+       * @swagger
+       * /:
+       *   get:
+       *     summary: Redirigir a documentación de API
+       *     responses:
+       *       302:
+       *         description: Redirige a /api-docs
+       */
+      app.get('/', (req, res) => {
+        res.redirect('/api-docs')
+      })
 
-  /**
-   * @swagger
-   * /:
-   *   get:
-   *     summary: Redirigir a documentación de API
-   *     responses:
-   *       302:
-   *         description: Redirige a /api-docs
-   */
-  app.get('/', (req, res) => {
-    res.redirect('/api-docs')
-  })
+      app.use(
+        '/api-docs',
+        swaggerUi.default.serve,
+        swaggerUi.default.setup(swaggerSpec, {
+          customSiteTitle: 'CircleSfera API Docs',
+          customCss: '.swagger-ui .topbar { display: none }'
+        })
+      )
 
-  app.use(
-    '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      customSiteTitle: 'CircleSfera API Docs',
-      customCss: '.swagger-ui .topbar { display: none }'
+      logger.info(
+        `📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`
+      )
     })
-  )
-
-  logger.info(
-    `📚 Documentación API disponible en: http://localhost:${config.port}/api-docs`
-  )
+  })
 }
 
 // Health check endpoints (sin rate limiting ni autenticación)
-app.use('/api/health', require('./src/routes/health'))
+app.use('/api/health', healthRoutes)
 
 // Servir imágenes de uploads
 app.use('/uploads', express.static('uploads'))
 
-// Rutas
-app.use('/api/auth', require('./src/routes/auth'))
-
-// Ruta principal para contenido de usuario (debe ir antes de las rutas específicas)
-app.use('/api', require('./src/routes/userContent'))
-
-// Rutas específicas
-app.use('/api/posts', require('./src/routes/post'))
-app.use('/api/users', require('./src/routes/user'))
-app.use('/api/comments', require('./src/routes/comment'))
-app.use('/api/stories', require('./src/routes/story'))
-app.use('/api/reels', require('./src/routes/reel'))
-app.use('/api/notifications', require('./src/routes/notification'))
-app.use('/api/conversations', require('./src/routes/conversation'))
-app.use('/api/messages', require('./src/routes/message'))
-app.use('/api/analytics', require('./src/routes/analytics'))
-app.use('/api/live-streams', require('./src/routes/liveStream'))
-app.use('/api/live-streams', require('./src/routes/liveComment'))
-app.use('/api/cstv', require('./src/routes/cstv'))
+// Rutas de la aplicación
+app.use('/api/auth', authRoutes)
+app.use('/api', userContentRoutes)
+app.use('/api/posts', postRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/comments', commentRoutes)
+app.use('/api/stories', storyRoutes)
+app.use('/api/reels', reelRoutes)
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/conversations', conversationRoutes)
+app.use('/api/messages', messageRoutes)
+app.use('/api/analytics', analyticsRoutes)
+app.use('/api/live-streams', liveStreamRoutes)
+app.use('/api/cstv', cstvRoutes)
 
 // Sentry error handler eliminado
 

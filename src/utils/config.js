@@ -10,14 +10,7 @@ const config = {
   isProduction: process.env.NODE_ENV === 'production'
 }
 
-// Log de configuración para debug
-console.log('🔧 Backend Config:', {
-  nodeEnv: config.nodeEnv,
-  isDevelopment: config.isDevelopment,
-  isProduction: config.isProduction,
-  port: process.env.PORT || 5001,
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3001'
-})
+// Log de configuración para debug (eliminado console.log - usar logger)
 
 const configFull = {
   // Entorno
@@ -125,4 +118,4 @@ configFull.getPaginationLimit = requested => {
   return Math.min(limit, configFull.maxPageLimit)
 }
 
-module.exports = { config: configFull, validateConfig }
+export { configFull as config, validateConfig }

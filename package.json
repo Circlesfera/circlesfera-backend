@@ -23,7 +23,7 @@
   ],
   "author": "CircleSfera Team",
   "license": "MIT",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Circlesfera/circlesfera-backend/issues"
   },

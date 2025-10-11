@@ -1,5 +1,10 @@
-const winston = require('winston')
-const path = require('path')
+import winston from 'winston'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Configuración de formatos
 const customFormat = winston.format.combine(
@@ -52,7 +57,6 @@ const logger = winston.createLogger({
 })
 
 // Crear directorio de logs si no existe
-const fs = require('fs')
 const logsDir = path.join(process.cwd(), 'logs')
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true })
@@ -61,12 +65,12 @@ if (!fs.existsSync(logsDir)) {
 // Wrapper para mantener compatibilidad con console.log
 logger.log = (level, ...args) => {
   if (typeof level === 'string' && ['error', 'warn', 'info', 'debug'].includes(level)) {
-    const message = args.map(arg => 
+    const message = args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ')
     logger[level](message)
   } else {
-    const message = [level, ...args].map(arg => 
+    const message = [level, ...args].map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
     ).join(' ')
     logger.info(message)
@@ -76,10 +80,10 @@ logger.log = (level, ...args) => {
 // Override del método error para manejar mejor los objetos
 const originalError = logger.error
 logger.error = (message, ...args) => {
-  const processedArgs = args.map(arg => 
+  const processedArgs = args.map(arg =>
     typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
   )
-  
+
   if (processedArgs.length > 0) {
     originalError(message + ' ' + processedArgs.join(' '))
   } else {
@@ -104,5 +108,4 @@ logger.response = (req, res, message) => {
   })
 }
 
-module.exports = logger
-
+export default logger

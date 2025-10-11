@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const PostSchema = new mongoose.Schema({
   user: {
@@ -258,4 +258,4 @@ PostSchema.pre('save', function(next) {
   next()
 })
 
-module.exports = mongoose.model('Post', PostSchema)
+export default mongoose.model('Post', PostSchema)

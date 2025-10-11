@@ -19,8 +19,8 @@ const imageOptimizer = require('../middlewares/imageOptimizer')
 // Validaciones
 const createPostValidation = [
   body('type')
-    .isIn(['image', 'video', 'text'])
-    .withMessage('El tipo debe ser image, video o text'),
+    .isIn(['image', 'video'])
+    .withMessage('El tipo debe ser image o video'),
   body('caption')
     .optional()
     .isLength({ max: 2200 })
