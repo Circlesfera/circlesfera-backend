@@ -169,7 +169,7 @@ class CacheService {
    */
   async getUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
-    return await this.get(key)
+    return this.get(key)
   }
 
   /**
@@ -180,7 +180,7 @@ class CacheService {
    */
   async setUserProfile(username, profile) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
-    return await this.set(key, profile, this.TTL.USER_PROFILE)
+    return this.set(key, profile, this.TTL.USER_PROFILE)
   }
 
   /**
@@ -190,7 +190,7 @@ class CacheService {
    */
   async invalidateUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
-    return await this.del(key)
+    return this.del(key)
   }
 
   /**
@@ -201,7 +201,7 @@ class CacheService {
    */
   async getFeed(userId, page = 1) {
     const key = `${this.KEYS.FEED}${userId}:page:${page}`
-    return await this.get(key)
+    return this.get(key)
   }
 
   /**
@@ -213,7 +213,7 @@ class CacheService {
    */
   async setFeed(userId, page, feed) {
     const key = `${this.KEYS.FEED}${userId}:page:${page}`
-    return await this.set(key, feed, this.TTL.FEED)
+    return this.set(key, feed, this.TTL.FEED)
   }
 
   /**
@@ -223,7 +223,7 @@ class CacheService {
    */
   async invalidateFeed(userId) {
     const pattern = `${this.KEYS.FEED}${userId}:*`
-    return await this.delPattern(pattern)
+    return this.delPattern(pattern)
   }
 
   /**
@@ -248,7 +248,7 @@ class CacheService {
    */
   async getStories(userId) {
     const key = `${this.KEYS.STORIES}${userId}`
-    return await this.get(key)
+    return this.get(key)
   }
 
   /**
@@ -259,7 +259,7 @@ class CacheService {
    */
   async setStories(userId, stories) {
     const key = `${this.KEYS.STORIES}${userId}`
-    return await this.set(key, stories, this.TTL.STORIES)
+    return this.set(key, stories, this.TTL.STORIES)
   }
 
   /**
@@ -273,10 +273,11 @@ class CacheService {
       : `${this.KEYS.STORIES}*`
 
     if (userId) {
-      return await this.del(pattern) ? 1 : 0
-    } 
-    return await this.delPattern(pattern)
-    
+      const result = await this.del(pattern)
+      return result ? 1 : 0
+    }
+    return this.delPattern(pattern)
+
   }
 
   /**
@@ -284,7 +285,7 @@ class CacheService {
    * @returns {Promise<object|null>}
    */
   async getTrendingPosts() {
-    return await this.get(this.KEYS.TRENDING_POSTS)
+    return this.get(this.KEYS.TRENDING_POSTS)
   }
 
   /**
@@ -293,7 +294,7 @@ class CacheService {
    * @returns {Promise<boolean>}
    */
   async setTrendingPosts(posts) {
-    return await this.set(this.KEYS.TRENDING_POSTS, posts, this.TTL.TRENDING_POSTS)
+    return this.set(this.KEYS.TRENDING_POSTS, posts, this.TTL.TRENDING_POSTS)
   }
 
   /**
@@ -301,7 +302,7 @@ class CacheService {
    * @returns {Promise<object|null>}
    */
   async getTrendingReels() {
-    return await this.get(this.KEYS.TRENDING_REELS)
+    return this.get(this.KEYS.TRENDING_REELS)
   }
 
   /**
@@ -310,7 +311,7 @@ class CacheService {
    * @returns {Promise<boolean>}
    */
   async setTrendingReels(reels) {
-    return await this.set(this.KEYS.TRENDING_REELS, reels, this.TTL.TRENDING_REELS)
+    return this.set(this.KEYS.TRENDING_REELS, reels, this.TTL.TRENDING_REELS)
   }
 
   /**
@@ -320,7 +321,7 @@ class CacheService {
    */
   async getPost(postId) {
     const key = `${this.KEYS.POST}${postId}`
-    return await this.get(key)
+    return this.get(key)
   }
 
   /**
@@ -331,7 +332,7 @@ class CacheService {
    */
   async setPost(postId, post) {
     const key = `${this.KEYS.POST}${postId}`
-    return await this.set(key, post, this.TTL.POST_DETAIL)
+    return this.set(key, post, this.TTL.POST_DETAIL)
   }
 
   /**
@@ -341,7 +342,7 @@ class CacheService {
    */
   async invalidatePost(postId) {
     const key = `${this.KEYS.POST}${postId}`
-    return await this.del(key)
+    return this.del(key)
   }
 
   /**
@@ -377,7 +378,7 @@ class CacheService {
    */
   async flush() {
     logger.warn('⚠️ Limpiando TODO el caché...')
-    return await this.delPattern('*')
+    return this.delPattern('*')
   }
 }
 

@@ -181,7 +181,7 @@ UserSchema.virtual('postsCount').get(function () {
   return this.posts ? this.posts.length : 0
 })
 
-UserSchema.virtual('isFollowing').get(() => 
+UserSchema.virtual('isFollowing').get(() =>
   false // Se calculará dinámicamente
 )
 
@@ -206,7 +206,7 @@ UserSchema.pre('save', function (next) {
 })
 
 UserSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password)
+  return bcrypt.compare(candidatePassword, this.password)
 }
 
 UserSchema.methods.toPublicJSON = function () {

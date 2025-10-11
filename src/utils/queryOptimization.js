@@ -358,7 +358,8 @@ export class UserBatchLoader {
     return new Promise((resolve, reject) => {
       // Si ya está en caché, devolver inmediatamente
       if (this.cache.has(userId.toString())) {
-        return resolve(this.cache.get(userId.toString()))
+        resolve(this.cache.get(userId.toString()))
+        return
       }
 
       // Agregar a la cola

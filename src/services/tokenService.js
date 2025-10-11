@@ -108,17 +108,18 @@ class TokenService {
   async blacklistToken(token, expiresIn = null) {
     try {
       // Si no se proporciona expiresIn, calcular desde el token
-      if (!expiresIn) {
+      let ttl = expiresIn
+      if (!ttl) {
         const decoded = jwt.decode(token)
         if (decoded && decoded.exp) {
-          expiresIn = decoded.exp - Math.floor(Date.now() / 1000)
+          ttl = decoded.exp - Math.floor(Date.now() / 1000)
         }
       }
 
       // Solo guardar si aún no ha expirado
-      if (expiresIn && expiresIn > 0) {
+      if (ttl && ttl > 0) {
         const key = `blacklist:${token}`
-        await redisService.set(key, '1', expiresIn)
+        await redisService.set(key, '1', ttl)
         logger.info('Token agregado a blacklist')
       }
     } catch (error) {

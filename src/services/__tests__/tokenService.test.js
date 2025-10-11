@@ -133,7 +133,9 @@ describe('TokenService', () => {
       mockRedisService.exists.mockResolvedValue(false)
 
       // Esperar un momento para que expire
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => {
+        setTimeout(resolve, 100)
+      })
 
       const decoded = await tokenService.verifyToken(token)
 
