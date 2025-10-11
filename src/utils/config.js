@@ -24,6 +24,7 @@ const configFull = {
 
   // Seguridad
   jwtSecret: process.env.JWT_SECRET,
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, // Secret para refresh tokens (diferente por seguridad)
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m', // Access token corto
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d', // Refresh token largo
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m', // Legacy, usar jwtAccessExpiresIn

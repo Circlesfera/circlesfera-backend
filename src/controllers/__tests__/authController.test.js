@@ -45,7 +45,10 @@ describe('Auth Controller', () => {
       // Arrange
       const userData1 = createTestUserData()
       const userData2 = createTestUserData()
-      userData2.email = userData1.email // Same email, different username
+
+      // Asegurar que tengan emails iguales pero usernames DIFERENTES
+      userData2.email = userData1.email // Same email
+      userData2.username = `different_${Date.now()}_${Math.random()}` // Different username
 
       // Create first user
       await User.create(userData1)

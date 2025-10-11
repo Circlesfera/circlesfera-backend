@@ -58,16 +58,45 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true })
 }
 
+/**
+ * Helper para serializar objetos evitando referencias circulares
+ * @param {any} obj - Objeto a serializar
+ * @returns {string} JSON string o fallback
+ */
+const safeStringify = (obj) => {
+  if (typeof obj !== 'object' || obj === null) {
+    return String(obj)
+  }
+
+  try {
+    // Usar un Set para rastrear objetos ya visitados
+    const seen = new WeakSet()
+
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular]'
+        }
+        seen.add(value)
+      }
+      return value
+    }, 2)
+  } catch (error) {
+    // Fallback si aún así falla
+    return '[No serializable]'
+  }
+}
+
 // Wrapper para mantener compatibilidad con console.log
 logger.log = (level, ...args) => {
   if (typeof level === 'string' && ['error', 'warn', 'info', 'debug'].includes(level)) {
     const message = args.map(arg =>
-      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      typeof arg === 'object' ? safeStringify(arg) : String(arg)
     ).join(' ')
     logger[level](message)
   } else {
     const message = [level, ...args].map(arg =>
-      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      typeof arg === 'object' ? safeStringify(arg) : String(arg)
     ).join(' ')
     logger.info(message)
   }
@@ -77,7 +106,7 @@ logger.log = (level, ...args) => {
 const originalError = logger.error
 logger.error = (message, ...args) => {
   const processedArgs = args.map(arg =>
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    typeof arg === 'object' ? safeStringify(arg) : String(arg)
   )
 
   if (processedArgs.length > 0) {

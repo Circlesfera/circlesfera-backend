@@ -15,8 +15,11 @@ class TokenService {
    * @returns {string} Access token
    */
   generateAccessToken(userId) {
+    if (!userId) {
+      throw new Error('userId es requerido para generar access token')
+    }
     return jwt.sign(
-      { id: userId, type: 'access' },
+      { userId, type: 'access' },
       config.jwtSecret,
       { expiresIn: config.jwtAccessExpiresIn }
     )
@@ -28,9 +31,12 @@ class TokenService {
    * @returns {string} Refresh token
    */
   generateRefreshToken(userId) {
+    if (!userId) {
+      throw new Error('userId es requerido para generar refresh token')
+    }
     return jwt.sign(
-      { id: userId, type: 'refresh' },
-      config.jwtSecret,
+      { userId, type: 'refresh' },
+      config.jwtRefreshSecret,
       { expiresIn: config.jwtRefreshExpiresIn }
     )
   }
@@ -48,7 +54,39 @@ class TokenService {
   }
 
   /**
-   * Verificar token JWT
+   * Verificar Access Token específicamente
+   * @param {string} token - Access token a verificar
+   * @returns {object} Payload del token
+   * @throws {Error} Si el token es inválido, expirado o no es access
+   */
+  verifyAccessToken(token) {
+    const decoded = jwt.verify(token, config.jwtSecret)
+
+    if (decoded.type !== 'access') {
+      throw new Error('Token no es de tipo access')
+    }
+
+    return decoded
+  }
+
+  /**
+   * Verificar Refresh Token específicamente
+   * @param {string} token - Refresh token a verificar
+   * @returns {object} Payload del token
+   * @throws {Error} Si el token es inválido, expirado o no es refresh
+   */
+  verifyRefreshToken(token) {
+    const decoded = jwt.verify(token, config.jwtRefreshSecret)
+
+    if (decoded.type !== 'refresh') {
+      throw new Error('Token no es de tipo refresh')
+    }
+
+    return decoded
+  }
+
+  /**
+   * Verificar token JWT (genérico, con blacklist)
    * @param {string} token - Token a verificar
    * @returns {Promise<object|null>} Payload del token o null si es inválido
    */
@@ -61,9 +99,18 @@ class TokenService {
         return null
       }
 
-      // Verificar firma y expiración
-      const decoded = jwt.verify(token, config.jwtSecret)
-      return decoded
+      // Decodificar primero para ver el tipo
+      const decoded = jwt.decode(token)
+      if (!decoded || !decoded.type) {
+        logger.warn('Token sin tipo definido')
+        return null
+      }
+
+      // Verificar con el secret correcto según el tipo
+      const secret = decoded.type === 'refresh' ? config.jwtRefreshSecret : config.jwtSecret
+      const verified = jwt.verify(token, secret)
+
+      return verified
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
         logger.debug('Token expirado')
@@ -90,8 +137,8 @@ class TokenService {
         return null
       }
 
-      // Generar nuevo access token
-      const accessToken = this.generateAccessToken(decoded.id)
+      // Generar nuevo access token (usar userId del payload)
+      const accessToken = this.generateAccessToken(decoded.userId)
 
       return { accessToken }
     } catch (error) {

@@ -225,11 +225,13 @@ describe('Validation Schemas', () => {
   })
 
   describe('createPostSchema', () => {
-    test('debe validar post con media válida', () => {
+    test('debe validar post con type y caption', () => {
       // Arrange
       const validData = {
+        type: 'image',
         caption: 'Test caption',
-        media: ['image1.jpg', 'image2.jpg']
+        location: 'Test Location',
+        tags: 'test,photo'
       }
 
       // Act
@@ -239,10 +241,10 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    test('debe aceptar post sin caption', () => {
+    test('debe aceptar post sin caption (solo type requerido)', () => {
       // Arrange
       const data = {
-        media: ['image1.jpg']
+        type: 'video'
       }
 
       // Act
@@ -252,7 +254,7 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    test('debe rechazar post sin media', () => {
+    test('debe rechazar post sin type (campo requerido)', () => {
       // Arrange
       const data = {
         caption: 'Test caption'
@@ -263,6 +265,9 @@ describe('Validation Schemas', () => {
 
       // Assert
       expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues[0].path).toContain('type')
+      }
     })
 
     test('debe rechazar caption demasiado largo', () => {
@@ -296,8 +301,8 @@ describe('Validation Schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    test('debe rechazar reel sin video', () => {
-      // Arrange
+    test('debe aceptar reel solo con caption (todos los campos opcionales)', () => {
+      // Arrange - El video se maneja con multer, no con el schema
       const data = {
         caption: 'Test reel'
       }
@@ -306,7 +311,18 @@ describe('Validation Schemas', () => {
       const result = createReelSchema.safeParse(data)
 
       // Assert
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
+    })
+
+    test('debe aceptar reel vacío (todos los campos opcionales)', () => {
+      // Arrange - El video se sube con multer, el schema solo valida metadata
+      const data = {}
+
+      // Act
+      const result = createReelSchema.safeParse(data)
+
+      // Assert
+      expect(result.success).toBe(true)
     })
   })
 

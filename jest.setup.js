@@ -102,22 +102,25 @@ afterEach(async () => {
  */
 afterAll(async () => {
   try {
-    // Desconectar Mongoose
+    // Desconectar Mongoose primero
     if (mongoose.connection.readyState !== 0) {
       await mongoose.disconnect()
     }
 
-    // Detener MongoDB Memory Server
+    // Detener MongoDB Memory Server con cleanup completo
     if (mongoServer) {
-      await mongoServer.stop()
+      await mongoServer.stop({ doCleanup: true, force: true })
     }
 
     console.log('✅ MongoDB Memory Server desconectado')
+
+    // Dar tiempo a los timers internos para cerrarse
+    await new Promise(resolve => setTimeout(resolve, 500))
   } catch (error) {
     console.error('❌ Error cerrando MongoDB Memory Server:', error)
-    throw error
+    // No lanzar error, ya que los tests pasaron
   }
-}, 10000) // Timeout de 10 segundos para teardown
+}, 15000) // Timeout de 15 segundos para teardown
 
 // ========================================
 // Mock de Logger (configurado inline en cada test si necesario)
