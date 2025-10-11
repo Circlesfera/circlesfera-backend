@@ -81,8 +81,8 @@ const safeStringify = (obj) => {
       }
       return value
     }, 2)
-  } catch (error) {
-    // Fallback si aún así falla
+  } catch (_error) {
+    // Fallback si aún así falla (error no usado, solo catch)
     return '[No serializable]'
   }
 }

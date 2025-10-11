@@ -214,21 +214,17 @@ describe('Cache Service', () => {
         `${TEST_CACHE_PREFIX}key3`
       ]
 
-      // Set all keys
-      for (const key of keys) {
-        await cacheService.set(key, 'value')
-      }
+      // ✅ CORREGIDO: Set all keys en paralelo
+      await Promise.all(keys.map(key => cacheService.set(key, 'value')))
 
-      // Act
-      for (const key of keys) {
-        await cacheService.del(key)
-      }
+      // Act - Delete all keys en paralelo
+      await Promise.all(keys.map(key => cacheService.del(key)))
 
-      // Assert
-      for (const key of keys) {
-        const retrieved = await cacheService.get(key)
+      // Assert - Verificar que todas fueron eliminadas
+      const results = await Promise.all(keys.map(key => cacheService.get(key)))
+      results.forEach(retrieved => {
         expect(retrieved).toBeNull()
-      }
+      })
     })
   })
 
@@ -280,19 +276,17 @@ describe('Cache Service', () => {
         `${TEST_CACHE_PREFIX}key3`
       ]
 
-      // Set all keys
-      for (const key of keys) {
-        await cacheService.set(key, 'value')
-      }
+      // ✅ CORREGIDO: Set all keys en paralelo
+      await Promise.all(keys.map(key => cacheService.set(key, 'value')))
 
       // Act
       await cacheService.clear()
 
-      // Assert
-      for (const key of keys) {
-        const retrieved = await cacheService.get(key)
+      // Assert - Verificar que todas fueron eliminadas
+      const results = await Promise.all(keys.map(key => cacheService.get(key)))
+      results.forEach(retrieved => {
         expect(retrieved).toBeNull()
-      }
+      })
     })
 
     test('debe poder limpiar caché vacío sin errores', async () => {
@@ -364,16 +358,14 @@ describe('Cache Service', () => {
         'reel:789'
       ]
 
-      // Act
-      for (const key of keys) {
-        await cacheService.set(key, { data: key })
-      }
+      // ✅ CORREGIDO: Act - Set all keys en paralelo
+      await Promise.all(keys.map(key => cacheService.set(key, { data: key })))
 
-      // Assert
-      for (const key of keys) {
-        const retrieved = await cacheService.get(key)
-        expect(retrieved).toEqual({ data: key })
-      }
+      // Assert - Verificar que todas fueron guardadas correctamente
+      const results = await Promise.all(keys.map(key => cacheService.get(key)))
+      results.forEach((retrieved, index) => {
+        expect(retrieved).toEqual({ data: keys[index] })
+      })
     })
 
     test('debe poder eliminar keys por patrón (invalidación)', async () => {
@@ -389,27 +381,25 @@ describe('Cache Service', () => {
         'reel:456'
       ]
 
-      // Set all keys
-      for (const key of [...userKeys, ...otherKeys]) {
-        await cacheService.set(key, 'value')
-      }
+      // ✅ CORREGIDO: Set all keys en paralelo
+      await Promise.all([...userKeys, ...otherKeys].map(key =>
+        cacheService.set(key, 'value')
+      ))
 
-      // Act - Simulate invalidating all user keys
-      for (const key of userKeys) {
-        await cacheService.del(key)
-      }
+      // Act - Simulate invalidating all user keys en paralelo
+      await Promise.all(userKeys.map(key => cacheService.del(key)))
 
       // Assert - User keys deleted
-      for (const key of userKeys) {
-        const retrieved = await cacheService.get(key)
+      const userResults = await Promise.all(userKeys.map(key => cacheService.get(key)))
+      userResults.forEach(retrieved => {
         expect(retrieved).toBeNull()
-      }
+      })
 
       // Assert - Other keys still exist
-      for (const key of otherKeys) {
-        const retrieved = await cacheService.get(key)
+      const otherResults = await Promise.all(otherKeys.map(key => cacheService.get(key)))
+      otherResults.forEach(retrieved => {
         expect(retrieved).toBe('value')
-      }
+      })
     })
   })
 })

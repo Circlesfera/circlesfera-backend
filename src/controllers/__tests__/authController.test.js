@@ -1,3 +1,5 @@
+/* global mockRequest, mockResponse, describe, test, expect */
+
 /**
  * Tests para Auth Controller
  *
@@ -5,7 +7,8 @@
  * registro, login, y gestión de sesiones.
  */
 
-import { register, login } from '../authController.js'
+// ✅ CORREGIDO: Imports ordenados alfabéticamente
+import { login, register } from '../authController.js'
 import User from '../../models/User.js'
 
 // Datos de test sin hardcode

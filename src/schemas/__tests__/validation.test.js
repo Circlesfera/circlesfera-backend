@@ -5,7 +5,8 @@
  * y rechacen datos inválidos.
  */
 
-import { registerSchema, loginSchema, updateProfileSchema } from '../userSchema.js'
+// ✅ CORREGIDO: Imports ordenados alfabéticamente
+import { loginSchema, registerSchema, updateProfileSchema } from '../userSchema.js'
 import { createPostSchema } from '../postSchema.js'
 import { createReelSchema } from '../reelSchema.js'
 

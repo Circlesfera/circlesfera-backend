@@ -1,3 +1,5 @@
+/* global beforeAll, afterEach, afterAll */
+
 /**
  * Jest Setup File - Configuración Global de Tests
  *
@@ -7,7 +9,6 @@
 
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import mongoose from 'mongoose'
-import { config } from './src/utils/config.js'
 
 // ========================================
 // Mock de Redis (SOLO para tests)
@@ -87,13 +88,13 @@ beforeAll(async () => {
  */
 afterEach(async () => {
   if (mongoose.connection.readyState !== 0) {
-    const collections = mongoose.connection.collections
+    // ✅ CORREGIDO: Limpiar todas las colecciones en paralelo con destructuring
+    const { collections } = mongoose.connection
 
-    // Limpiar todas las colecciones
-    for (const key in collections) {
-      const collection = collections[key]
-      await collection.deleteMany({})
-    }
+    const deletePromises = Object.keys(collections).map(key =>
+      collections[key].deleteMany({})
+    )
+    await Promise.all(deletePromises)
   }
 })
 
@@ -114,8 +115,10 @@ afterAll(async () => {
 
     console.log('✅ MongoDB Memory Server desconectado')
 
-    // Dar tiempo a los timers internos para cerrarse
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // ✅ CORREGIDO: Dar tiempo a los timers internos para cerrarse
+    await new Promise((resolve) => {
+      setTimeout(() => resolve(), 500)
+    })
   } catch (error) {
     console.error('❌ Error cerrando MongoDB Memory Server:', error)
     // No lanzar error, ya que los tests pasaron

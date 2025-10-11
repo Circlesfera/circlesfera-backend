@@ -286,8 +286,10 @@ describe('Token Service', () => {
       // Act
       const token1 = tokenService.generateAccessToken(userId)
 
-      // Esperar 1 segundo para asegurar diferente iat (issued at timestamp)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // ✅ CORREGIDO: Esperar 1 segundo para asegurar diferente iat (issued at timestamp)
+      await new Promise((resolve) => {
+        setTimeout(() => resolve(), 1000)
+      })
 
       const token2 = tokenService.generateAccessToken(userId)
 
