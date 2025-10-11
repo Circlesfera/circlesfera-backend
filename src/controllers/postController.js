@@ -360,14 +360,14 @@ export const getLikes = async (req, res) => {
 export const getUserPosts = async (req, res) => {
   try {
     const { username } = req.params
-    logger.info('getUserPosts - Buscando usuario:', { username, params: req.params })
+    logger.debug('getUserPosts - Buscando usuario:', { username, params: req.params })
 
     // Buscar usuario case-insensitive con regex
     const user = await User.findOne({
       username: { $regex: new RegExp(`^${username}$`, 'i') }
     })
 
-    logger.info('getUserPosts - Resultado búsqueda:', { found: !!user, username: user?.username })
+    logger.debug('getUserPosts - Resultado búsqueda:', { found: !!user, username: user?.username })
 
     if (!user) {
       return res.status(404).json({
