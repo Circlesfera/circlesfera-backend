@@ -23,6 +23,8 @@ router.post('/', auth, csrfProtection(), rateLimitByUser('createReel'), uploadFi
 
 router.post('/:id/like', auth, csrfProtection(), rateLimitByUser('like'), reelController.likeReel)
 router.delete('/:id/like', auth, csrfProtection(), reelController.unlikeReel)
+router.post('/:id/save', auth, csrfProtection(), rateLimitByUser('save'), reelController.saveReel)
+router.delete('/:id/save', auth, csrfProtection(), reelController.unsaveReel)
 router.post('/:id/comment', auth, csrfProtection(), rateLimitByUser('createComment'), validate(reelCommentSchema), reelController.commentReel)
 router.delete('/:id', auth, csrfProtection(), checkReelOwnership(), rateLimitByUser('deletePost'), reelController.deleteReel)
 

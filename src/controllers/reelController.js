@@ -622,3 +622,96 @@ export const getTrendingReels = async (req, res) => {
     })
   }
 }
+
+// Guardar un reel
+export const saveReel = async (req, res) => {
+  try {
+    const reelId = req.params.id
+    const userId = req.userId
+
+    // Verificar que el reel existe
+    const reel = await Reel.findById(reelId)
+    if (!reel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel no encontrado'
+      })
+    }
+
+    // Agregar reel a savedPosts del usuario
+    const user = await User.findById(userId)
+    if (!user.savedPosts.includes(reelId)) {
+      user.savedPosts.push(reelId)
+      await user.save()
+
+      logger.info('Reel guardado:', { userId, reelId })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Reel guardado exitosamente'
+      })
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'El reel ya está guardado'
+    })
+  } catch (error) {
+    logger.error('Error al guardar reel:', { error: error.message })
+    return res.status(500).json({
+      success: false,
+      message: 'Error al guardar el reel'
+    })
+  }
+}
+
+// Dejar de guardar un reel
+export const unsaveReel = async (req, res) => {
+  try {
+    const reelId = req.params.id
+    const userId = req.userId
+
+    // Remover reel de savedPosts del usuario
+    const user = await User.findById(userId)
+    const index = user.savedPosts.indexOf(reelId)
+
+    if (index !== -1) {
+      user.savedPosts.splice(index, 1)
+      await user.save()
+
+      logger.info('Reel dejado de guardar:', { userId, reelId })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Reel eliminado de guardados'
+      })
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: 'El reel no está guardado'
+    })
+  } catch (error) {
+    logger.error('Error al dejar de guardar reel:', { error: error.message })
+    return res.status(500).json({
+      success: false,
+      message: 'Error al eliminar el reel de guardados'
+    })
+  }
+}
+
+export default {
+  createReel,
+  getReelsForFeed,
+  getReel,
+  updateReel,
+  deleteReel,
+  likeReel,
+  unlikeReel,
+  commentReel,
+  getTrendingReels,
+  searchReelsByHashtag,
+  saveReel,
+  unsaveReel
+}
+
