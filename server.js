@@ -210,8 +210,8 @@ app.use('/api', userContentRoutes)
 // Sentry error handler eliminado
 
 // Middleware de manejo de errores global
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
+// next no se usa pero es requerido por Express para error handlers (4 parámetros)
+app.use((err, req, res, _next) => {
   // Loguear el error con formato correcto
   const errorInfo = {
     error: err.message,

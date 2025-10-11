@@ -100,10 +100,26 @@ class CacheService {
    */
   async del(key) {
     try {
-      await redisService.del(key)
-      return true
+      const result = await redisService.del(key)
+      // Redis devuelve el número de keys eliminadas (1 si existe, 0 si no existe)
+      return result > 0
     } catch (error) {
       logger.error(`Error al eliminar del caché (${key}):`, error)
+      return false
+    }
+  }
+
+  /**
+   * Verificar si una key existe en caché
+   * @param {string} key - Clave a verificar
+   * @returns {Promise<boolean>} True si existe, false si no
+   */
+  async exists(key) {
+    try {
+      const result = await redisService.exists(key)
+      return result > 0
+    } catch (error) {
+      logger.error(`Error al verificar existencia en caché (${key}):`, error)
       return false
     }
   }
@@ -126,6 +142,21 @@ class CacheService {
     } catch (error) {
       logger.error(`Error al eliminar patrón de caché (${pattern}):`, error)
       return 0
+    }
+  }
+
+  /**
+   * Limpiar TODO el caché (útil para tests y mantenimiento)
+   * @returns {Promise<boolean>} True si se limpió correctamente
+   */
+  async clear() {
+    try {
+      await redisService.flushDb()
+      logger.info('Caché completamente limpiado')
+      return true
+    } catch (error) {
+      logger.error('Error al limpiar todo el caché:', error)
+      return false
     }
   }
 

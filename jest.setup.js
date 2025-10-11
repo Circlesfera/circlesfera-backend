@@ -10,6 +10,20 @@ import mongoose from 'mongoose'
 import { config } from './src/utils/config.js'
 
 // ========================================
+// Mock de Redis (SOLO para tests)
+// ========================================
+
+/**
+ * Configuración de Redis Mock para tests.
+ *
+ * En tests, usamos redis-mock (simulación en memoria).
+ * En producción, se usa Redis real de REDIS_URL.
+ *
+ * El mock manual se configura en __mocks__/redis.js
+ * Jest lo carga automáticamente cuando se importa 'redis' en tests.
+ */
+
+// ========================================
 // Variables Globales
 // ========================================
 
@@ -25,6 +39,10 @@ process.env.JWT_SECRET = process.env.JWT_SECRET_TEST || 'test-jwt-secret-key-for
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET_TEST || 'test-jwt-refresh-secret-for-testing-only-12345678'
 process.env.JWT_EXPIRES_IN = '15m'
 process.env.JWT_REFRESH_EXPIRES_IN = '7d'
+
+// Redis: NO configurar REDIS_URL para que use redis-mock automáticamente
+// En producción, REDIS_URL estará configurada y usará Redis real
+// process.env.REDIS_URL = undefined (por defecto, no es necesario setear)
 
 // ========================================
 // Setup MongoDB Memory Server

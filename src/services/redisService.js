@@ -108,7 +108,7 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.get(key)
-      } 
+      }
       // Fallback a memoria
       const item = this.memoryStore.get(key)
       if (!item) { return null }
@@ -120,7 +120,7 @@ class RedisService {
       }
 
       return item.value
-      
+
     } catch (error) {
       logger.error(`Error al obtener de Redis/Memoria (${key}):`, error)
       return null
@@ -134,12 +134,19 @@ class RedisService {
   async del(key) {
     try {
       if (this.client) {
-        await this.client.del(key)
-      } else {
+        const result = await this.client.del(key)
+        return result // Número de keys eliminadas (1 si existe, 0 si no)
+      }
+      // Fallback a memoria
+      const existed = this.memoryStore.has(key)
+      if (existed) {
         this.memoryStore.delete(key)
       }
+      return existed ? 1 : 0
+
     } catch (error) {
       logger.error(`Error al eliminar de Redis/Memoria (${key}):`, error)
+      return 0
     }
   }
 
@@ -153,7 +160,7 @@ class RedisService {
       if (this.client) {
         const result = await this.client.exists(key)
         return result === 1
-      } 
+      }
       const item = this.memoryStore.get(key)
       if (!item) { return false }
 
@@ -164,7 +171,7 @@ class RedisService {
       }
 
       return true
-      
+
     } catch (error) {
       logger.error(`Error al verificar existencia en Redis/Memoria (${key}):`, error)
       return false
@@ -180,14 +187,34 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.keys(pattern)
-      } 
+      }
       // Fallback a memoria con regex
       const regex = new RegExp(`^${pattern.replace('*', '.*')}$`)
       return Array.from(this.memoryStore.keys()).filter(key => regex.test(key))
-      
+
     } catch (error) {
       logger.error(`Error al buscar claves en Redis/Memoria (${pattern}):`, error)
       return []
+    }
+  }
+
+  /**
+   * Limpiar toda la base de datos (útil para tests)
+   * @returns {Promise<boolean>}
+   */
+  async flushDb() {
+    try {
+      if (this.client) {
+        await this.client.flushDb()
+      } else {
+        // Fallback: limpiar Map en memoria
+        this.memoryStore.clear()
+      }
+      logger.info('Redis/Memoria limpiado completamente')
+      return true
+    } catch (error) {
+      logger.error('Error al limpiar Redis/Memoria:', error)
+      return false
     }
   }
 
@@ -200,12 +227,12 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.incr(key)
-      } 
+      }
       const item = this.memoryStore.get(key)
       const value = item ? parseInt(item.value || '0') + 1 : 1
       this.memoryStore.set(key, { value: value.toString(), expiresAt: null })
       return value
-      
+
     } catch (error) {
       logger.error(`Error al incrementar en Redis/Memoria (${key}):`, error)
       return 0
