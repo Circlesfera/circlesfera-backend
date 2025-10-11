@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken')
-const User = require('../models/User')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import jwt from 'jsonwebtoken'
+import User from '../models/User.js'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 const auth = async (req, res, next) => {
   try {
@@ -135,4 +135,4 @@ const optionalAuth = async (req, res, next) => {
   }
 }
 
-module.exports = { auth, optionalAuth }
+export { auth, optionalAuth }

@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   createStory,
   getStoriesForFeed,
   getStory,
@@ -11,10 +11,10 @@ const {
   deleteStory,
   cleanupExpiredStories,
   getUsersWithStories
-} = require('../controllers/storyController')
-const { auth } = require('../middlewares/auth')
-const { uploadFields, handleUploadError } = require('../middlewares/upload')
-const imageOptimizer = require('../middlewares/imageOptimizer')
+} from '../controllers/storyController.js'
+import { auth } from '../middlewares/auth.js'
+import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import imageOptimizer from '../middlewares/imageOptimizer.js'
 
 // Validaciones
 const createStoryValidation = [
@@ -74,4 +74,4 @@ router.delete('/:id', auth, deleteStory)
 // Rutas administrativas
 router.post('/cleanup/expired', auth, cleanupExpiredStories)
 
-module.exports = router
+export default router

@@ -79,7 +79,7 @@ const getRecommendedDimensions = (type) => {
   }
 }
 
-module.exports = {
+export {
   MEDIA_CONFIG,
   validateAspectRatio,
   getRecommendedDimensions

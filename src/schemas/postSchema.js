@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 /**
  * Schema de validación para crear post
@@ -58,7 +58,7 @@ const createCommentSchema = z.object({
     .optional()
 })
 
-module.exports = {
+export {
   createPostSchema,
   updatePostSchema,
   createCommentSchema

@@ -1,4 +1,4 @@
-const monitoringService = require('../utils/monitoring')
+import monitoringService from '../utils/monitoring.js'
 
 /**
  * Middleware de monitoreo para registrar peticiones y métricas
@@ -52,7 +52,7 @@ const cacheMonitoringMiddleware = (req, res, next) => {
   next()
 }
 
-module.exports = {
+export {
   monitoringMiddleware,
   errorMonitoringMiddleware,
   cacheMonitoringMiddleware

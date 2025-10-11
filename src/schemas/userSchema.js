@@ -1,4 +1,4 @@
-const { z } = require('zod')
+import { z } from 'zod'
 
 /**
  * Schema de validación para registro de usuarios
@@ -99,7 +99,7 @@ const changePasswordSchema = z.object({
     .regex(/[0-9]/, 'Password debe contener al menos un número')
 })
 
-module.exports = {
+export {
   registerSchema,
   loginSchema,
   updateProfileSchema,

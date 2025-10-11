@@ -1,12 +1,12 @@
-const LiveComment = require('../models/LiveComment')
-const LiveStream = require('../models/LiveStream')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
+import LiveComment from '../models/LiveComment.js'
+import LiveStream from '../models/LiveStream.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
 
 // Crear un comentario en transmisión en vivo
-exports.createComment = async (req, res) => {
+export const createComment = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -118,7 +118,7 @@ exports.createComment = async (req, res) => {
 }
 
 // Obtener comentarios de una transmisión
-exports.getComments = async (req, res) => {
+export const getComments = async (req, res) => {
   try {
     const { streamId } = req.params
     const {
@@ -206,7 +206,7 @@ exports.getComments = async (req, res) => {
 }
 
 // Reaccionar a un comentario
-exports.reactToComment = async (req, res) => {
+export const reactToComment = async (req, res) => {
   try {
     const { commentId } = req.params
     const { reactionType = 'like' } = req.body
@@ -251,7 +251,7 @@ exports.reactToComment = async (req, res) => {
 }
 
 // Remover reacción de un comentario
-exports.removeReaction = async (req, res) => {
+export const removeReaction = async (req, res) => {
   try {
     const { commentId } = req.params
 
@@ -286,7 +286,7 @@ exports.removeReaction = async (req, res) => {
 }
 
 // Moderar comentario (solo streamer y co-hosts)
-exports.moderateComment = async (req, res) => {
+export const moderateComment = async (req, res) => {
   try {
     const { commentId } = req.params
     const { action, reason } = req.body // action: 'hide', 'delete', 'pin', 'unpin'
@@ -369,7 +369,7 @@ exports.moderateComment = async (req, res) => {
 }
 
 // Obtener estadísticas de comentarios
-exports.getCommentStats = async (req, res) => {
+export const getCommentStats = async (req, res) => {
   try {
     const { streamId } = req.params
 

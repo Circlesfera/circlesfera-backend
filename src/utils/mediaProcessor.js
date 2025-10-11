@@ -1,7 +1,7 @@
-const sharp = require('sharp')
-const path = require('path')
-const fs = require('fs').promises
-const logger = require('./logger')
+import sharp from 'sharp'
+import path from 'path'
+import fs from 'fs'.promises
+import logger from './logger.js'
 
 /**
  * Configuración de calidad y tamaños para imágenes
@@ -219,7 +219,7 @@ const createThumbnail = async (inputPath, size = 150) => {
   }
 }
 
-module.exports = {
+export {
   processImage,
   createImageVariants,
   optimizeImage,

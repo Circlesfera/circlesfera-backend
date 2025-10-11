@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const NotificationSchema = new mongoose.Schema({
   user: {
@@ -242,4 +242,4 @@ NotificationSchema.post('save', async function() {
   }
 })
 
-module.exports = mongoose.model('Notification', NotificationSchema)
+export default mongoose.model('Notification', NotificationSchema)

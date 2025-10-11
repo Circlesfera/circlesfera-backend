@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const CommentSchema = new mongoose.Schema({
   user: {
@@ -147,7 +147,7 @@ CommentSchema.pre('save', function(next) {
 
 // Middleware post-save para actualizar el post
 CommentSchema.post('save', async function() {
-  const Post = require('./Post')
+  import Post from './Post.js'
   await Post.findByIdAndUpdate(this.post, {
     $addToSet: { comments: this._id }
   })
@@ -155,10 +155,10 @@ CommentSchema.post('save', async function() {
 
 // Middleware post-remove para limpiar referencias
 CommentSchema.post('remove', async function() {
-  const Post = require('./Post')
+  import Post from './Post.js'
   await Post.findByIdAndUpdate(this.post, {
     $pull: { comments: this._id }
   })
 })
 
-module.exports = mongoose.model('Comment', CommentSchema)
+export default mongoose.model('Comment', CommentSchema)

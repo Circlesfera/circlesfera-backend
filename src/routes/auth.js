@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   register,
   login,
   getProfile,
@@ -10,10 +10,10 @@ const {
   logout,
   refreshToken,
   checkUsernameAvailability
-} = require('../controllers/authController')
-const { auth } = require('../middlewares/auth')
-const { uploadFields, handleUploadError } = require('../middlewares/upload')
-const imageOptimizer = require('../middlewares/imageOptimizer')
+} from '../controllers/authController.js'
+import { auth } from '../middlewares/auth.js'
+import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import imageOptimizer from '../middlewares/imageOptimizer.js'
 
 // Validaciones
 const registerValidation = [
@@ -131,4 +131,4 @@ router.put('/change-password', auth, changePasswordValidation, changePassword)
 router.post('/logout', auth, logout)
 router.post('/refresh-token', auth, refreshToken)
 
-module.exports = router
+export default router

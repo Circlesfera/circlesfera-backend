@@ -1,6 +1,6 @@
-const rateLimit = require('express-rate-limit')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import rateLimit from 'express-rate-limit'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 /**
  * Rate limiter por IP (general)
@@ -95,7 +95,7 @@ const contentLimiter = rateLimit({
   }
 })
 
-module.exports = {
+export {
   ipLimiter,
   userLimiter,
   strictLimiter,

@@ -1,4 +1,4 @@
-const logger = require('../utils/logger')
+import logger from '../utils/logger.js'
 
 /**
  * Middleware para validar request body con esquemas Zod
@@ -102,7 +102,7 @@ const validateParams = (schema) => {
   }
 }
 
-module.exports = {
+export {
   validate,
   validateQuery,
   validateParams

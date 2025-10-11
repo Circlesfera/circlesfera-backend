@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const LiveStreamSchema = new mongoose.Schema(
   {
@@ -320,4 +320,4 @@ LiveStreamSchema.statics.getScheduledStreams = function (options = {}) {
     .sort({ scheduledAt: 1 })
 }
 
-module.exports = mongoose.model('LiveStream', LiveStreamSchema)
+export default mongoose.model('LiveStream', LiveStreamSchema)

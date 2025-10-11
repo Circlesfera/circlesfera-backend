@@ -1,13 +1,13 @@
-const User = require('../models/User')
-const Post = require('../models/Post')
-const Story = require('../models/Story')
-const Reel = require('../models/Reel')
-const Notification = require('../models/Notification')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import User from '../models/User.js'
+import Post from '../models/Post.js'
+import Story from '../models/Story.js'
+import Reel from '../models/Reel.js'
+import Notification from '../models/Notification.js'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 // Obtener perfil de usuario público
-exports.getUserProfile = async (req, res) => {
+export const getUserProfile = async (req, res) => {
   try {
     const { username } = req.params
     logger.info('getUserProfile - Buscando usuario:', { username, params: req.params })
@@ -137,7 +137,7 @@ exports.getUserProfile = async (req, res) => {
 }
 
 // Obtener posts de un usuario
-exports.getUserPosts = async (req, res) => {
+export const getUserPosts = async (req, res) => {
   try {
     const { username } = req.params
     const page = parseInt(req.query.page) || 1
@@ -184,7 +184,7 @@ exports.getUserPosts = async (req, res) => {
 }
 
 // Obtener historias de un usuario
-exports.getUserStories = async (req, res) => {
+export const getUserStories = async (req, res) => {
   try {
     const { username } = req.params
     const user = await User.findOne({ username })
@@ -214,7 +214,7 @@ exports.getUserStories = async (req, res) => {
 }
 
 // Seguir a un usuario
-exports.followUser = async (req, res) => {
+export const followUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToFollow = await User.findById(userId)
@@ -276,7 +276,7 @@ exports.followUser = async (req, res) => {
 }
 
 // Dejar de seguir a un usuario
-exports.unfollowUser = async (req, res) => {
+export const unfollowUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToUnfollow = await User.findById(userId)
@@ -334,7 +334,7 @@ exports.unfollowUser = async (req, res) => {
 }
 
 // Obtener seguidores de un usuario
-exports.getFollowers = async (req, res) => {
+export const getFollowers = async (req, res) => {
   try {
     const { userId } = req.params
     const page = parseInt(req.query.page) || 1
@@ -390,7 +390,7 @@ exports.getFollowers = async (req, res) => {
 }
 
 // Obtener usuarios que sigue
-exports.getFollowing = async (req, res) => {
+export const getFollowing = async (req, res) => {
   try {
     const { userId } = req.params
     const page = parseInt(req.query.page) || 1
@@ -445,7 +445,7 @@ exports.getFollowing = async (req, res) => {
 }
 
 // Buscar usuarios
-exports.searchUsers = async (req, res) => {
+export const searchUsers = async (req, res) => {
   try {
     const { q } = req.query
     const page = parseInt(req.query.page) || 1
@@ -496,7 +496,7 @@ exports.searchUsers = async (req, res) => {
 }
 
 // Bloquear usuario
-exports.blockUser = async (req, res) => {
+export const blockUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToBlock = await User.findById(userId)
@@ -541,7 +541,7 @@ exports.blockUser = async (req, res) => {
 }
 
 // Desbloquear usuario
-exports.unblockUser = async (req, res) => {
+export const unblockUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToUnblock = await User.findById(userId)
@@ -588,7 +588,7 @@ exports.unblockUser = async (req, res) => {
 }
 
 // Obtener usuarios bloqueados
-exports.getBlockedUsers = async (req, res) => {
+export const getBlockedUsers = async (req, res) => {
   try {
     const currentUser = await User.findById(req.userId)
       .populate('blockedUsers', 'username avatar fullName')
@@ -607,7 +607,7 @@ exports.getBlockedUsers = async (req, res) => {
 }
 
 // Obtener sugerencias de usuarios
-exports.getUserSuggestions = async (req, res) => {
+export const getUserSuggestions = async (req, res) => {
   try {
     const limit = config.getPaginationLimit(req.query.limit || 10)
     const currentUser = await User.findById(req.userId)
@@ -651,7 +651,7 @@ exports.getUserSuggestions = async (req, res) => {
 }
 
 // Obtener configuraciones del usuario
-exports.getUserSettings = async (req, res) => {
+export const getUserSettings = async (req, res) => {
   try {
     const user = await User.findById(req.userId)
 
@@ -701,7 +701,7 @@ exports.getUserSettings = async (req, res) => {
 }
 
 // Actualizar configuraciones de privacidad
-exports.updatePrivacySettings = async (req, res) => {
+export const updatePrivacySettings = async (req, res) => {
   try {
     const { isPrivate, allowMessages, showEmail, showPhone, showBirthDate } = req.body
 
@@ -739,7 +739,7 @@ exports.updatePrivacySettings = async (req, res) => {
 }
 
 // Actualizar configuraciones de notificaciones
-exports.updateNotificationSettings = async (req, res) => {
+export const updateNotificationSettings = async (req, res) => {
   try {
     const { likes, comments, follows, mentions, messages, stories, posts } = req.body
 
@@ -779,7 +779,7 @@ exports.updateNotificationSettings = async (req, res) => {
 }
 
 // Actualizar configuraciones de seguridad
-exports.updateSecuritySettings = async (req, res) => {
+export const updateSecuritySettings = async (req, res) => {
   try {
     const { loginNotifications, suspiciousActivityAlerts } = req.body
 
@@ -814,7 +814,7 @@ exports.updateSecuritySettings = async (req, res) => {
 }
 
 // Cambiar contraseña
-exports.changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body
 
@@ -869,7 +869,7 @@ exports.changePassword = async (req, res) => {
 }
 
 // Habilitar/deshabilitar autenticación de dos factores
-exports.toggleTwoFactor = async (req, res) => {
+export const toggleTwoFactor = async (req, res) => {
   try {
     const { enabled } = req.body
 
@@ -907,7 +907,7 @@ exports.toggleTwoFactor = async (req, res) => {
 }
 
 // Silenciar a un usuario
-exports.muteUser = async (req, res) => {
+export const muteUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToMute = await User.findById(userId)
@@ -953,7 +953,7 @@ exports.muteUser = async (req, res) => {
 }
 
 // Desilenciar a un usuario
-exports.unmuteUser = async (req, res) => {
+export const unmuteUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToUnmute = await User.findById(userId)
@@ -994,7 +994,7 @@ exports.unmuteUser = async (req, res) => {
 }
 
 // Restringir a un usuario
-exports.restrictUser = async (req, res) => {
+export const restrictUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToRestrict = await User.findById(userId)
@@ -1040,7 +1040,7 @@ exports.restrictUser = async (req, res) => {
 }
 
 // Desrestringir a un usuario
-exports.unrestrictUser = async (req, res) => {
+export const unrestrictUser = async (req, res) => {
   try {
     const { userId } = req.params
     const userToUnrestrict = await User.findById(userId)

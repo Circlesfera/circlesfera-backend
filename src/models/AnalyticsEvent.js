@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 /**
  * Esquema para almacenar eventos de analytics
@@ -128,4 +128,4 @@ analyticsEventSchema.statics.getStats = async function (filters = {}) {
 // TTL index para auto-eliminar eventos antiguos (después de 90 días)
 analyticsEventSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7776000 })
 
-module.exports = mongoose.model('AnalyticsEvent', analyticsEventSchema)
+export default mongoose.model('AnalyticsEvent', analyticsEventSchema)

@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   createComment,
   getComments,
   getReplies,
@@ -9,8 +9,8 @@ const {
   updateComment,
   deleteComment,
   getUserComments
-} = require('../controllers/commentController')
-const { auth, optionalAuth } = require('../middlewares/auth')
+} from '../controllers/commentController.js'
+import { auth, optionalAuth } from '../middlewares/auth.js'
 
 // Validaciones
 const createCommentValidation = [
@@ -44,4 +44,4 @@ router.put('/:commentId', auth, updateCommentValidation, updateComment)
 router.post('/:commentId/like', auth, toggleLike)
 router.delete('/:commentId', auth, deleteComment)
 
-module.exports = router
+export default router

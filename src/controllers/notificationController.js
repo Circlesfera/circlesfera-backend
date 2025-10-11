@@ -1,11 +1,11 @@
-const Notification = require('../models/Notification')
-const User = require('../models/User')
-const { validationResult } = require('express-validator')
-const mongoose = require('mongoose')
-const logger = require('../utils/logger')
+import Notification from '../models/Notification.js'
+import User from '../models/User.js'
+import { validationResult } from 'express-validator'
+import mongoose from 'mongoose'
+import logger from '../utils/logger.js'
 
 // Obtener notificaciones del usuario
-exports.getNotifications = async (req, res) => {
+export const getNotifications = async (req, res) => {
   try {
     const userId = req.userId
     const page = parseInt(req.query.page) || 1
@@ -48,7 +48,7 @@ exports.getNotifications = async (req, res) => {
 }
 
 // Obtener conteo de notificaciones no leídas
-exports.getUnreadCount = async (req, res) => {
+export const getUnreadCount = async (req, res) => {
   try {
     const userId = req.userId
     const count = await Notification.getUnreadCount(userId)
@@ -67,7 +67,7 @@ exports.getUnreadCount = async (req, res) => {
 }
 
 // Marcar notificación como leída
-exports.markAsRead = async (req, res) => {
+export const markAsRead = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id)
 
@@ -102,7 +102,7 @@ exports.markAsRead = async (req, res) => {
 }
 
 // Marcar todas las notificaciones como leídas
-exports.markAllAsRead = async (req, res) => {
+export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.userId
     await Notification.markAllAsRead(userId)
@@ -121,7 +121,7 @@ exports.markAllAsRead = async (req, res) => {
 }
 
 // Eliminar una notificación
-exports.deleteNotification = async (req, res) => {
+export const deleteNotification = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id)
 
@@ -156,7 +156,7 @@ exports.deleteNotification = async (req, res) => {
 }
 
 // Eliminar todas las notificaciones leídas
-exports.deleteReadNotifications = async (req, res) => {
+export const deleteReadNotifications = async (req, res) => {
   try {
     const userId = req.userId
 
@@ -179,7 +179,7 @@ exports.deleteReadNotifications = async (req, res) => {
 }
 
 // Crear una notificación manual (para testing o casos especiales)
-exports.createNotification = async (req, res) => {
+export const createNotification = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -237,7 +237,7 @@ exports.createNotification = async (req, res) => {
 }
 
 // Obtener estadísticas de notificaciones
-exports.getNotificationStats = async (req, res) => {
+export const getNotificationStats = async (req, res) => {
   try {
     const userId = req.userId
 
@@ -278,7 +278,7 @@ exports.getNotificationStats = async (req, res) => {
 }
 
 // Limpiar notificaciones antiguas (tarea programada)
-exports.cleanupOldNotifications = async (req, res) => {
+export const cleanupOldNotifications = async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 30
     const result = await Notification.deleteOldNotifications(days)

@@ -1,10 +1,10 @@
-const Story = require('../models/Story')
-const User = require('../models/User')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
-const notificationService = require('../services/notificationService')
+import Story from '../models/Story.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
+import notificationService from '../services/notificationService.js'
 
 // Implementar caché para historias
 const getStoriesCacheKey = (userId, includeExpired = false) => {
@@ -16,7 +16,7 @@ const getFeedCacheKey = () => {
 }
 
 // Crear una nueva historia
-exports.createStory = async (req, res) => {
+export const createStory = async (req, res) => {
   try {
     logger.info('📝 createStory llamado con:', {
       userId: req.userId,
@@ -174,7 +174,7 @@ exports.createStory = async (req, res) => {
 }
 
 // Obtener historias para el feed
-exports.getStoriesForFeed = async (req, res) => {
+export const getStoriesForFeed = async (req, res) => {
   try {
     // Implementar caché para mejorar rendimiento
     const cacheKey = getFeedCacheKey()
@@ -219,7 +219,7 @@ exports.getStoriesForFeed = async (req, res) => {
 }
 
 // Obtener historias de un usuario específico
-exports.getUserStories = async (req, res) => {
+export const getUserStories = async (req, res) => {
   try {
     const { username } = req.params
     const user = await User.findOne({ username })
@@ -268,7 +268,7 @@ exports.getUserStories = async (req, res) => {
 }
 
 // Obtener una historia específica
-exports.getStory = async (req, res) => {
+export const getStory = async (req, res) => {
   try {
     const story = await Story.findOne({
       _id: req.params.id,
@@ -330,7 +330,7 @@ exports.getStory = async (req, res) => {
 }
 
 // Agregar reacción a una historia
-exports.addReaction = async (req, res) => {
+export const addReaction = async (req, res) => {
   try {
     const { reactionType } = req.body
     const story = await Story.findById(req.params.id)
@@ -380,7 +380,7 @@ exports.addReaction = async (req, res) => {
 }
 
 // Remover reacción de una historia
-exports.removeReaction = async (req, res) => {
+export const removeReaction = async (req, res) => {
   try {
     const story = await Story.findById(req.params.id)
 
@@ -408,7 +408,7 @@ exports.removeReaction = async (req, res) => {
 }
 
 // Agregar respuesta a una historia
-exports.addReply = async (req, res) => {
+export const addReply = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -467,7 +467,7 @@ exports.addReply = async (req, res) => {
 }
 
 // Eliminar una historia
-exports.deleteStory = async (req, res) => {
+export const deleteStory = async (req, res) => {
   try {
     logger.info('🗑️ deleteStory llamado con:', {
       storyId: req.params.id,
@@ -553,7 +553,7 @@ exports.deleteStory = async (req, res) => {
 }
 
 // Limpiar historias expiradas (tarea programada)
-exports.cleanupExpiredStories = async (req, res) => {
+export const cleanupExpiredStories = async (req, res) => {
   try {
     const result = await Story.cleanupExpiredStories()
 
@@ -572,7 +572,7 @@ exports.cleanupExpiredStories = async (req, res) => {
 }
 
 // Obtener usuarios con stories para la barra de stories
-exports.getUsersWithStories = async (req, res) => {
+export const getUsersWithStories = async (req, res) => {
   try {
     const userId = req.userId
 
@@ -657,7 +657,7 @@ exports.getUsersWithStories = async (req, res) => {
 }
 
 // Obtener estadísticas de notificaciones de historias
-exports.getStoryNotificationStats = async (req, res) => {
+export const getStoryNotificationStats = async (req, res) => {
   try {
     const userId = req.userId
 
@@ -716,7 +716,7 @@ exports.getStoryNotificationStats = async (req, res) => {
 }
 
 // Marcar notificaciones de historias como leídas
-exports.markStoryNotificationsAsRead = async (req, res) => {
+export const markStoryNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.userId
 

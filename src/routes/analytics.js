@@ -1,12 +1,12 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const {
+import {
   trackEvent,
   getStats,
   getUserAnalytics,
   cleanup
-} = require('../controllers/analyticsController')
-const { auth, optionalAuth } = require('../middlewares/auth')
+} from '../controllers/analyticsController.js'
+import { auth, optionalAuth } from '../middlewares/auth.js'
 
 // Rutas públicas (con auth opcional)
 router.post('/event', optionalAuth, trackEvent)
@@ -16,4 +16,4 @@ router.get('/stats', auth, getStats)
 router.get('/user/:userId', auth, getUserAnalytics)
 router.delete('/cleanup', auth, cleanup)
 
-module.exports = router
+export default router

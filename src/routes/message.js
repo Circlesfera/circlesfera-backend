@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body, query } = require('express-validator')
-const {
+import { body, query } from 'express-validator'
+import {
   getMessages,
   sendTextMessage,
   sendImageMessage,
@@ -12,9 +12,9 @@ const {
   forwardMessage,
   searchMessages,
   getMessageStats
-} = require('../controllers/messageController')
-const { auth } = require('../middlewares/auth')
-const { uploadSingle, handleUploadError } = require('../middlewares/upload')
+} from '../controllers/messageController.js'
+import { auth } from '../middlewares/auth.js'
+import { uploadSingle, handleUploadError } from '../middlewares/upload.js'
 
 // Validaciones
 const sendTextMessageValidation = [
@@ -83,4 +83,4 @@ router.put('/message/:messageId', auth, editMessageValidation, editMessage)
 router.delete('/message/:messageId', auth, deleteMessage)
 router.post('/message/:messageId/forward', auth, forwardMessageValidation, forwardMessage)
 
-module.exports = router
+export default router

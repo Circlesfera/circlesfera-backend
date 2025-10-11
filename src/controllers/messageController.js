@@ -1,11 +1,11 @@
-const Message = require('../models/Message')
-const Conversation = require('../models/Conversation')
-const Notification = require('../models/Notification')
-const socketService = require('../services/socketService')
-const logger = require('../utils/logger')
+import Message from '../models/Message.js'
+import Conversation from '../models/Conversation.js'
+import Notification from '../models/Notification.js'
+import socketService from '../services/socketService.js'
+import logger from '../utils/logger.js'
 
 // Obtener mensajes de una conversación
-exports.getMessages = async (req, res) => {
+export const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params
     const page = parseInt(req.query.page) || 1
@@ -61,7 +61,7 @@ exports.getMessages = async (req, res) => {
 }
 
 // Enviar mensaje de texto
-exports.sendTextMessage = async (req, res) => {
+export const sendTextMessage = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { content, replyTo } = req.body
@@ -156,7 +156,7 @@ exports.sendTextMessage = async (req, res) => {
 }
 
 // Enviar mensaje de imagen
-exports.sendImageMessage = async (req, res) => {
+export const sendImageMessage = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { caption } = req.body
@@ -236,7 +236,7 @@ exports.sendImageMessage = async (req, res) => {
 }
 
 // Enviar mensaje de video
-exports.sendVideoMessage = async (req, res) => {
+export const sendVideoMessage = async (req, res) => {
   try {
     const { conversationId } = req.params
     const videoFile = req.files?.video
@@ -316,7 +316,7 @@ exports.sendVideoMessage = async (req, res) => {
 }
 
 // Enviar mensaje de ubicación
-exports.sendLocationMessage = async (req, res) => {
+export const sendLocationMessage = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { latitude, longitude, name, address } = req.body
@@ -394,7 +394,7 @@ exports.sendLocationMessage = async (req, res) => {
 }
 
 // Editar mensaje
-exports.editMessage = async (req, res) => {
+export const editMessage = async (req, res) => {
   try {
     const { messageId } = req.params
     const { content } = req.body
@@ -456,7 +456,7 @@ exports.editMessage = async (req, res) => {
 }
 
 // Eliminar mensaje
-exports.deleteMessage = async (req, res) => {
+export const deleteMessage = async (req, res) => {
   try {
     const { messageId } = req.params
 
@@ -496,7 +496,7 @@ exports.deleteMessage = async (req, res) => {
 }
 
 // Reenviar mensaje
-exports.forwardMessage = async (req, res) => {
+export const forwardMessage = async (req, res) => {
   try {
     const { messageId } = req.params
     const { conversationIds } = req.body
@@ -580,7 +580,7 @@ exports.forwardMessage = async (req, res) => {
 }
 
 // Buscar mensajes
-exports.searchMessages = async (req, res) => {
+export const searchMessages = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { query } = req.query
@@ -643,7 +643,7 @@ exports.searchMessages = async (req, res) => {
 }
 
 // Obtener estadísticas de mensajes
-exports.getMessageStats = async (req, res) => {
+export const getMessageStats = async (req, res) => {
   try {
     const { conversationId } = req.params
 

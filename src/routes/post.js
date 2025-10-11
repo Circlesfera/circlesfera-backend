@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   createPost,
   getFeed,
   getPost,
@@ -11,10 +11,10 @@ const {
   getRecentPosts,
   deletePost,
   updatePost
-} = require('../controllers/postController')
-const { auth } = require('../middlewares/auth')
-const { uploadFields, handleUploadError } = require('../middlewares/upload')
-const imageOptimizer = require('../middlewares/imageOptimizer')
+} from '../controllers/postController.js'
+import { auth } from '../middlewares/auth.js'
+import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import imageOptimizer from '../middlewares/imageOptimizer.js'
 
 // Validaciones
 const createPostValidation = [
@@ -84,4 +84,4 @@ router.put('/:id', auth, updatePostValidation, updatePost)
 router.post('/:id/like', auth, toggleLike)
 router.delete('/:id', auth, deletePost)
 
-module.exports = router
+export default router

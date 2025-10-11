@@ -1,4 +1,4 @@
-const logger = require('./logger')
+import logger from './logger.js'
 
 /**
  * Sistema de caché en memoria para CircleSfera
@@ -144,4 +144,4 @@ class MemoryCache {
 // Instancia singleton del caché
 const cache = new MemoryCache()
 
-module.exports = cache
+export default cache

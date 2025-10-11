@@ -1,17 +1,17 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { auth } = require('../middlewares/auth')
-const { uploadFields } = require('../middlewares/upload')
+import { auth } from '../middlewares/auth.js'
+import { uploadFields } from '../middlewares/upload.js'
 
 // Importar controladores
-const reelController = require('../controllers/reelController')
-const postController = require('../controllers/postController')
-const storyController = require('../controllers/storyController')
-const cstvController = require('../controllers/cstvController')
-const liveStreamController = require('../controllers/liveStreamController')
+import reelController from '../controllers/reelController.js'
+import postController from '../controllers/postController.js'
+import storyController from '../controllers/storyController.js'
+import cstvController from '../controllers/cstvController.js'
+import liveStreamController from '../controllers/liveStreamController.js'
 
 // Middleware para validar que el usuario existe (se puede agregar después)
-// const { validateUser } = require('../middlewares/validateUser')
+// import { validateUser } from '../middlewares/validateUser.js'
 
 // ===== REELS =====
 // @route   GET /api/:username/reels
@@ -68,4 +68,4 @@ router.get('/:username/live', liveStreamController.getUserLiveStreams)
 // @access  Private
 router.post('/:username/live', auth, liveStreamController.createLiveStream)
 
-module.exports = router
+export default router

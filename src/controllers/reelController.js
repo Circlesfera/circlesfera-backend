@@ -1,16 +1,16 @@
-const Reel = require('../models/Reel')
-const User = require('../models/User')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
-const {
+import Reel from '../models/Reel.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
+import {
   getPaginationOptions,
   createPaginatedResponse
-} = require('../utils/queryOptimizer')
+} from '../utils/queryOptimizer.js'
 
 // Crear un nuevo reel
-exports.createReel = async (req, res) => {
+export const createReel = async (req, res) => {
   try {
     logger.info('🎬 createReel llamado con:', {
       userId: req.userId,
@@ -132,7 +132,7 @@ exports.createReel = async (req, res) => {
 }
 
 // Obtener reels para el feed
-exports.getReelsForFeed = async (req, res) => {
+export const getReelsForFeed = async (req, res) => {
   try {
     const userId = req.userId
     const { page, limit, skip } = getPaginationOptions(
@@ -200,7 +200,7 @@ exports.getReelsForFeed = async (req, res) => {
 }
 
 // Obtener reels de un usuario específico
-exports.getUserReels = async (req, res) => {
+export const getUserReels = async (req, res) => {
   try {
     const { username } = req.params
     const page = parseInt(req.query.page) || 1
@@ -252,7 +252,7 @@ exports.getUserReels = async (req, res) => {
 }
 
 // Obtener un reel específico
-exports.getReel = async (req, res) => {
+export const getReel = async (req, res) => {
   try {
     const { id } = req.params
     const userId = req.userId
@@ -293,7 +293,7 @@ exports.getReel = async (req, res) => {
 }
 
 // Dar like a un reel
-exports.likeReel = async (req, res) => {
+export const likeReel = async (req, res) => {
   try {
     const { id } = req.params
     const userId = req.userId
@@ -363,7 +363,7 @@ exports.likeReel = async (req, res) => {
 }
 
 // Quitar like de un reel
-exports.unlikeReel = async (req, res) => {
+export const unlikeReel = async (req, res) => {
   try {
     const { id } = req.params
     const userId = req.userId
@@ -398,7 +398,7 @@ exports.unlikeReel = async (req, res) => {
 }
 
 // Comentar un reel
-exports.commentReel = async (req, res) => {
+export const commentReel = async (req, res) => {
   try {
     const { id } = req.params
     const { content } = req.body
@@ -475,7 +475,7 @@ exports.commentReel = async (req, res) => {
 }
 
 // Eliminar un reel
-exports.deleteReel = async (req, res) => {
+export const deleteReel = async (req, res) => {
   try {
     const { id } = req.params
     const userId = req.userId
@@ -512,7 +512,7 @@ exports.deleteReel = async (req, res) => {
 }
 
 // Buscar reels por hashtag
-exports.searchReelsByHashtag = async (req, res) => {
+export const searchReelsByHashtag = async (req, res) => {
   try {
     const { hashtag } = req.params
     const page = parseInt(req.query.page) || 1
@@ -559,7 +559,7 @@ exports.searchReelsByHashtag = async (req, res) => {
 }
 
 // Obtener reels trending (más populares)
-exports.getTrendingReels = async (req, res) => {
+export const getTrendingReels = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20
     const timeFrame = req.query.timeFrame || 'week' // week, month, all

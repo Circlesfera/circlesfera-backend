@@ -1,8 +1,8 @@
-const multer = require('multer')
-const path = require('path')
-const fs = require('fs')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 // Crear directorio uploads si no existe
 const uploadsDir = config.uploadDir
@@ -97,7 +97,7 @@ const uploadFields = upload.fields([
   { name: 'thumbnail', maxCount: 1 }
 ])
 
-module.exports = {
+export {
   upload,
   uploadSingle,
   uploadMultiple,

@@ -1,5 +1,5 @@
-const { optimizeImage, createThumbnail } = require('../utils/mediaProcessor')
-const logger = require('../utils/logger')
+import { optimizeImage, createThumbnail } from '../utils/mediaProcessor.js'
+import logger from '../utils/logger.js'
 
 /**
  * Middleware para optimizar automáticamente imágenes subidas
@@ -78,4 +78,4 @@ const imageOptimizer = async (req, res, next) => {
   }
 }
 
-module.exports = imageOptimizer
+export default imageOptimizer

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose')
-const { MEDIA_CONFIG, validateAspectRatio } = require('../config/media')
+import mongoose from 'mongoose'
+import { MEDIA_CONFIG, validateAspectRatio } from '../config/media.js'
 
 const StorySchema = new mongoose.Schema({
   user: {
@@ -359,4 +359,4 @@ StorySchema.post('save', async () => {
   // cuando se crea una nueva historia
 })
 
-module.exports = mongoose.model('Story', StorySchema)
+export default mongoose.model('Story', StorySchema)

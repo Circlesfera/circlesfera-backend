@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const LiveCommentSchema = new mongoose.Schema(
   {
@@ -285,4 +285,4 @@ LiveCommentSchema.post('save', function () {
     })
 })
 
-module.exports = mongoose.model('LiveComment', LiveCommentSchema)
+export default mongoose.model('LiveComment', LiveCommentSchema)

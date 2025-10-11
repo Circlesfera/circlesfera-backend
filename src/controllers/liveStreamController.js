@@ -1,14 +1,14 @@
-const LiveStream = require('../models/LiveStream')
-const LiveComment = require('../models/LiveComment')
-const CSTV = require('../models/CSTV')
-const User = require('../models/User')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
+import LiveStream from '../models/LiveStream.js'
+import LiveComment from '../models/LiveComment.js'
+import CSTV from '../models/CSTV.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
 
 // Crear una nueva transmisión en vivo
-exports.createLiveStream = async (req, res) => {
+export const createLiveStream = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -85,7 +85,7 @@ exports.createLiveStream = async (req, res) => {
 }
 
 // Obtener transmisiones en vivo
-exports.getLiveStreams = async (req, res) => {
+export const getLiveStreams = async (req, res) => {
   try {
     const {
       status = 'live',
@@ -165,7 +165,7 @@ exports.getLiveStreams = async (req, res) => {
 }
 
 // Obtener una transmisión específica
-exports.getLiveStream = async (req, res) => {
+export const getLiveStream = async (req, res) => {
   try {
     const { streamId } = req.params
 
@@ -225,7 +225,7 @@ exports.getLiveStream = async (req, res) => {
 }
 
 // Iniciar transmisión en vivo
-exports.startLiveStream = async (req, res) => {
+export const startLiveStream = async (req, res) => {
   try {
     const { streamId } = req.params
     const { streamKey, rtmpUrl, playbackUrl, thumbnailUrl } = req.body
@@ -292,7 +292,7 @@ exports.startLiveStream = async (req, res) => {
 }
 
 // Terminar transmisión en vivo
-exports.endLiveStream = async (req, res) => {
+export const endLiveStream = async (req, res) => {
   try {
     const { streamId } = req.params
     const { saveToCSTV, cstvTitle, cstvDescription, cstvCategory } = req.body
@@ -366,7 +366,7 @@ exports.endLiveStream = async (req, res) => {
 }
 
 // Agregar viewer a la transmisión
-exports.addViewer = async (req, res) => {
+export const addViewer = async (req, res) => {
   try {
     const { streamId } = req.params
 
@@ -409,7 +409,7 @@ exports.addViewer = async (req, res) => {
 }
 
 // Remover viewer de la transmisión
-exports.removeViewer = async (req, res) => {
+export const removeViewer = async (req, res) => {
   try {
     const { streamId } = req.params
 
@@ -445,7 +445,7 @@ exports.removeViewer = async (req, res) => {
 }
 
 // Invitar co-host
-exports.inviteCoHost = async (req, res) => {
+export const inviteCoHost = async (req, res) => {
   try {
     const { streamId } = req.params
     const { userId } = req.body
@@ -609,7 +609,7 @@ async function saveLiveToCSTV(liveStream, options) {
 }
 
 // Obtener transmisiones en vivo de un usuario específico
-exports.getUserLiveStreams = async (req, res) => {
+export const getUserLiveStreams = async (req, res) => {
   try {
     const { username } = req.params
     const { page = 1, limit = 20, status } = req.query

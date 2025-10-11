@@ -1,8 +1,8 @@
-const User = require('../models/User')
-const jwt = require('jsonwebtoken')
-const { validationResult } = require('express-validator')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import User from '../models/User.js'
+import jwt from 'jsonwebtoken'
+import { validationResult } from 'express-validator'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 // Generar token JWT
 const generateToken = (userId) => {
@@ -22,7 +22,7 @@ const sanitizeUser = (user) => {
   return userObj
 }
 
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     // Validar errores de validación
     const errors = validationResult(req)
@@ -87,7 +87,7 @@ exports.register = async (req, res) => {
   }
 }
 
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     // Validar errores de validación
     const errors = validationResult(req)
@@ -156,7 +156,7 @@ exports.login = async (req, res) => {
   }
 }
 
-exports.getProfile = async (req, res) => {
+export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
 
@@ -181,7 +181,7 @@ exports.getProfile = async (req, res) => {
   }
 }
 
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -274,7 +274,7 @@ exports.updateProfile = async (req, res) => {
   }
 }
 
-exports.changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -323,7 +323,7 @@ exports.changePassword = async (req, res) => {
   }
 }
 
-exports.logout = async (req, res) => {
+export const logout = async (req, res) => {
   try {
     // En una implementación más avanzada, podrías invalidar el token
     // agregándolo a una lista negra en Redis
@@ -342,7 +342,7 @@ exports.logout = async (req, res) => {
   }
 }
 
-exports.refreshToken = async (req, res) => {
+export const refreshToken = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
 
@@ -371,7 +371,7 @@ exports.refreshToken = async (req, res) => {
 }
 
 // Verificar disponibilidad de username
-exports.checkUsernameAvailability = async (req, res) => {
+export const checkUsernameAvailability = async (req, res) => {
   try {
     const { username } = req.params
 

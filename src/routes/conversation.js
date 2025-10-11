@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   getConversations,
   getConversation,
   createDirectConversation,
@@ -15,8 +15,8 @@ const {
   unarchiveConversation,
   deleteConversation,
   getConversationStats
-} = require('../controllers/conversationController')
-const { auth } = require('../middlewares/auth')
+} from '../controllers/conversationController.js'
+import { auth } from '../middlewares/auth.js'
 
 // Validaciones
 const createGroupValidation = [
@@ -79,4 +79,4 @@ router.post('/:conversationId/archive', auth, archiveConversation)
 router.post('/:conversationId/unarchive', auth, unarchiveConversation)
 router.delete('/:conversationId', auth, deleteConversation)
 
-module.exports = router
+export default router

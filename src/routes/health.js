@@ -1,8 +1,8 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const mongoose = require('mongoose')
-const logger = require('../utils/logger')
-const { config } = require('../utils/config')
+import mongoose from 'mongoose'
+import logger from '../utils/logger.js'
+import { config } from '../utils/config.js'
 
 /**
  * @swagger
@@ -159,5 +159,5 @@ router.get('/ready', async (req, res) => {
   }
 })
 
-module.exports = router
+export default router
 

@@ -1,4 +1,4 @@
-const logger = require('../utils/logger')
+import logger from '../utils/logger.js'
 
 /**
  * Función para sanitizar objetos recursivamente
@@ -75,7 +75,7 @@ const sanitizeBody = (req, res, next) => {
   next()
 }
 
-module.exports = {
+export {
   sanitizeMongo,
   sanitizeString,
   sanitizeObject,

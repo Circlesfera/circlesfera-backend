@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken')
-const User = require('../models/User')
-const { config } = require('../utils/config')
-const logger = require('../utils/logger')
+import jwt from 'jsonwebtoken'
+import User from '../models/User.js'
+import { config } from '../utils/config.js'
+import logger from '../utils/logger.js'
 
 class SocketService {
   constructor() {
@@ -11,7 +11,7 @@ class SocketService {
   }
 
   initialize(server) {
-    const { Server } = require('socket.io')
+    import { Server } from 'socket.io'
 
     this.io = new Server(server, {
       cors: {
@@ -253,4 +253,4 @@ class SocketService {
 // Singleton instance
 const socketService = new SocketService()
 
-module.exports = socketService
+export default socketService

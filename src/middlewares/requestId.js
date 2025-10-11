@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid')
+import { v4: uuidv4 } from 'uuid'
 
 /**
  * Middleware para agregar Request ID único a cada request
@@ -17,5 +17,5 @@ const requestId = (req, res, next) => {
   next()
 }
 
-module.exports = requestId
+export default requestId
 

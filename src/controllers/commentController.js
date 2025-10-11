@@ -1,18 +1,18 @@
-const Comment = require('../models/Comment')
-const Post = require('../models/Post')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const mongoose = require('mongoose')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
-const {
+import Comment from '../models/Comment.js'
+import Post from '../models/Post.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import mongoose from 'mongoose'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
+import {
   getPaginationOptions,
   createPaginatedResponse,
   getCommentPopulateOptions
-} = require('../utils/queryOptimizer')
+} from '../utils/queryOptimizer.js'
 
 // Crear un comentario
-exports.createComment = async (req, res) => {
+export const createComment = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -105,7 +105,7 @@ exports.createComment = async (req, res) => {
 }
 
 // Obtener comentarios de un post
-exports.getComments = async (req, res) => {
+export const getComments = async (req, res) => {
   try {
     const postId = req.params.postId
 
@@ -191,7 +191,7 @@ exports.getComments = async (req, res) => {
 }
 
 // Obtener respuestas de un comentario
-exports.getReplies = async (req, res) => {
+export const getReplies = async (req, res) => {
   try {
     const commentId = req.params.commentId
     const page = parseInt(req.query.page) || 1
@@ -236,7 +236,7 @@ exports.getReplies = async (req, res) => {
 }
 
 // Dar/quitar like a un comentario
-exports.toggleLike = async (req, res) => {
+export const toggleLike = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId)
 
@@ -283,7 +283,7 @@ exports.toggleLike = async (req, res) => {
 }
 
 // Actualizar un comentario
-exports.updateComment = async (req, res) => {
+export const updateComment = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -333,7 +333,7 @@ exports.updateComment = async (req, res) => {
 }
 
 // Eliminar un comentario
-exports.deleteComment = async (req, res) => {
+export const deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId)
 
@@ -372,14 +372,14 @@ exports.deleteComment = async (req, res) => {
 }
 
 // Obtener comentarios de un usuario
-exports.getUserComments = async (req, res) => {
+export const getUserComments = async (req, res) => {
   try {
     const { username } = req.params
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
 
-    const User = require('../models/User')
+    import User from '../models/User.js'
     const user = await User.findOne({ username })
 
     if (!user) {

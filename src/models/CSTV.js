@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const CSTVSchema = new mongoose.Schema(
   {
@@ -440,4 +440,4 @@ CSTVSchema.post('save', async function () {
   }
 })
 
-module.exports = mongoose.model('CSTV', CSTVSchema)
+export default mongoose.model('CSTV', CSTVSchema)

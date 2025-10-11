@@ -1,12 +1,12 @@
-const AnalyticsEvent = require('../models/AnalyticsEvent')
-const logger = require('../utils/logger')
+import AnalyticsEvent from '../models/AnalyticsEvent.js'
+import logger from '../utils/logger.js'
 
 /**
  * @desc    Registrar evento de analytics
  * @route   POST /api/analytics/event
  * @access  Public
  */
-exports.trackEvent = async (req, res) => {
+export const trackEvent = async (req, res) => {
   try {
     const { event, category, action, label, value, metadata, sessionId } =
       req.body
@@ -51,7 +51,7 @@ exports.trackEvent = async (req, res) => {
  * @route   GET /api/analytics/stats
  * @access  Private (Admin)
  */
-exports.getStats = async (req, res) => {
+export const getStats = async (req, res) => {
   try {
     const { startDate, endDate, event, category, userId } = req.query
 
@@ -106,7 +106,7 @@ exports.getStats = async (req, res) => {
  * @route   GET /api/analytics/user/:userId
  * @access  Private
  */
-exports.getUserAnalytics = async (req, res) => {
+export const getUserAnalytics = async (req, res) => {
   try {
     const { userId } = req.params
     const page = parseInt(req.query.page) || 1
@@ -145,7 +145,7 @@ exports.getUserAnalytics = async (req, res) => {
  * @route   DELETE /api/analytics/cleanup
  * @access  Private (Admin)
  */
-exports.cleanup = async (req, res) => {
+export const cleanup = async (req, res) => {
   try {
     const daysOld = parseInt(req.query.days) || 90
     const cutoffDate = new Date()

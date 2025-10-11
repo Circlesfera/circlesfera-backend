@@ -1,12 +1,12 @@
-const CSTV = require('../models/CSTV')
-const User = require('../models/User')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
+import CSTV from '../models/CSTV.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
 
 // Crear un nuevo video CSTV
-exports.createCSTVVideo = async (req, res) => {
+export const createCSTVVideo = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -76,7 +76,7 @@ exports.createCSTVVideo = async (req, res) => {
 }
 
 // Obtener videos CSTV
-exports.getCSTVVideos = async (req, res) => {
+export const getCSTVVideos = async (req, res) => {
   try {
     const {
       page = 1,
@@ -174,7 +174,7 @@ exports.getCSTVVideos = async (req, res) => {
 }
 
 // Obtener un video específico
-exports.getCSTVVideo = async (req, res) => {
+export const getCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -223,7 +223,7 @@ exports.getCSTVVideo = async (req, res) => {
 }
 
 // Actualizar un video CSTV
-exports.updateCSTVVideo = async (req, res) => {
+export const updateCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
     const updates = req.body
@@ -291,7 +291,7 @@ exports.updateCSTVVideo = async (req, res) => {
 }
 
 // Eliminar un video CSTV
-exports.deleteCSTVVideo = async (req, res) => {
+export const deleteCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -337,7 +337,7 @@ exports.deleteCSTVVideo = async (req, res) => {
 }
 
 // Dar like a un video CSTV
-exports.likeCSTVVideo = async (req, res) => {
+export const likeCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -393,7 +393,7 @@ exports.likeCSTVVideo = async (req, res) => {
 }
 
 // Quitar like de un video CSTV
-exports.unlikeCSTVVideo = async (req, res) => {
+export const unlikeCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -430,7 +430,7 @@ exports.unlikeCSTVVideo = async (req, res) => {
 }
 
 // Guardar un video CSTV
-exports.saveCSTVVideo = async (req, res) => {
+export const saveCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -466,7 +466,7 @@ exports.saveCSTVVideo = async (req, res) => {
 }
 
 // Quitar de guardados un video CSTV
-exports.unsaveCSTVVideo = async (req, res) => {
+export const unsaveCSTVVideo = async (req, res) => {
   try {
     const { videoId } = req.params
 
@@ -502,7 +502,7 @@ exports.unsaveCSTVVideo = async (req, res) => {
 }
 
 // Obtener videos trending
-exports.getTrendingVideos = async (req, res) => {
+export const getTrendingVideos = async (req, res) => {
   try {
     const { limit = 20 } = req.query
 
@@ -529,7 +529,7 @@ exports.getTrendingVideos = async (req, res) => {
 }
 
 // Buscar videos
-exports.searchVideos = async (req, res) => {
+export const searchVideos = async (req, res) => {
   try {
     const { q: searchTerm, page = 1, limit = 20 } = req.query
 
@@ -574,7 +574,7 @@ exports.searchVideos = async (req, res) => {
 }
 
 // Obtener videos CSTV de un usuario específico
-exports.getUserCSTVVideos = async (req, res) => {
+export const getUserCSTVVideos = async (req, res) => {
   try {
     const { username } = req.params
     const { page = 1, limit = 20 } = req.query

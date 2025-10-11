@@ -1,8 +1,8 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body, param, query, validationResult } = require('express-validator')
-const { auth: protect, optionalAuth } = require('../middlewares/auth')
-const {
+import { body, param, query, validationResult } from 'express-validator'
+import { auth: protect, optionalAuth } from '../middlewares/auth.js'
+import {
   createCSTVVideo,
   getCSTVVideos,
   getCSTVVideo,
@@ -14,7 +14,7 @@ const {
   unsaveCSTVVideo,
   getTrendingVideos,
   searchVideos
-} = require('../controllers/cstvController')
+} from '../controllers/cstvController.js'
 
 // Validaciones
 const createCSTVValidation = [
@@ -340,4 +340,4 @@ router.delete(
   unsaveCSTVVideo
 )
 
-module.exports = router
+export default router

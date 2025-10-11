@@ -1,7 +1,7 @@
-const Notification = require('../models/Notification')
-const User = require('../models/User')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
+import Notification from '../models/Notification.js'
+import User from '../models/User.js'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
 
 /**
  * Servicio de notificaciones para CircleSfera
@@ -482,4 +482,4 @@ class NotificationService {
 // Instancia singleton del servicio
 const notificationService = new NotificationService()
 
-module.exports = notificationService
+export default notificationService

@@ -1,6 +1,6 @@
-const mongoose = require('mongoose')
-const logger = require('./logger')
-const monitoringService = require('./monitoring')
+import mongoose from 'mongoose'
+import logger from './logger.js'
+import monitoringService from './monitoring.js'
 
 /**
  * Optimizador de consultas de base de datos para CircleSfera
@@ -442,4 +442,4 @@ class DatabaseOptimizer {
 // Instancia singleton del optimizador
 const dbOptimizer = new DatabaseOptimizer()
 
-module.exports = dbOptimizer
+export default dbOptimizer

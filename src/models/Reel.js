@@ -1,5 +1,5 @@
-const mongoose = require('mongoose')
-const { MEDIA_CONFIG, validateAspectRatio } = require('../config/media')
+import mongoose from 'mongoose'
+import { MEDIA_CONFIG, validateAspectRatio } from '../config/media.js'
 
 const ReelSchema = new mongoose.Schema({
   user: {
@@ -325,4 +325,4 @@ ReelSchema.pre('save', function(next) {
   next()
 })
 
-module.exports = mongoose.model('Reel', ReelSchema)
+export default mongoose.model('Reel', ReelSchema)

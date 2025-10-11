@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const ConversationSchema = new mongoose.Schema({
   participants: [{
@@ -331,4 +331,4 @@ ConversationSchema.pre('save', function(next) {
   next()
 })
 
-module.exports = mongoose.model('Conversation', ConversationSchema)
+export default mongoose.model('Conversation', ConversationSchema)

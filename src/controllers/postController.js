@@ -1,17 +1,17 @@
-const Post = require('../models/Post')
-const User = require('../models/User')
-const Notification = require('../models/Notification')
-const { validationResult } = require('express-validator')
-const logger = require('../utils/logger')
-const cache = require('../utils/cache')
-const {
+import Post from '../models/Post.js'
+import User from '../models/User.js'
+import Notification from '../models/Notification.js'
+import { validationResult } from 'express-validator'
+import logger from '../utils/logger.js'
+import cache from '../utils/cache.js'
+import {
   getPaginationOptions,
   createPaginatedResponse,
   getPostPopulateOptions
-} = require('../utils/queryOptimizer')
+} from '../utils/queryOptimizer.js'
 
 // Crear una nueva publicación
-exports.createPost = async (req, res) => {
+export const createPost = async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -127,7 +127,7 @@ exports.createPost = async (req, res) => {
 }
 
 // Obtener el feed de publicaciones
-exports.getFeed = async (req, res) => {
+export const getFeed = async (req, res) => {
   try {
     const userId = req.userId
     const { page, limit, skip } = getPaginationOptions(
@@ -209,7 +209,7 @@ exports.getFeed = async (req, res) => {
 }
 
 // Obtener un post específico
-exports.getPost = async (req, res) => {
+export const getPost = async (req, res) => {
   try {
     const postId = req.params.id
     const userId = req.userId
@@ -271,7 +271,7 @@ exports.getPost = async (req, res) => {
 }
 
 // Dar/quitar like a un post
-exports.toggleLike = async (req, res) => {
+export const toggleLike = async (req, res) => {
   try {
     const postId = req.params.id
     const userId = req.userId
@@ -328,7 +328,7 @@ exports.toggleLike = async (req, res) => {
 }
 
 // Listar usuarios que han dado like a un post
-exports.getLikes = async (req, res) => {
+export const getLikes = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id).populate(
       'likes',
@@ -356,7 +356,7 @@ exports.getLikes = async (req, res) => {
 }
 
 // Obtener posts de un usuario específico
-exports.getUserPosts = async (req, res) => {
+export const getUserPosts = async (req, res) => {
   try {
     const { username } = req.params
     const user = await User.findOne({ username })
@@ -404,7 +404,7 @@ exports.getUserPosts = async (req, res) => {
 }
 
 // Obtener posts trending con score ponderado y decaimiento temporal
-exports.getTrendingPosts = async (req, res) => {
+export const getTrendingPosts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10
 
@@ -538,7 +538,7 @@ exports.getTrendingPosts = async (req, res) => {
 }
 
 // Eliminar un post
-exports.deletePost = async (req, res) => {
+export const deletePost = async (req, res) => {
   try {
     // Verificar que el usuario esté autenticado
     if (!req.userId) {
@@ -585,7 +585,7 @@ exports.deletePost = async (req, res) => {
 }
 
 // Actualizar un post
-exports.updatePost = async (req, res) => {
+export const updatePost = async (req, res) => {
   try {
     // Verificar que el usuario esté autenticado
     if (!req.userId) {
@@ -648,7 +648,7 @@ exports.updatePost = async (req, res) => {
 }
 
 // Obtener posts recientes (públicos)
-exports.getRecentPosts = async (req, res) => {
+export const getRecentPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose')
+import mongoose from 'mongoose'
 
 const MessageSchema = new mongoose.Schema({
   conversation: {
@@ -235,7 +235,7 @@ MessageSchema.methods.softDelete = function() {
 }
 
 MessageSchema.methods.forward = function(targetConversationId) {
-  const Message = require('./Message')
+  import Message from './Message.js'
   const forwardedMessage = new Message({
     conversation: targetConversationId,
     sender: this.sender,
@@ -351,7 +351,7 @@ MessageSchema.pre('save', function(next) {
 
 // Middleware post-save para actualizar la conversación
 MessageSchema.post('save', async function() {
-  const Conversation = require('./Conversation')
+  import Conversation from './Conversation.js'
 
   // Actualizar último mensaje de la conversación
   await Conversation.findByIdAndUpdate(this.conversation, {
@@ -375,4 +375,4 @@ MessageSchema.post('save', async function() {
   }
 })
 
-module.exports = mongoose.model('Message', MessageSchema)
+export default mongoose.model('Message', MessageSchema)

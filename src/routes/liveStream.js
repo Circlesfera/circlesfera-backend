@@ -1,8 +1,8 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body, param, query, validationResult } = require('express-validator')
-const { auth: protect, optionalAuth } = require('../middlewares/auth')
-const {
+import { body, param, query, validationResult } from 'express-validator'
+import { auth: protect, optionalAuth } from '../middlewares/auth.js'
+import {
   createLiveStream,
   getLiveStreams,
   getLiveStream,
@@ -11,7 +11,7 @@ const {
   addViewer,
   removeViewer,
   inviteCoHost
-} = require('../controllers/liveStreamController')
+} from '../controllers/liveStreamController.js'
 
 // Validaciones
 const createLiveStreamValidation = [
@@ -232,4 +232,4 @@ router.post(
   inviteCoHost
 )
 
-module.exports = router
+export default router

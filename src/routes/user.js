@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   getUserProfile,
   followUser,
   unfollowUser,
@@ -22,8 +22,8 @@ const {
   unmuteUser,
   restrictUser,
   unrestrictUser
-} = require('../controllers/userController')
-const { auth, optionalAuth } = require('../middlewares/auth')
+} from '../controllers/userController.js'
+import { auth, optionalAuth } from '../middlewares/auth.js'
 
 // Validaciones
 const searchValidation = [
@@ -61,4 +61,4 @@ router.put('/settings/security', auth, updateSecuritySettings)
 router.put('/change-password', auth, changePassword)
 router.put('/two-factor', auth, toggleTwoFactor)
 
-module.exports = router
+export default router

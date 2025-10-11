@@ -1,8 +1,8 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { auth } = require('../middlewares/auth')
-const { uploadFields } = require('../middlewares/upload')
-const reelController = require('../controllers/reelController')
+import { auth } from '../middlewares/auth.js'
+import { uploadFields } from '../middlewares/upload.js'
+import reelController from '../controllers/reelController.js'
 
 
 // Rutas públicas (sin autenticación)
@@ -20,4 +20,4 @@ router.delete('/:id/like', auth, reelController.unlikeReel)
 router.post('/:id/comment', auth, reelController.commentReel)
 router.delete('/:id', auth, reelController.deleteReel)
 
-module.exports = router
+export default router

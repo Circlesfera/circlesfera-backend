@@ -1,9 +1,9 @@
-const Conversation = require('../models/Conversation')
-const User = require('../models/User')
-const logger = require('../utils/logger')
+import Conversation from '../models/Conversation.js'
+import User from '../models/User.js'
+import logger from '../utils/logger.js'
 
 // Obtener conversaciones del usuario
-exports.getConversations = async (req, res) => {
+export const getConversations = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 20
@@ -39,7 +39,7 @@ exports.getConversations = async (req, res) => {
 }
 
 // Obtener una conversación específica
-exports.getConversation = async (req, res) => {
+export const getConversation = async (req, res) => {
   try {
     const { conversationId } = req.params
 
@@ -77,7 +77,7 @@ exports.getConversation = async (req, res) => {
 }
 
 // Crear conversación directa
-exports.createDirectConversation = async (req, res) => {
+export const createDirectConversation = async (req, res) => {
   try {
     const { participantId } = req.body
 
@@ -124,7 +124,7 @@ exports.createDirectConversation = async (req, res) => {
 }
 
 // Crear conversación grupal
-exports.createGroupConversation = async (req, res) => {
+export const createGroupConversation = async (req, res) => {
   try {
     const { name, description, participantIds } = req.body
 
@@ -170,7 +170,7 @@ exports.createGroupConversation = async (req, res) => {
 }
 
 // Agregar participante a conversación grupal
-exports.addParticipant = async (req, res) => {
+export const addParticipant = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { participantId } = req.body
@@ -216,7 +216,7 @@ exports.addParticipant = async (req, res) => {
 }
 
 // Remover participante de conversación grupal
-exports.removeParticipant = async (req, res) => {
+export const removeParticipant = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { participantId } = req.body
@@ -262,7 +262,7 @@ exports.removeParticipant = async (req, res) => {
 }
 
 // Agregar administrador
-exports.addAdmin = async (req, res) => {
+export const addAdmin = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { adminId } = req.body
@@ -308,7 +308,7 @@ exports.addAdmin = async (req, res) => {
 }
 
 // Remover administrador
-exports.removeAdmin = async (req, res) => {
+export const removeAdmin = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { adminId } = req.body
@@ -354,7 +354,7 @@ exports.removeAdmin = async (req, res) => {
 }
 
 // Actualizar configuración de conversación
-exports.updateConversation = async (req, res) => {
+export const updateConversation = async (req, res) => {
   try {
     const { conversationId } = req.params
     const { name, description, avatar } = req.body
@@ -405,7 +405,7 @@ exports.updateConversation = async (req, res) => {
 }
 
 // Archivar conversación
-exports.archiveConversation = async (req, res) => {
+export const archiveConversation = async (req, res) => {
   try {
     const { conversationId } = req.params
 
@@ -441,7 +441,7 @@ exports.archiveConversation = async (req, res) => {
 }
 
 // Desarchivar conversación
-exports.unarchiveConversation = async (req, res) => {
+export const unarchiveConversation = async (req, res) => {
   try {
     const { conversationId } = req.params
 
@@ -477,7 +477,7 @@ exports.unarchiveConversation = async (req, res) => {
 }
 
 // Eliminar conversación (soft delete)
-exports.deleteConversation = async (req, res) => {
+export const deleteConversation = async (req, res) => {
   try {
     const { conversationId } = req.params
 
@@ -513,7 +513,7 @@ exports.deleteConversation = async (req, res) => {
 }
 
 // Obtener estadísticas de conversaciones
-exports.getConversationStats = async (req, res) => {
+export const getConversationStats = async (req, res) => {
   try {
     const totalConversations = await Conversation.countDocuments({
       participants: req.user.id,

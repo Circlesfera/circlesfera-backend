@@ -1,15 +1,15 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body, param, query, validationResult } = require('express-validator')
-const { auth: protect, optionalAuth } = require('../middlewares/auth')
-const {
+import { body, param, query, validationResult } from 'express-validator'
+import { auth: protect, optionalAuth } from '../middlewares/auth.js'
+import {
   createComment,
   getComments,
   reactToComment,
   removeReaction,
   moderateComment,
   getCommentStats
-} = require('../controllers/liveCommentController')
+} from '../controllers/liveCommentController.js'
 
 // Validaciones
 const createCommentValidation = [
@@ -176,4 +176,4 @@ router.get(
   getCommentStats
 )
 
-module.exports = router
+export default router

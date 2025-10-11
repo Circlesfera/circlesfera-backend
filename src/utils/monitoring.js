@@ -1,5 +1,5 @@
-const logger = require('./logger')
-const cache = require('./cache')
+import logger from './logger.js'
+import cache from './cache.js'
 
 /**
  * Sistema de monitoreo para CircleSfera
@@ -327,5 +327,5 @@ function initMonitoring(app) {
   logger.info('✅ Sistema de monitoreo inicializado')
 }
 
-module.exports = monitoringService
-module.exports.initMonitoring = initMonitoring
+export default monitoringService
+module.export const initMonitoring = initMonitoring

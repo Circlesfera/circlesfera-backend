@@ -1,7 +1,7 @@
-const express = require('express')
+import express from 'express'
 const router = express.Router()
-const { body } = require('express-validator')
-const {
+import { body } from 'express-validator'
+import {
   getNotifications,
   getUnreadCount,
   markAsRead,
@@ -11,8 +11,8 @@ const {
   createNotification,
   getNotificationStats,
   cleanupOldNotifications
-} = require('../controllers/notificationController')
-const { auth } = require('../middlewares/auth')
+} from '../controllers/notificationController.js'
+import { auth } from '../middlewares/auth.js'
 
 // Validaciones
 const createNotificationValidation = [
@@ -54,4 +54,4 @@ router.delete('/read/all', auth, deleteReadNotifications)
 router.post('/', auth, createNotificationValidation, createNotification)
 router.post('/cleanup/old', auth, cleanupOldNotifications)
 
-module.exports = router
+export default router

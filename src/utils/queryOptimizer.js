@@ -158,7 +158,7 @@ const generateCacheKey = (model, query = {}, options = {}) => {
   return `${model}:${queryStr}:${optionsStr}`
 }
 
-module.exports = {
+export {
   USER_BASIC_FIELDS,
   USER_FEED_FIELDS,
   USER_PROFILE_FIELDS,
