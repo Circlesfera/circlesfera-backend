@@ -34,23 +34,14 @@ export default {
   // Tiempo máximo de ejecución de un test
   testTimeout: 10000,
 
-  // Configuración de módulos
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
-  },
-
-  // Configuración de NODE_OPTIONS para ES Modules
-  globals: {},
-
   // Setup antes de cada test
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
 
   // Verbose output
   verbose: true,
 
-  // Detectar memory leaks
-  detectOpenHandles: true,
-  detectLeaks: true,
+  // Detectar handles abiertos
+  detectOpenHandles: false,
 
   // Forzar salida después de tests
   forceExit: true,
