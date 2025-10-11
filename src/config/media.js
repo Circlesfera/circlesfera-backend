@@ -1,52 +1,62 @@
-// Configuración de dimensiones estándar para medios (Instagram-style)
+// Configuración de dimensiones estándar para medios (Instagram oficial 2024-2025)
 const MEDIA_CONFIG = {
-  // Stories (Historias efímeras de 24h)
+  // Stories (Historias efímeras de 24h) - Pantalla completa vertical
   STORY: {
     width: 1080,
-    height: 1350,
-    ratio: 1080 / 1350, // 0.8 (4:5)
+    height: 1920,
+    ratio: 9 / 16, // 0.5625 (9:16) - Estándar oficial de Instagram
     maxDuration: 60, // segundos
     formats: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi'],
-    description: 'Historias efímeras que duran 24 horas'
+    description: 'Historias efímeras de 24h en formato vertical pantalla completa'
   },
 
   // Posts normales (Publicaciones del feed principal)
+  // Instagram soporta: 1:1 (cuadrado), 4:5 (vertical), 1.91:1 (horizontal)
   POST: {
     width: 1080,
     height: 1080,
-    ratio: 1, // 1:1 (cuadrado)
+    ratio: 1, // 1:1 (cuadrado) - Formato principal
     maxDuration: 300, // 5 minutos
     formats: ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi'],
-    description: 'Publicaciones normales del feed principal'
+    description: 'Publicaciones del feed (soporta 1:1, 4:5, 1.91:1)',
+    variants: {
+      square: { width: 1080, height: 1080, ratio: 1 }, // 1:1
+      vertical: { width: 1080, height: 1350, ratio: 4 / 5 }, // 4:5
+      horizontal: { width: 1080, height: 566, ratio: 1.91 / 1 } // 1.91:1
+    }
   },
 
-  // Reels (Videos cortos estilo TikTok)
+  // Reels (Videos cortos estilo TikTok) - Pantalla completa vertical
   REEL: {
     width: 1080,
     height: 1920,
-    ratio: 1080 / 1920, // 0.5625 (9:16)
+    ratio: 9 / 16, // 0.5625 (9:16) - Estándar oficial de Instagram
     maxDuration: 90, // 90 segundos máximo
     formats: ['mp4', 'mov', 'avi'],
-    description: 'Videos cortos estilo TikTok/Reels'
+    description: 'Videos cortos verticales pantalla completa (TikTok/Reels)'
   },
 
-  // Videos largos (IGTV, contenido extenso)
-  LONG_VIDEO: {
-    width: 1920,
-    height: 1080,
-    ratio: 16 / 9, // 16:9 (landscape)
+  // IGTV (Videos largos)
+  IGTV: {
+    width: 1080,
+    height: 1920,
+    ratio: 9 / 16, // 9:16 (vertical) - Formato principal
     maxDuration: 3600, // 1 hora
-    formats: ['mp4', 'mov', 'avi', 'mkv'],
-    description: 'Videos largos, documentales, IGTV'
+    formats: ['mp4', 'mov', 'avi'],
+    description: 'IGTV - Videos largos (soporta 9:16 vertical y 16:9 horizontal)',
+    variants: {
+      vertical: { width: 1080, height: 1920, ratio: 9 / 16 }, // 9:16
+      horizontal: { width: 1920, height: 1080, ratio: 16 / 9 } // 16:9
+    }
   },
 
-  // Avatares de perfil
+  // Avatares de perfil (se muestra circular)
   AVATAR: {
-    width: 400,
-    height: 400,
+    width: 320,
+    height: 320,
     ratio: 1, // 1:1 (cuadrado)
     formats: ['jpg', 'jpeg', 'png', 'webp'],
-    description: 'Foto de perfil del usuario'
+    description: 'Foto de perfil (mínimo 320x320, se muestra circular)'
   }
 }
 
