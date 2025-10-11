@@ -162,6 +162,11 @@ const UserSchema = new mongoose.Schema({
 
 // Índices adicionales para mejorar el rendimiento
 UserSchema.index({ createdAt: -1 })
+// Índices compuestos para queries optimizadas
+UserSchema.index({ username: 1, isActive: 1 })
+UserSchema.index({ email: 1, isActive: 1 })
+UserSchema.index({ isActive: 1, createdAt: -1 })
+UserSchema.index({ isActive: 1, isPrivate: 1 })
 
 // Virtuals
 UserSchema.virtual('followersCount').get(function() {

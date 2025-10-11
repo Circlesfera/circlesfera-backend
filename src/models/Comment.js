@@ -53,6 +53,9 @@ CommentSchema.index({ post: 1, createdAt: -1 })
 CommentSchema.index({ user: 1, createdAt: -1 })
 CommentSchema.index({ parentComment: 1 })
 CommentSchema.index({ likes: 1 })
+// Índices compuestos para queries optimizadas
+CommentSchema.index({ post: 1, parentComment: 1, createdAt: -1 })
+CommentSchema.index({ user: 1, post: 1, createdAt: -1 })
 
 // Virtuals
 CommentSchema.virtual('likesCount').get(function() {

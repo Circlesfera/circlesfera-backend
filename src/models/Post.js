@@ -142,6 +142,10 @@ PostSchema.index({ tags: 1 })
 PostSchema.index({ 'location.coordinates': '2dsphere' })
 PostSchema.index({ isPublic: 1, isArchived: 1, isDeleted: 1 })
 PostSchema.index({ createdAt: -1 })
+// Índices compuestos para queries complejas optimizadas
+PostSchema.index({ user: 1, isPublic: 1, isDeleted: 1, isArchived: 1, createdAt: -1 })
+PostSchema.index({ isPublic: 1, isDeleted: 1, createdAt: -1 })
+PostSchema.index({ user: 1, type: 1, isDeleted: 1, createdAt: -1 })
 
 // Virtuals
 PostSchema.virtual('likesCount').get(function() {

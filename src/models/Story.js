@@ -203,6 +203,9 @@ StorySchema.index({ expiresAt: 1 })
 StorySchema.index({ isPublic: 1, isArchived: 1, isDeleted: 1 })
 StorySchema.index({ createdAt: -1 })
 StorySchema.index({ 'location.coordinates': '2dsphere' })
+// Índices compuestos para queries optimizadas
+StorySchema.index({ user: 1, isPublic: 1, isDeleted: 1, expiresAt: 1 })
+StorySchema.index({ isPublic: 1, isDeleted: 1, expiresAt: 1, createdAt: -1 })
 
 // Virtuals
 StorySchema.virtual('viewsCount').get(function() {
