@@ -64,6 +64,7 @@ export const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente',
+      token: tokens.accessToken, // Enviar como 'token' para compatibilidad con frontend
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: sanitizeUser(user)
@@ -134,6 +135,7 @@ export const login = async (req, res) => {
     res.json({
       success: true,
       message: 'Inicio de sesión exitoso',
+      token: tokens.accessToken, // Enviar como 'token' para compatibilidad con frontend
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: sanitizeUser(user)
