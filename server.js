@@ -210,6 +210,7 @@ app.use('/api/cstv', cstvRoutes)
 // Sentry error handler eliminado
 
 // Middleware de manejo de errores global
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   // Loguear el error con formato correcto
   const errorInfo = {

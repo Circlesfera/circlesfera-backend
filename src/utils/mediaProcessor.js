@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import path from 'path'
-import fs from 'fs'.promises
+import { promises as fs } from 'fs'
 import logger from './logger.js'
 
 /**

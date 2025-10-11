@@ -3,9 +3,10 @@ const router = express.Router()
 import { auth } from '../middlewares/auth.js'
 import { uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
-import { createReelSchema, updateReelSchema, reelCommentSchema } from '../schemas/reelSchema.js'
+import { createReelSchema, reelCommentSchema } from '../schemas/reelSchema.js'
 import reelController from '../controllers/reelController.js'
 
+// updateReelSchema disponible para futuras implementaciones
 
 // Rutas públicas (sin autenticación)
 router.get('/feed', reelController.getReelsForFeed)

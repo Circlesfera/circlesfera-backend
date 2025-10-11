@@ -1,7 +1,7 @@
 import express from 'express'
 const router = express.Router()
 import { body, param, query, validationResult } from 'express-validator'
-import { auth: protect, optionalAuth } from '../middlewares/auth.js'
+import { auth as protect, optionalAuth } from '../middlewares/auth.js'
 import {
   createCSTVVideo,
   getCSTVVideos,

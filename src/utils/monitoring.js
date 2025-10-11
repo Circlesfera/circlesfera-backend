@@ -328,4 +328,4 @@ function initMonitoring(app) {
 }
 
 export default monitoringService
-module.export const initMonitoring = initMonitoring
+export { initMonitoring }

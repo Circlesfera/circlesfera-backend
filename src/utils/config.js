@@ -3,13 +3,6 @@
  * Todas las variables de entorno deben ser accedidas a través de este módulo
  */
 
-const config = {
-  // Entorno
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production'
-}
-
 // Log de configuración para debug (eliminado console.log - usar logger)
 
 const configFull = {

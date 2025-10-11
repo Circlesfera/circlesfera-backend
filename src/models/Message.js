@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import Conversation from './Conversation.js'
 
 const MessageSchema = new mongoose.Schema({
   conversation: {
@@ -235,7 +236,7 @@ MessageSchema.methods.softDelete = function() {
 }
 
 MessageSchema.methods.forward = function(targetConversationId) {
-  import Message from './Message.js'
+  const Message = this.constructor
   const forwardedMessage = new Message({
     conversation: targetConversationId,
     sender: this.sender,
@@ -351,8 +352,6 @@ MessageSchema.pre('save', function(next) {
 
 // Middleware post-save para actualizar la conversación
 MessageSchema.post('save', async function() {
-  import Conversation from './Conversation.js'
-
   // Actualizar último mensaje de la conversación
   await Conversation.findByIdAndUpdate(this.conversation, {
     $set: {

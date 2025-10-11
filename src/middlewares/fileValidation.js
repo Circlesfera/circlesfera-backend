@@ -220,7 +220,7 @@ export const validateMultipleFiles = (fileType) => {
           if (!validateFileSize(file.size, fileType)) {
             return res.status(400).json({
               success: false,
-              message: `Uno de los archivos excede el tamaño máximo permitido`
+              message: 'Uno de los archivos excede el tamaño máximo permitido'
             })
           }
 
@@ -229,7 +229,7 @@ export const validateMultipleFiles = (fileType) => {
           if (!isValid) {
             return res.status(400).json({
               success: false,
-              message: `Uno de los archivos no es del tipo permitido`
+              message: 'Uno de los archivos no es del tipo permitido'
             })
           }
         }

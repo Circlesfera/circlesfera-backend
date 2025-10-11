@@ -1,6 +1,7 @@
 import Comment from '../models/Comment.js'
 import Post from '../models/Post.js'
 import Notification from '../models/Notification.js'
+import User from '../models/User.js'
 import { validationResult } from 'express-validator'
 import mongoose from 'mongoose'
 import logger from '../utils/logger.js'
@@ -379,7 +380,6 @@ export const getUserComments = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const skip = (page - 1) * limit
 
-    import User from '../models/User.js'
     const user = await User.findOne({ username })
 
     if (!user) {

@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
+import { Server } from 'socket.io'
 
 class SocketService {
   constructor() {
@@ -11,8 +12,6 @@ class SocketService {
   }
 
   initialize(server) {
-    import { Server } from 'socket.io'
-
     this.io = new Server(server, {
       cors: {
         origin: config.corsOrigin,
