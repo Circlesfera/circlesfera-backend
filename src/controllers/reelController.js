@@ -704,7 +704,7 @@ export default {
   createReel,
   getReelsForFeed,
   getReel,
-  updateReel,
+  getUserReels,
   deleteReel,
   likeReel,
   unlikeReel,

@@ -3,7 +3,9 @@
  * Todas las variables de entorno deben ser accedidas a través de este módulo
  */
 
-// Log de configuración para debug (eliminado console.log - usar logger)
+// Cargar dotenv ANTES de acceder a process.env
+import dotenv from 'dotenv'
+dotenv.config()
 
 const configFull = {
   // Entorno
@@ -53,10 +55,6 @@ const configFull = {
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',
 
-  // URLs Públicas
-  appUrl: process.env.APP_URL || (configFull.isProduction ? null : `http://localhost:${configFull.port}`),
-  apiUrl: process.env.API_URL || (configFull.isProduction ? null : `http://localhost:${configFull.port}`),
-
   // Contacto
   contactEmail: process.env.CONTACT_EMAIL || 'contact@circlesfera.com',
   supportEmail: process.env.SUPPORT_EMAIL || 'support@circlesfera.com',
@@ -69,6 +67,12 @@ const configFull = {
     messages: process.env.FEATURES_MESSAGES !== 'false'
   }
 }
+
+// URLs Públicas - calculadas después de la definición del objeto
+const isProduction = configFull.isProduction
+const port = configFull.port
+configFull.appUrl = process.env.APP_URL || (isProduction ? null : `http://localhost:${port}`)
+configFull.apiUrl = process.env.API_URL || (isProduction ? null : `http://localhost:${port}`)
 
 /**
  * Valida que todas las variables de entorno críticas estén configuradas

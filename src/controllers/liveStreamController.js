@@ -664,6 +664,83 @@ export const getUserLiveStreams = async (req, res) => {
   }
 }
 
+// Dar like a un live stream
+export const likeLiveStream = async (req, res) => {
+  try {
+    const streamId = req.params.id
+    const userId = req.userId
+
+    const stream = await LiveStream.findById(streamId)
+
+    if (!stream) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transmisión no encontrada'
+      })
+    }
+
+    await stream.addLike(userId)
+
+    // Notificar al streamer si no es él mismo
+    if (stream.user.toString() !== userId) {
+      await Notification.create({
+        user: stream.user,
+        type: 'like',
+        from: userId,
+        title: 'Nuevo me gusta',
+        message: 'Le gustó tu transmisión en vivo'
+      })
+    }
+
+    logger.info('Like agregado a live stream:', { streamId, userId })
+
+    res.json({
+      success: true,
+      liked: true,
+      likesCount: stream.likes.length
+    })
+  } catch (error) {
+    logger.error('Error en likeLiveStream:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Quitar like de un live stream
+export const unlikeLiveStream = async (req, res) => {
+  try {
+    const streamId = req.params.id
+    const userId = req.userId
+
+    const stream = await LiveStream.findById(streamId)
+
+    if (!stream) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transmisión no encontrada'
+      })
+    }
+
+    await stream.removeLike(userId)
+
+    logger.info('Like removido de live stream:', { streamId, userId })
+
+    res.json({
+      success: true,
+      liked: false,
+      likesCount: stream.likes.length
+    })
+  } catch (error) {
+    logger.error('Error en unlikeLiveStream:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
 export default {
   createLiveStream,
   getLiveStreams,
@@ -673,6 +750,8 @@ export default {
   addViewer,
   removeViewer,
   inviteCoHost,
-  getUserLiveStreams
+  getUserLiveStreams,
+  likeLiveStream,
+  unlikeLiveStream
 }
 

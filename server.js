@@ -1,9 +1,3 @@
-// Solo cargar dotenv si no hay variables de entorno ya configuradas (Docker, etc.)
-import dotenv from 'dotenv'
-if (!process.env.JWT_SECRET && !process.env.MONGODB_URI) {
-  dotenv.config()
-}
-
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'

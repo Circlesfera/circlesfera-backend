@@ -88,10 +88,17 @@ const LiveStreamSchema = new mongoose.Schema(
         default: 0
       }
     },
-    likes: {
-      type: Number,
-      default: 0
-    },
+    likes: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     comments: {
       type: Number,
       default: 0
@@ -284,6 +291,27 @@ LiveStreamSchema.methods.removeCoHost = function (userId) {
 
   return this.save()
 }
+
+// Método para agregar like
+LiveStreamSchema.methods.addLike = function(userId) {
+  const existingLike = this.likes.find(like => like.user.equals(userId))
+  if (!existingLike) {
+    this.likes.push({ user: userId })
+    return this.save()
+  }
+  return this
+}
+
+// Método para remover like
+LiveStreamSchema.methods.removeLike = function(userId) {
+  this.likes = this.likes.filter(like => !like.user.equals(userId))
+  return this.save()
+}
+
+// Virtual para contar likes
+LiveStreamSchema.virtual('likesCount').get(function() {
+  return this.likes.length
+})
 
 // Middleware pre-save para generar stream key único
 LiveStreamSchema.pre('save', function (next) {

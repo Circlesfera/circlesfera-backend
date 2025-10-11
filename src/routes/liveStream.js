@@ -10,7 +10,9 @@ import {
   endLiveStream,
   addViewer,
   removeViewer,
-  inviteCoHost
+  inviteCoHost,
+  likeLiveStream,
+  unlikeLiveStream
 } from '../controllers/liveStreamController.js'
 
 // Validaciones
@@ -230,6 +232,28 @@ router.post(
   ...inviteCoHostValidation,
   handleValidationErrors,
   inviteCoHost
+)
+
+// @route   POST /api/live-streams/:streamId/like
+// @desc    Dar like a una transmisión
+// @access  Private
+router.post(
+  '/:streamId/like',
+  protect,
+  streamIdValidation,
+  handleValidationErrors,
+  likeLiveStream
+)
+
+// @route   DELETE /api/live-streams/:streamId/like
+// @desc    Quitar like de una transmisión
+// @access  Private
+router.delete(
+  '/:streamId/like',
+  protect,
+  streamIdValidation,
+  handleValidationErrors,
+  unlikeLiveStream
 )
 
 export default router
