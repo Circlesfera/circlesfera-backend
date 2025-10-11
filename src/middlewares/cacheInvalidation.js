@@ -13,7 +13,7 @@ import User from '../models/User.js'
  * Invalidar caché de perfil de usuario
  * Usar después de: update profile, follow/unfollow, etc.
  */
-export async function invalidateUserProfile(req, res, next) {
+export const invalidateUserProfile = async (req, res, next) => {
   try {
     const username = req.user?.username || req.params.username
     if (username) {
@@ -30,7 +30,7 @@ export async function invalidateUserProfile(req, res, next) {
  * Invalidar caché de feeds
  * Usar después de: crear post/reel/story, follow/unfollow
  */
-export async function invalidateFeeds(req, res, next) {
+export const invalidateFeeds = async (req, res, next) => {
   try {
     const userId = req.user?._id || req.userId
 
@@ -49,7 +49,7 @@ export async function invalidateFeeds(req, res, next) {
  * Invalidar feeds de todos los seguidores
  * Usar después de: crear post/reel/story (nuevo contenido)
  */
-export async function invalidateFollowersFeeds(req, res, next) {
+export const invalidateFollowersFeeds = async (req, res, next) => {
   try {
     const userId = req.user?._id || req.userId
 
@@ -78,7 +78,7 @@ export async function invalidateFollowersFeeds(req, res, next) {
  * Invalidar caché de stories
  * Usar después de: crear story, eliminar story
  */
-export async function invalidateStories(req, res, next) {
+export const invalidateStories = async (req, res, next) => {
   try {
     const userId = req.user?._id || req.userId
 
@@ -96,7 +96,7 @@ export async function invalidateStories(req, res, next) {
  * Invalidar caché de post específico
  * Usar después de: update post, like post, comment post, delete post
  */
-export async function invalidatePost(req, res, next) {
+export const invalidatePost = async (req, res, next) => {
   try {
     const postId = req.params.id || req.params.postId
 
@@ -114,7 +114,7 @@ export async function invalidatePost(req, res, next) {
  * Invalidar trending (posts y reels)
  * Usar después de: acciones que afecten trending (muchos likes, etc.)
  */
-export async function invalidateTrending(req, res, next) {
+export const invalidateTrending = async (req, res, next) => {
   try {
     await cacheService.del(cacheService.KEYS.TRENDING_POSTS)
     await cacheService.del(cacheService.KEYS.TRENDING_REELS)
@@ -130,86 +130,82 @@ export async function invalidateTrending(req, res, next) {
  * @param {Array<string>} types - Tipos de caché a invalidar: ['profile', 'feed', 'stories', 'post', 'trending']
  * @returns {Function} Middleware
  */
-export function invalidateMultiple(types = []) {
-  return async (req, res, next) => {
-    try {
-      const promises = []
+export const invalidateMultiple = (types = []) => async (req, res, next) => {
+  try {
+    const promises = []
 
-      if (types.includes('profile')) {
-        const username = req.user?.username || req.params.username
-        if (username) {
-          promises.push(cacheService.invalidateUserProfile(username))
-        }
+    if (types.includes('profile')) {
+      const username = req.user?.username || req.params.username
+      if (username) {
+        promises.push(cacheService.invalidateUserProfile(username))
       }
-
-      if (types.includes('feed')) {
-        const userId = req.user?._id || req.userId
-        if (userId) {
-          promises.push(cacheService.invalidateFeed(userId))
-        }
-      }
-
-      if (types.includes('feedFollowers')) {
-        const userId = req.user?._id || req.userId
-        if (userId) {
-          const user = await User.findById(userId).select('followers').lean()
-          if (user?.followers) {
-            const followerIds = user.followers.map(id => id.toString())
-            promises.push(cacheService.invalidateFollowersFeeds(followerIds))
-          }
-        }
-      }
-
-      if (types.includes('stories')) {
-        const userId = req.user?._id || req.userId
-        if (userId) {
-          promises.push(cacheService.invalidateStories(userId))
-        }
-      }
-
-      if (types.includes('post')) {
-        const postId = req.params.id || req.params.postId
-        if (postId) {
-          promises.push(cacheService.invalidatePost(postId))
-        }
-      }
-
-      if (types.includes('trending')) {
-        promises.push(cacheService.del(cacheService.KEYS.TRENDING_POSTS))
-        promises.push(cacheService.del(cacheService.KEYS.TRENDING_REELS))
-      }
-
-      await Promise.all(promises)
-      logger.debug('Caché múltiple invalidado:', { types })
-    } catch (error) {
-      logger.error('Error al invalidar caché múltiple:', error)
     }
-    next()
+
+    if (types.includes('feed')) {
+      const userId = req.user?._id || req.userId
+      if (userId) {
+        promises.push(cacheService.invalidateFeed(userId))
+      }
+    }
+
+    if (types.includes('feedFollowers')) {
+      const userId = req.user?._id || req.userId
+      if (userId) {
+        const user = await User.findById(userId).select('followers').lean()
+        if (user?.followers) {
+          const followerIds = user.followers.map(id => id.toString())
+          promises.push(cacheService.invalidateFollowersFeeds(followerIds))
+        }
+      }
+    }
+
+    if (types.includes('stories')) {
+      const userId = req.user?._id || req.userId
+      if (userId) {
+        promises.push(cacheService.invalidateStories(userId))
+      }
+    }
+
+    if (types.includes('post')) {
+      const postId = req.params.id || req.params.postId
+      if (postId) {
+        promises.push(cacheService.invalidatePost(postId))
+      }
+    }
+
+    if (types.includes('trending')) {
+      promises.push(cacheService.del(cacheService.KEYS.TRENDING_POSTS))
+      promises.push(cacheService.del(cacheService.KEYS.TRENDING_REELS))
+    }
+
+    await Promise.all(promises)
+    logger.debug('Caché múltiple invalidado:', { types })
+  } catch (error) {
+    logger.error('Error al invalidar caché múltiple:', error)
   }
+  next()
 }
 
 /**
  * Helper para invalidar caché en respuesta exitosa
  * Solo invalida si la operación fue exitosa (status 2xx)
  */
-export function invalidateOnSuccess(invalidationFn) {
-  return async (req, res, next) => {
-    // Interceptar res.json para detectar respuesta exitosa
-    const originalJson = res.json.bind(res)
+export const invalidateOnSuccess = (invalidationFn) => async (req, res, next) => {
+  // Interceptar res.json para detectar respuesta exitosa
+  const originalJson = res.json.bind(res)
 
-    res.json = function (data) {
-      // Si la respuesta es exitosa, invalidar caché
-      if (data.success === true || (res.statusCode >= 200 && res.statusCode < 300)) {
-        invalidationFn(req, res, () => {}).catch(error => {
-          logger.error('Error en invalidación de caché:', error)
-        })
-      }
-
-      return originalJson(data)
+  res.json = function (data) {
+    // Si la respuesta es exitosa, invalidar caché
+    if (data.success === true || (res.statusCode >= 200 && res.statusCode < 300)) {
+      invalidationFn(req, res, () => { }).catch(error => {
+        logger.error('Error en invalidación de caché:', error)
+      })
     }
 
-    next()
+    return originalJson(data)
   }
+
+  next()
 }
 
 export default {

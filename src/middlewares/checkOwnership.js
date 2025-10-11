@@ -28,96 +28,99 @@ const RESOURCE_MODELS = {
 }
 
 /**
+ * Capitalizar primera letra (helper)
+ */
+const capitalizeFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1)
+
+/**
  * Verificar ownership genérico
  * @param {string} resourceType - Tipo de recurso ('post', 'reel', etc.)
  * @param {string} idParam - Nombre del parámetro de ID en req.params (default: 'id')
  * @returns {Function} Middleware
  */
-export function checkOwnership(resourceType, idParam = 'id') {
-  return async (req, res, next) => {
-    try {
-      const resourceId = req.params[idParam]
-      const userId = req.user?._id || req.userId
+export const checkOwnership = (resourceType, idParam = 'id') => async (req, res, next) => {
+  try {
+    const resourceId = req.params[idParam]
+    const userId = req.user?._id || req.userId
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Autenticación requerida'
-        })
-      }
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Autenticación requerida'
+      })
+    }
 
-      if (!resourceId) {
-        return res.status(400).json({
-          success: false,
-          message: 'ID del recurso no proporcionado'
-        })
-      }
+    if (!resourceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID del recurso no proporcionado'
+      })
+    }
 
-      const Model = RESOURCE_MODELS[resourceType]
+    const Model = RESOURCE_MODELS[resourceType]
 
-      if (!Model) {
-        logger.error(`Modelo no encontrado para tipo de recurso: ${resourceType}`)
-        return res.status(500).json({
-          success: false,
-          message: 'Error de configuración del servidor'
-        })
-      }
+    if (!Model) {
+      logger.error(`Modelo no encontrado para tipo de recurso: ${resourceType}`)
+      return res.status(500).json({
+        success: false,
+        message: 'Error de configuración del servidor'
+      })
+    }
 
-      // Buscar el recurso
-      const resource = await Model.findById(resourceId)
+    // Buscar el recurso
+    const resource = await Model.findById(resourceId)
 
-      if (!resource) {
-        return res.status(404).json({
-          success: false,
-          message: `${capitalizeFirst(resourceType)} no encontrado`
-        })
-      }
+    if (!resource) {
+      return res.status(404).json({
+        success: false,
+        message: `${capitalizeFirst(resourceType)} no encontrado`
+      })
+    }
 
-      // Verificar ownership
-      const resourceUserId = resource.user?._id || resource.user
+    // Verificar ownership
+    const resourceUserId = resource.user?._id || resource.user
 
-      if (!resourceUserId) {
-        logger.error(`Recurso ${resourceType} ${resourceId} no tiene campo 'user'`)
-        return res.status(500).json({
-          success: false,
-          message: 'Error al verificar permisos'
-        })
-      }
-
-      // Comparar IDs (convertir a string para comparación)
-      if (resourceUserId.toString() !== userId.toString()) {
-        logger.warn(`Intento de acceso no autorizado por usuario ${userId} a ${resourceType} ${resourceId}`, {
-          userId,
-          resourceType,
-          resourceId,
-          resourceOwner: resourceUserId
-        })
-
-        return res.status(403).json({
-          success: false,
-          message: `No tienes permisos para modificar este ${resourceType}`
-        })
-      }
-
-      // Ownership verificado, adjuntar recurso al request para evitar segunda consulta
-      req.resource = resource
-
-      next()
-    } catch (error) {
-      logger.error(`Error en checkOwnership (${resourceType}):`, error)
-
-      if (error.name === 'CastError') {
-        return res.status(400).json({
-          success: false,
-          message: 'ID inválido proporcionado'
-        })
-      }
-
-      res.status(500).json({
+    if (!resourceUserId) {
+      logger.error(`Recurso ${resourceType} ${resourceId} no tiene campo 'user'`)
+      return res.status(500).json({
         success: false,
         message: 'Error al verificar permisos'
       })
     }
+
+    // Comparar IDs (convertir a string para comparación)
+    if (resourceUserId.toString() !== userId.toString()) {
+      logger.warn(`Intento de acceso no autorizado por usuario ${userId} a ${resourceType} ${resourceId}`, {
+        userId,
+        resourceType,
+        resourceId,
+        resourceOwner: resourceUserId
+      })
+
+      return res.status(403).json({
+        success: false,
+        message: `No tienes permisos para modificar este ${resourceType}`
+      })
+    }
+
+    // Ownership verificado, adjuntar recurso al request para evitar segunda consulta
+    req.resource = resource
+
+    next()
+  } catch (error) {
+    logger.error(`Error en checkOwnership (${resourceType}):`, error)
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'ID inválido proporcionado'
+      })
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error al verificar permisos'
+    })
   }
 }
 
@@ -155,51 +158,49 @@ export const checkMessageOwnership = () => checkOwnership('message')
  * Verificar ownership para conversaciones
  * Verifica que el usuario sea participante de la conversación
  */
-export function checkConversationParticipant(idParam = 'id') {
-  return async (req, res, next) => {
-    try {
-      const conversationId = req.params[idParam]
-      const userId = req.user?._id || req.userId
+export const checkConversationParticipant = (idParam = 'id') => async (req, res, next) => {
+  try {
+    const conversationId = req.params[idParam]
+    const userId = req.user?._id || req.userId
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Autenticación requerida'
-        })
-      }
-
-      const conversation = await Conversation.findById(conversationId)
-
-      if (!conversation) {
-        return res.status(404).json({
-          success: false,
-          message: 'Conversación no encontrada'
-        })
-      }
-
-      // Verificar que el usuario sea participante
-      const isParticipant = conversation.participants.some(
-        p => p.toString() === userId.toString()
-      )
-
-      if (!isParticipant) {
-        logger.warn(`Intento de acceso no autorizado por usuario ${userId} a conversación ${conversationId}`)
-
-        return res.status(403).json({
-          success: false,
-          message: 'No eres participante de esta conversación'
-        })
-      }
-
-      req.resource = conversation
-      next()
-    } catch (error) {
-      logger.error('Error en checkConversationParticipant:', error)
-      res.status(500).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: 'Error al verificar permisos'
+        message: 'Autenticación requerida'
       })
     }
+
+    const conversation = await Conversation.findById(conversationId)
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversación no encontrada'
+      })
+    }
+
+    // Verificar que el usuario sea participante
+    const isParticipant = conversation.participants.some(
+      p => p.toString() === userId.toString()
+    )
+
+    if (!isParticipant) {
+      logger.warn(`Intento de acceso no autorizado por usuario ${userId} a conversación ${conversationId}`)
+
+      return res.status(403).json({
+        success: false,
+        message: 'No eres participante de esta conversación'
+      })
+    }
+
+    req.resource = conversation
+    next()
+  } catch (error) {
+    logger.error('Error en checkConversationParticipant:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error al verificar permisos'
+    })
   }
 }
 
@@ -209,48 +210,39 @@ export function checkConversationParticipant(idParam = 'id') {
  * @param {string} idParam - Nombre del parámetro de ID
  * @returns {Function} Middleware
  */
-export function checkOwnershipOrAdmin(resourceType, idParam = 'id') {
-  return async (req, res, next) => {
-    try {
-      const resourceId = req.params[idParam]
-      const userId = req.user?._id || req.userId
-      const userRole = req.user?.role || 'user'
+export const checkOwnershipOrAdmin = (resourceType, idParam = 'id') => async (req, res, next) => {
+  try {
+    const resourceId = req.params[idParam]
+    const userId = req.user?._id || req.userId
+    const userRole = req.user?.role || 'user'
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Autenticación requerida'
-        })
-      }
-
-      // Si es admin, permitir acceso directo
-      if (userRole === 'admin') {
-        logger.info(`Admin ${userId} accediendo a ${resourceType} ${resourceId}`)
-        return next()
-      }
-
-      // Si es admin/moderador, permitir sin verificar ownership
-      if (userRole === 'admin' || userRole === 'moderator') {
-        return next()
-      }
-
-      // Si no es admin, verificar ownership normalmente
-      return checkOwnership(resourceType, idParam)(req, res, next)
-    } catch (error) {
-      logger.error(`Error en checkOwnershipOrAdmin (${resourceType}):`, error)
-      res.status(500).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: 'Error al verificar permisos'
+        message: 'Autenticación requerida'
       })
     }
-  }
-}
 
-/**
- * Capitalizar primera letra (helper)
- */
-function capitalizeFirst(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1)
+    // Si es admin, permitir acceso directo
+    if (userRole === 'admin') {
+      logger.info(`Admin ${userId} accediendo a ${resourceType} ${resourceId}`)
+      return next()
+    }
+
+    // Si es admin/moderador, permitir sin verificar ownership
+    if (userRole === 'admin' || userRole === 'moderator') {
+      return next()
+    }
+
+    // Si no es admin, verificar ownership normalmente
+    return checkOwnership(resourceType, idParam)(req, res, next)
+  } catch (error) {
+    logger.error(`Error en checkOwnershipOrAdmin (${resourceType}):`, error)
+    res.status(500).json({
+      success: false,
+      message: 'Error al verificar permisos'
+    })
+  }
 }
 
 export default checkOwnership

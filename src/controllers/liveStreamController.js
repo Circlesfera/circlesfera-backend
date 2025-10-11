@@ -7,6 +7,83 @@ import { validationResult } from 'express-validator'
 import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
 
+// Funciones auxiliares (definidas antes de uso)
+
+// Función auxiliar para notificar seguidores sobre transmisión en vivo
+const notifyFollowersAboutLive = async (liveStream) => {
+  try {
+    const user = await User.findById(liveStream.user).populate('followers')
+
+    if (!user || !user.followers || user.followers.length === 0) {
+      return
+    }
+
+    const notifications = user.followers.map(followerId => ({
+      user: followerId,
+      from: liveStream.user,
+      type: 'live_started',
+      title: 'Transmisión en vivo',
+      message: `${user.username} está transmitiendo en vivo`,
+      data: {
+        liveStreamId: liveStream._id,
+        liveStreamTitle: liveStream.title
+      }
+    }))
+
+    await Notification.insertMany(notifications)
+
+    logger.info(
+      `📺 Notificaciones enviadas a ${user.followers.length} seguidores sobre live stream`
+    )
+  } catch (error) {
+    logger.error('Error notificando seguidores sobre live stream:', error)
+  }
+}
+
+// Función auxiliar para guardar live como CSTV
+const saveLiveToCSTV = async (liveStream, options) => {
+  try {
+    const cstvData = {
+      user: liveStream.user,
+      title: options.title,
+      description: options.description,
+      originalLiveStream: liveStream._id,
+      video: {
+        url: options.videoUrl,
+        duration: liveStream.duration,
+        thumbnail: options.thumbnailUrl || liveStream.thumbnailUrl,
+        quality: ['1080p', '720p', '480p', '360p']
+      },
+      visibility: options.visibility || 'public',
+      allowComments: options.allowComments !== false,
+      allowLikes: options.allowLikes !== false,
+      category: options.category,
+      tags: options.tags || [],
+      analytics: {
+        views: liveStream.viewersCount,
+        uniqueViewers: liveStream.viewers.length,
+        peakViewers: liveStream.peakViewersCount,
+        averageWatchTime: Math.floor((liveStream.duration / liveStream.viewers.length) || 0),
+        completionRate: 0,
+        engagement: {
+          likes: liveStream.likes?.length || 0,
+          comments: liveStream.commentsCount || 0,
+          shares: 0
+        }
+      }
+    }
+
+    const cstv = await CSTV.create(cstvData)
+
+    logger.info(`📹 Live stream guardado como CSTV: ${cstv._id}`)
+
+    return cstv
+  } catch (error) {
+    logger.error('Error guardando live stream como CSTV:', error)
+    throw error
+  }
+}
+
 // Crear una nueva transmisión en vivo
 export const createLiveStream = async (req, res) => {
   try {
@@ -528,83 +605,6 @@ export const inviteCoHost = async (req, res) => {
       success: false,
       message: 'Error interno del servidor'
     })
-  }
-}
-
-// Función auxiliar para notificar seguidores sobre transmisión en vivo
-async function notifyFollowersAboutLive(liveStream) {
-  try {
-    const user = await User.findById(liveStream.user).populate('followers')
-
-    if (!user || !user.followers || user.followers.length === 0) {
-      return
-    }
-
-    const notifications = user.followers.map(followerId => ({
-      user: followerId,
-      from: liveStream.user,
-      type: 'live_started',
-      title: 'Transmisión en vivo',
-      message: `${user.username} está transmitiendo en vivo`,
-      data: {
-        liveStreamId: liveStream._id,
-        liveStreamTitle: liveStream.title
-      }
-    }))
-
-    await Notification.insertMany(notifications)
-
-    logger.info(
-      `📺 Notificaciones enviadas a ${user.followers.length} seguidores sobre live stream`
-    )
-  } catch (error) {
-    logger.error('Error notificando seguidores sobre live stream:', error)
-  }
-}
-
-// Función auxiliar para guardar live como CSTV
-async function saveLiveToCSTV(liveStream, options) {
-  try {
-    const cstvData = {
-      user: liveStream.user,
-      title: options.title,
-      description: options.description,
-      originalLiveStream: liveStream._id,
-      isFromLiveStream: true,
-      video: {
-        url: liveStream.playbackUrl,
-        thumbnail: liveStream.thumbnailUrl || '',
-        duration: liveStream.duration,
-        size: 0, // Se calcularía en el proceso de transcoding
-        resolution: {
-          width: 1920,
-          height: 1080
-        },
-        format: 'mp4'
-      },
-      category: options.category,
-      visibility: 'public',
-      isPublished: true,
-      publishedAt: new Date()
-    }
-
-    const cstvVideo = new CSTV(cstvData)
-    await cstvVideo.save()
-
-    // Actualizar el live stream con la referencia al CSTV
-    liveStream.saveToIGTV = true
-    liveStream.igtvVideoUrl = cstvVideo.video.url
-    await liveStream.save()
-
-    logger.info('📺 Live stream guardado como CSTV:', {
-      liveStreamId: liveStream._id,
-      cstvId: cstvVideo._id
-    })
-
-    return cstvVideo
-  } catch (error) {
-    logger.error('Error guardando live stream como CSTV:', error)
-    throw error
   }
 }
 

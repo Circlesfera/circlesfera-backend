@@ -309,7 +309,7 @@ const monitoringService = new MonitoringService()
  * Inicializar monitoreo con la aplicación Express
  * @param {Object} app - Aplicación Express
  */
-function initMonitoring(app) {
+const initMonitoring = (app) => {
   logger.info('📊 Inicializando sistema de monitoreo')
 
   // Middleware para registrar peticiones

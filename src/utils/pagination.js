@@ -33,6 +33,19 @@ export const parsePaginationParams = (query, options = {}) => {
 }
 
 /**
+ * Helper para parsear un string de sort a objeto
+ * @param {string} sortString - String de ordenamiento
+ * @returns {Object} Objeto de ordenamiento
+ */
+const parseSort = (sortString) => {
+  const sortObj = {}
+  const isDesc = sortString.startsWith('-')
+  const field = isDesc ? sortString.substring(1) : sortString
+  sortObj[field] = isDesc ? -1 : 1
+  return sortObj
+}
+
+/**
  * Parsear parámetros de ordenamiento
  * @param {string} sortQuery - Query string de ordenamiento (ej: "-createdAt,likes")
  * @param {string} defaultSort - Ordenamiento por defecto
@@ -70,19 +83,6 @@ export const parseSortParams = (sortQuery, defaultSort = '-createdAt', allowedFi
     return parseSort(defaultSort)
   }
 
-  return sortObj
-}
-
-/**
- * Helper para parsear un string de sort a objeto
- * @param {string} sortString - String de ordenamiento
- * @returns {Object} Objeto de ordenamiento
- */
-const parseSort = (sortString) => {
-  const sortObj = {}
-  const isDesc = sortString.startsWith('-')
-  const field = isDesc ? sortString.substring(1) : sortString
-  sortObj[field] = isDesc ? -1 : 1
   return sortObj
 }
 

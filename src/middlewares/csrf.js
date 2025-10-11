@@ -24,12 +24,31 @@ const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'x-csrf-token'
 
 /**
+ * Comparación constante en tiempo para evitar timing attacks
+ * @param {string} a - Primera cadena
+ * @param {string} b - Segunda cadena
+ * @returns {boolean}
+ */
+const timingSafeEqual = (a, b) => {
+  if (a.length !== b.length) {
+    return false
+  }
+
+  try {
+    const bufferA = Buffer.from(a, 'utf-8')
+    const bufferB = Buffer.from(b, 'utf-8')
+    return crypto.timingSafeEqual(bufferA, bufferB)
+  } catch (error) {
+    logger.error('Error en comparación de tokens:', error)
+    return false
+  }
+}
+
+/**
  * Generar token CSRF aleatorio
  * @returns {string} Token CSRF
  */
-export function generateCsrfToken() {
-  return crypto.randomBytes(32).toString('hex')
-}
+export const generateCsrfToken = () => crypto.randomBytes(32).toString('hex')
 
 /**
  * Establecer cookie CSRF en la respuesta
@@ -37,7 +56,7 @@ export function generateCsrfToken() {
  * @param {string} token - Token CSRF (opcional, genera uno nuevo si no se proporciona)
  * @returns {string} Token CSRF
  */
-export function setCsrfCookie(res, token = null) {
+export const setCsrfCookie = (res, token = null) => {
   const csrfToken = token || generateCsrfToken()
 
   res.cookie(CSRF_COOKIE_NAME, csrfToken, {
@@ -55,7 +74,7 @@ export function setCsrfCookie(res, token = null) {
  * Middleware para generar y establecer token CSRF
  * Usado en login/register
  */
-export function provideCsrfToken(req, res, next) {
+export const provideCsrfToken = (req, res, next) => {
   try {
     const token = generateCsrfToken()
     setCsrfCookie(res, token)
@@ -77,7 +96,7 @@ export function provideCsrfToken(req, res, next) {
  * @param {object} options - Opciones de configuración
  * @returns {Function} Middleware
  */
-export function csrfProtection(options = {}) {
+export const csrfProtection = (options = {}) => {
   const {
     ignoreMethods = ['GET', 'HEAD', 'OPTIONS'], // Métodos que no requieren CSRF
     ignoreOrigin = false // Si es true, no verifica origin (solo para desarrollo)
@@ -176,30 +195,9 @@ export function csrfProtection(options = {}) {
 }
 
 /**
- * Comparación constante en tiempo para evitar timing attacks
- * @param {string} a - Primera cadena
- * @param {string} b - Segunda cadena
- * @returns {boolean}
- */
-function timingSafeEqual(a, b) {
-  if (a.length !== b.length) {
-    return false
-  }
-
-  try {
-    const bufferA = Buffer.from(a, 'utf-8')
-    const bufferB = Buffer.from(b, 'utf-8')
-    return crypto.timingSafeEqual(bufferA, bufferB)
-  } catch (error) {
-    logger.error('Error en comparación de tokens:', error)
-    return false
-  }
-}
-
-/**
  * Renovar token CSRF (útil después de login exitoso)
  */
-export function refreshCsrfToken(req, res, next) {
+export const refreshCsrfToken = (req, res, next) => {
   try {
     const newToken = generateCsrfToken()
     setCsrfCookie(res, newToken)
@@ -214,7 +212,7 @@ export function refreshCsrfToken(req, res, next) {
 /**
  * Limpiar cookie CSRF (útil en logout)
  */
-export function clearCsrfCookie(req, res, next) {
+export const clearCsrfCookie = (req, res, next) => {
   try {
     res.clearCookie(CSRF_COOKIE_NAME, {
       httpOnly: false,
@@ -233,7 +231,7 @@ export function clearCsrfCookie(req, res, next) {
  * Middleware para agregar token CSRF a respuestas JSON
  * (para que el cliente pueda obtenerlo)
  */
-export function includeCsrfInResponse(req, res, next) {
+export const includeCsrfInResponse = (req, res, next) => {
   // Interceptar res.json para agregar csrfToken
   const originalJson = res.json.bind(res)
 

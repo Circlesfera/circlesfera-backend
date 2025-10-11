@@ -57,7 +57,7 @@ const RATE_LIMITS = {
  * @param {string} operation - Nombre de la operación
  * @returns {{max: number, window: number}}
  */
-function getLimitForOperation(operation) {
+const getLimitForOperation = (operation) => {
   // Buscar en todas las categorías
   for (const category of Object.values(RATE_LIMITS)) {
     if (category[operation]) {
@@ -74,7 +74,7 @@ function getLimitForOperation(operation) {
  * @param {object} options - Opciones de configuración
  * @returns {Function} Middleware
  */
-export function rateLimitByUser(operation, options = {}) {
+export const rateLimitByUser = (operation, options = {}) => {
   const limit = options.limit || getLimitForOperation(operation)
   const { max, window } = limit
 
@@ -145,7 +145,7 @@ export function rateLimitByUser(operation, options = {}) {
  * @param {string} userId - ID del usuario
  * @param {string} operation - Operación a resetear (opcional, si no se especifica, todas)
  */
-export async function resetRateLimitForUser(userId, operation = null) {
+export const resetRateLimitForUser = async (userId, operation = null) => {
   try {
     if (operation) {
       const key = `ratelimit:user:${userId}:${operation}`
@@ -170,7 +170,7 @@ export async function resetRateLimitForUser(userId, operation = null) {
  * @param {string} userId - ID del usuario
  * @returns {Promise<object>} Estadísticas
  */
-export async function getRateLimitStats(userId) {
+export const getRateLimitStats = async (userId) => {
   try {
     const pattern = `ratelimit:user:${userId}:*`
     const keys = await redisService.keys(pattern)

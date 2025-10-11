@@ -5,6 +5,51 @@ import { validationResult } from 'express-validator'
 import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
 
+// Función auxiliar para notificar al streamer sobre comentarios
+const notifyStreamerAboutComment = async (comment, liveStream) => {
+  try {
+    // Notificar al streamer principal
+    if (comment.user._id.toString() !== liveStream.user.toString()) {
+      await Notification.create({
+        user: liveStream.user,
+        from: comment.user._id,
+        type: 'live_comment',
+        title: 'Nuevo comentario en vivo',
+        message: `${comment.user.username} comentó en tu transmisión en vivo`,
+        data: {
+          liveStreamId: liveStream._id,
+          commentId: comment._id,
+          commentContent: comment.content
+        }
+      })
+    }
+
+    // Notificar a co-hosts si existen
+    if (liveStream.coHosts && liveStream.coHosts.length > 0) {
+      const coHostNotifications = liveStream.coHosts
+        .filter(coHostId => coHostId.toString() !== comment.user._id.toString())
+        .map(coHostId => ({
+          user: coHostId,
+          from: comment.user._id,
+          type: 'live_comment',
+          title: 'Nuevo comentario en transmisión',
+          message: `${comment.user.username} comentó en la transmisión en vivo`,
+          data: {
+            liveStreamId: liveStream._id,
+            commentId: comment._id,
+            commentContent: comment.content
+          }
+        }))
+
+      if (coHostNotifications.length > 0) {
+        await Notification.insertMany(coHostNotifications)
+      }
+    }
+  } catch (error) {
+    logger.error('Error al notificar al streamer sobre comentario:', error)
+  }
+}
+
 // Crear un comentario en transmisión en vivo
 export const createComment = async (req, res) => {
   try {
@@ -400,50 +445,5 @@ export const getCommentStats = async (req, res) => {
       success: false,
       message: 'Error interno del servidor'
     })
-  }
-}
-
-// Función auxiliar para notificar al streamer sobre comentarios
-async function notifyStreamerAboutComment(comment, liveStream) {
-  try {
-    // Notificar al streamer principal
-    if (comment.user._id.toString() !== liveStream.user.toString()) {
-      await Notification.create({
-        user: liveStream.user,
-        from: comment.user._id,
-        type: 'live_comment',
-        title: 'Nuevo comentario en tu transmisión',
-        message: `${comment.user.username}: ${comment.content.substring(0, 50)}...`,
-        data: {
-          liveStreamId: liveStream._id,
-          commentId: comment._id,
-          commentType: comment.type
-        }
-      })
-    }
-
-    // Notificar a co-hosts si está habilitado
-    if (comment.notifyCoHosts && liveStream.coHosts.length > 0) {
-      const coHostNotifications = liveStream.coHosts
-        .filter(coHost => ['accepted', 'joined'].includes(coHost.status))
-        .map(coHost => ({
-          user: coHost.user,
-          from: comment.user._id,
-          type: 'live_comment',
-          title: 'Nuevo comentario en transmisión',
-          message: `${comment.user.username}: ${comment.content.substring(0, 50)}...`,
-          data: {
-            liveStreamId: liveStream._id,
-            commentId: comment._id,
-            commentType: comment.type
-          }
-        }))
-
-      if (coHostNotifications.length > 0) {
-        await Notification.insertMany(coHostNotifications)
-      }
-    }
-  } catch (error) {
-    logger.error('Error notificando streamer sobre comentario:', error)
   }
 }
