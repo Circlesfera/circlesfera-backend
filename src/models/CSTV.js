@@ -435,8 +435,7 @@ CSTVSchema.pre('save', function (next) {
 CSTVSchema.post('save', async function () {
   if (this.isNew && this.isPublished) {
     // Aquí podrías agregar lógica para notificar a los seguidores
-    // sobre el nuevo video de CSTV
-    console.log(`Nuevo video CSTV publicado: ${this.title}`)
+    // sobre el nuevo video de CSTV usando notificationService
   }
 })
 
