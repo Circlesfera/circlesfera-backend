@@ -1,6 +1,5 @@
 import express from 'express'
 const router = express.Router()
-import { body } from 'express-validator'
 import {
   createPost,
   getFeed,
@@ -14,45 +13,9 @@ import {
 } from '../controllers/postController.js'
 import { auth } from '../middlewares/auth.js'
 import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import { validate } from '../middlewares/validate.js'
+import { createPostSchema, updatePostSchema } from '../schemas/postSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'
-
-// Validaciones
-const createPostValidation = [
-  body('type')
-    .isIn(['image', 'video'])
-    .withMessage('El tipo debe ser image o video'),
-  body('caption')
-    .optional()
-    .isLength({ max: 2200 })
-    .withMessage('La descripción no puede exceder 2200 caracteres'),
-  body('location')
-    .optional()
-    .isLength({ max: 100 })
-    .withMessage('La ubicación no puede exceder 100 caracteres'),
-  body('tags')
-    .optional()
-    .isString()
-    .withMessage('Los tags deben ser una cadena separada por comas'),
-  body('text')
-    .optional()
-    .isLength({ max: 5000 })
-    .withMessage('El texto no puede exceder 5000 caracteres')
-]
-
-const updatePostValidation = [
-  body('caption')
-    .optional()
-    .isLength({ max: 2200 })
-    .withMessage('La descripción no puede exceder 2200 caracteres'),
-  body('location')
-    .optional()
-    .isLength({ max: 100 })
-    .withMessage('La ubicación no puede exceder 100 caracteres'),
-  body('tags')
-    .optional()
-    .isString()
-    .withMessage('Los tags deben ser una cadena separada por comas')
-]
 
 // Rutas públicas
 router.get('/trending', getTrendingPosts)
@@ -71,15 +34,15 @@ router.post(
   auth,
   uploadFields,
   imageOptimizer,
-  createPostValidation,
+  validate(createPostSchema),
   createPost,
   handleUploadError
 )
 
-// Ruta para posts de texto (sin archivos)
-router.post('/', auth, createPostValidation, createPost)
+// Ruta para posts (solo image/video, sin texto)
+router.post('/', auth, validate(createPostSchema), createPost)
 
-router.put('/:id', auth, updatePostValidation, updatePost)
+router.put('/:id', auth, validate(updatePostSchema), updatePost)
 
 router.post('/:id/like', auth, toggleLike)
 router.delete('/:id', auth, deletePost)

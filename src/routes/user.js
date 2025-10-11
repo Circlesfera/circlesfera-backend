@@ -1,6 +1,5 @@
 import express from 'express'
 const router = express.Router()
-import { body } from 'express-validator'
 import {
   getUserProfile,
   followUser,
@@ -25,16 +24,8 @@ import {
 } from '../controllers/userController.js'
 import { auth, optionalAuth } from '../middlewares/auth.js'
 
-// Validaciones
-const searchValidation = [
-  body('q')
-    .isLength({ min: 2 })
-    .withMessage('El término de búsqueda debe tener al menos 2 caracteres')
-]
-
-
 // Rutas públicas
-router.get('/search', searchValidation, searchUsers)
+router.get('/search', searchUsers)
 
 // Rutas que pueden ser públicas o privadas (con autenticación opcional)
 router.get('/profile/:username', optionalAuth, getUserProfile)
