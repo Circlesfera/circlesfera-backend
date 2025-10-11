@@ -35,7 +35,7 @@ const auth = async (req, res, next) => {
     // Verificar token con tokenService (incluye blacklist)
     const decoded = await tokenService.verifyToken(token)
 
-    if (!decoded || !decoded.id) {
+    if (!decoded || !decoded.userId) {
       return res.status(401).json({
         success: false,
         message: 'Token inválido o expirado'
@@ -52,7 +52,7 @@ const auth = async (req, res, next) => {
 
     // Verificar si todos los tokens del usuario fueron invalidados
     if (decoded.iat) {
-      const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.id, decoded.iat)
+      const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.userId, decoded.iat)
       if (areInvalidated) {
         return res.status(401).json({
           success: false,
@@ -62,7 +62,7 @@ const auth = async (req, res, next) => {
     }
 
     // Verificar que el usuario existe y está activo
-    const user = await User.findById(decoded.id).select('-password')
+    const user = await User.findById(decoded.userId).select('-password')
 
     if (!user) {
       return res.status(401).json({
@@ -138,12 +138,12 @@ const optionalAuth = async (req, res, next) => {
     const token = authHeader.replace('Bearer ', '')
     const decoded = await tokenService.verifyToken(token)
 
-    if (decoded && decoded.id && decoded.type === 'access') {
+    if (decoded && decoded.userId && decoded.type === 'access') {
       // Verificar invalidación de tokens
       if (decoded.iat) {
-        const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.id, decoded.iat)
+        const areInvalidated = await tokenService.areUserTokensInvalidated(decoded.userId, decoded.iat)
         if (!areInvalidated) {
-          const user = await User.findById(decoded.id).select('-password')
+          const user = await User.findById(decoded.userId).select('-password')
           if (user && user.isActive) {
             req.user = user
             req.userId = user._id

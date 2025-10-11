@@ -368,7 +368,7 @@ export const refreshToken = async (req, res) => {
 
     // Obtener información del usuario
     const decoded = tokenService.decodeToken(refreshToken)
-    const user = await User.findById(decoded.id).select('-password')
+    const user = await User.findById(decoded.userId).select('-password')
 
     if (!user || !user.isActive) {
       return res.status(401).json({

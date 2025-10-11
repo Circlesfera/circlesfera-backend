@@ -38,13 +38,13 @@ class SocketService {
         }
 
         const decoded = jwt.verify(token, config.jwtSecret)
-        const user = await User.findById(decoded.id).select('username avatar fullName')
+        const user = await User.findById(decoded.userId).select('username avatar fullName')
 
         if (!user) {
           return next(new Error('Usuario no encontrado'))
         }
 
-        socket.userId = decoded.id
+        socket.userId = decoded.userId
         socket.user = user
         next()
       } catch (error) {
