@@ -8,13 +8,9 @@ import { config } from '../utils/config.js'
 import notificationService from '../services/notificationService.js'
 
 // Implementar caché para historias
-const getStoriesCacheKey = (userId, includeExpired = false) => {
-  return `stories:${userId}:${includeExpired ? 'all' : 'active'}`
-}
+const getStoriesCacheKey = (userId, includeExpired = false) => `stories:${userId}:${includeExpired ? 'all' : 'active'}`
 
-const getFeedCacheKey = () => {
-  return 'stories:feed:active'
-}
+const getFeedCacheKey = () => 'stories:feed:active'
 
 // Crear una nueva historia
 export const createStory = async (req, res) => {
@@ -54,91 +50,91 @@ export const createStory = async (req, res) => {
 
     // Manejar diferentes tipos de contenido
     switch (type) {
-    case 'image':
-      if (!req.files || !req.files.image) {
+      case 'image':
+        if (!req.files || !req.files.image) {
+          return res.status(400).json({
+            success: false,
+            message: 'La imagen es obligatoria para historias de imagen'
+          })
+        }
+
+        logger.info('Creating image story with:', {
+          filename: req.files.image[0].filename,
+          baseUrl,
+          fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`
+        })
+
+        storyData.content = {
+          image: {
+            url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
+            alt: caption || '',
+            width: 0,
+            height: 0
+          }
+        }
+        break
+
+      case 'video':
+        if (!req.files || !req.files.video) {
+          return res.status(400).json({
+            success: false,
+            message: 'El video es obligatorio para historias de video'
+          })
+        }
+
+        logger.info('Creating video story with:', {
+          filename: req.files.video[0].filename,
+          baseUrl,
+          fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`
+        })
+
+        storyData.content = {
+          video: {
+            url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
+            duration: 0,
+            thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+            width: 0,
+            height: 0
+          }
+        }
+        break
+
+      case 'text': {
+        if (!textContent) {
+          return res.status(400).json({
+            success: false,
+            message: 'El contenido de texto es obligatorio para historias de texto'
+          })
+        }
+
+        // Parse textStyle si viene como JSON string
+        let parsedTextStyle = {}
+        if (textStyle) {
+          try {
+            parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle
+          } catch (error) {
+            logger.error('Error parsing textStyle:', error)
+            parsedTextStyle = {}
+          }
+        }
+
+        storyData.content = {
+          text: {
+            content: textContent,
+            backgroundColor: parsedTextStyle.backgroundColor || '#000000',
+            textColor: parsedTextStyle.textColor || '#ffffff',
+            fontSize: parsedTextStyle.fontSize || 24,
+            fontFamily: parsedTextStyle.fontFamily || 'Arial'
+          }
+        }
+        break
+      }
+
+      default:
         return res.status(400).json({
           success: false,
-          message: 'La imagen es obligatoria para historias de imagen'
+          message: 'Tipo de historia no válido'
         })
-      }
-
-      logger.info('Creating image story with:', {
-        filename: req.files.image[0].filename,
-        baseUrl,
-        fullUrl: `${baseUrl}/uploads/${req.files.image[0].filename}`
-      })
-
-      storyData.content = {
-        image: {
-          url: `${baseUrl}/uploads/${req.files.image[0].filename}`,
-          alt: caption || '',
-          width: 0,
-          height: 0
-        }
-      }
-      break
-
-    case 'video':
-      if (!req.files || !req.files.video) {
-        return res.status(400).json({
-          success: false,
-          message: 'El video es obligatorio para historias de video'
-        })
-      }
-
-      logger.info('Creating video story with:', {
-        filename: req.files.video[0].filename,
-        baseUrl,
-        fullUrl: `${baseUrl}/uploads/${req.files.video[0].filename}`
-      })
-
-      storyData.content = {
-        video: {
-          url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
-          duration: 0,
-          thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
-          width: 0,
-          height: 0
-        }
-      }
-      break
-
-    case 'text': {
-      if (!textContent) {
-        return res.status(400).json({
-          success: false,
-          message: 'El contenido de texto es obligatorio para historias de texto'
-        })
-      }
-
-      // Parse textStyle si viene como JSON string
-      let parsedTextStyle = {}
-      if (textStyle) {
-        try {
-          parsedTextStyle = typeof textStyle === 'string' ? JSON.parse(textStyle) : textStyle
-        } catch (error) {
-          logger.error('Error parsing textStyle:', error)
-          parsedTextStyle = {}
-        }
-      }
-
-      storyData.content = {
-        text: {
-          content: textContent,
-          backgroundColor: parsedTextStyle.backgroundColor || '#000000',
-          textColor: parsedTextStyle.textColor || '#ffffff',
-          fontSize: parsedTextStyle.fontSize || 24,
-          fontFamily: parsedTextStyle.fontFamily || 'Arial'
-        }
-      }
-      break
-    }
-
-    default:
-      return res.status(400).json({
-        success: false,
-        message: 'Tipo de historia no válido'
-      })
     }
 
     const story = new Story(storyData)
@@ -575,7 +571,7 @@ export const cleanupExpiredStories = async (req, res) => {
 // Obtener usuarios con stories para la barra de stories
 export const getUsersWithStories = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
 
     // Validar que el userId existe
     if (!userId) {
@@ -660,7 +656,7 @@ export const getUsersWithStories = async (req, res) => {
 // Obtener estadísticas de notificaciones de historias
 export const getStoryNotificationStats = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
 
     if (!userId) {
       return res.status(401).json({
@@ -719,7 +715,7 @@ export const getStoryNotificationStats = async (req, res) => {
 // Marcar notificaciones de historias como leídas
 export const markStoryNotificationsAsRead = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
 
     if (!userId) {
       return res.status(401).json({
@@ -762,7 +758,7 @@ export const markStoryNotificationsAsRead = async (req, res) => {
 export const viewStory = async (req, res) => {
   try {
     const storyId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     const story = await Story.findById(storyId)
 

@@ -77,36 +77,28 @@ export const sendError = (res, message, statusCode = 400, errors = null) => {
  * @param {any} data - Datos del recurso creado
  * @param {string} message - Mensaje opcional
  */
-export const sendCreated = (res, data, message = 'Recurso creado exitosamente') => {
-  return sendSuccess(res, data, message, 201)
-}
+export const sendCreated = (res, data, message = 'Recurso creado exitosamente') => sendSuccess(res, data, message, 201)
 
 /**
  * Formatear respuesta de recurso no encontrado
  * @param {Object} res - Objeto de respuesta de Express
  * @param {string} message - Mensaje personalizado (opcional)
  */
-export const sendNotFound = (res, message = 'Recurso no encontrado') => {
-  return sendError(res, message, 404)
-}
+export const sendNotFound = (res, message = 'Recurso no encontrado') => sendError(res, message, 404)
 
 /**
  * Formatear respuesta de no autorizado
  * @param {Object} res - Objeto de respuesta de Express
  * @param {string} message - Mensaje personalizado (opcional)
  */
-export const sendUnauthorized = (res, message = 'No autorizado') => {
-  return sendError(res, message, 401)
-}
+export const sendUnauthorized = (res, message = 'No autorizado') => sendError(res, message, 401)
 
 /**
  * Formatear respuesta de prohibido (sin permisos)
  * @param {Object} res - Objeto de respuesta de Express
  * @param {string} message - Mensaje personalizado (opcional)
  */
-export const sendForbidden = (res, message = 'Acceso denegado') => {
-  return sendError(res, message, 403)
-}
+export const sendForbidden = (res, message = 'Acceso denegado') => sendError(res, message, 403)
 
 /**
  * Formatear respuesta de validación fallida
@@ -114,9 +106,7 @@ export const sendForbidden = (res, message = 'Acceso denegado') => {
  * @param {Array} errors - Array de errores de validación
  * @param {string} message - Mensaje personalizado (opcional)
  */
-export const sendValidationError = (res, errors, message = 'Error de validación') => {
-  return sendError(res, message, 400, errors)
-}
+export const sendValidationError = (res, errors, message = 'Error de validación') => sendError(res, message, 400, errors)
 
 /**
  * Formatear respuesta de error del servidor
@@ -141,7 +131,5 @@ export const sendServerError = (res, error, isDevelopment = false) => {
  * Formatear respuesta sin contenido
  * @param {Object} res - Objeto de respuesta de Express
  */
-export const sendNoContent = (res) => {
-  return res.status(204).send()
-}
+export const sendNoContent = (res) => res.status(204).send()
 

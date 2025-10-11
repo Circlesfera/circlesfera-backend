@@ -7,9 +7,9 @@ import mongoose from 'mongoose'
 import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
 import {
-  getPaginationOptions,
   createPaginatedResponse,
-  getCommentPopulateOptions
+  getCommentPopulateOptions,
+  getPaginationOptions
 } from '../utils/queryOptimizer.js'
 
 // Crear un comentario
@@ -25,7 +25,7 @@ export const createComment = async (req, res) => {
     }
 
     const { content, parentComment } = req.body
-    const postId = req.params.postId
+    const { postId } = req.params
 
     // Validar que postId es un ObjectId válido
     if (!mongoose.Types.ObjectId.isValid(postId)) {
@@ -108,7 +108,7 @@ export const createComment = async (req, res) => {
 // Obtener comentarios de un post
 export const getComments = async (req, res) => {
   try {
-    const postId = req.params.postId
+    const { postId } = req.params
 
     logger.info('getComments - Recibido postId:', { postId, type: typeof postId })
 
@@ -194,7 +194,7 @@ export const getComments = async (req, res) => {
 // Obtener respuestas de un comentario
 export const getReplies = async (req, res) => {
   try {
-    const commentId = req.params.commentId
+    const { commentId } = req.params
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 5
     const skip = (page - 1) * limit

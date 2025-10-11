@@ -208,28 +208,28 @@ StorySchema.index({ user: 1, isPublic: 1, isDeleted: 1, expiresAt: 1 })
 StorySchema.index({ isPublic: 1, isDeleted: 1, expiresAt: 1, createdAt: -1 })
 
 // Virtuals
-StorySchema.virtual('viewsCount').get(function() {
+StorySchema.virtual('viewsCount').get(function () {
   return this.views.length
 })
 
-StorySchema.virtual('reactionsCount').get(function() {
+StorySchema.virtual('reactionsCount').get(function () {
   return this.reactions.length
 })
 
-StorySchema.virtual('repliesCount').get(function() {
+StorySchema.virtual('repliesCount').get(function () {
   return this.replies.length
 })
 
-StorySchema.virtual('isExpired').get(function() {
+StorySchema.virtual('isExpired').get(function () {
   return new Date() > this.expiresAt
 })
 
-StorySchema.virtual('timeLeft').get(function() {
+StorySchema.virtual('timeLeft').get(function () {
   const now = new Date()
   const expiresAt = new Date(this.expiresAt)
   const diff = expiresAt.getTime() - now.getTime()
 
-  if (diff <= 0) return 0
+  if (diff <= 0) { return 0 }
 
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -238,7 +238,7 @@ StorySchema.virtual('timeLeft').get(function() {
 })
 
 // Métodos de instancia
-StorySchema.methods.addView = function(userId) {
+StorySchema.methods.addView = function (userId) {
   const existingView = this.views.find(view => view.user.toString() === userId)
   if (!existingView) {
     this.views.push({ user: userId })
@@ -247,7 +247,7 @@ StorySchema.methods.addView = function(userId) {
   return Promise.resolve(this)
 }
 
-StorySchema.methods.addReaction = function(userId, reactionType) {
+StorySchema.methods.addReaction = function (userId, reactionType) {
   const existingReaction = this.reactions.find(reaction => reaction.user.toString() === userId)
 
   if (existingReaction) {
@@ -260,28 +260,28 @@ StorySchema.methods.addReaction = function(userId, reactionType) {
   return this.save()
 }
 
-StorySchema.methods.removeReaction = function(userId) {
+StorySchema.methods.removeReaction = function (userId) {
   this.reactions = this.reactions.filter(reaction => !reaction.user.equals(userId))
   return this.save()
 }
 
-StorySchema.methods.addReply = function(userId, content) {
+StorySchema.methods.addReply = function (userId, content) {
   this.replies.push({ user: userId, content })
   return this.save()
 }
 
-StorySchema.methods.archive = function() {
+StorySchema.methods.archive = function () {
   this.isArchived = true
   return this.save()
 }
 
-StorySchema.methods.softDelete = function() {
+StorySchema.methods.softDelete = function () {
   this.isDeleted = true
   return this.save()
 }
 
 // Métodos estáticos
-StorySchema.statics.findActiveStories = function() {
+StorySchema.statics.findActiveStories = function () {
   const now = new Date()
   return this.find({
     expiresAt: { $gt: now },
@@ -290,7 +290,7 @@ StorySchema.statics.findActiveStories = function() {
   })
 }
 
-StorySchema.statics.findByUser = function(userId, options = {}) {
+StorySchema.statics.findByUser = function (userId, options = {}) {
   const query = { user: userId, isDeleted: false }
 
   if (options.includeArchived === false) {
@@ -304,7 +304,7 @@ StorySchema.statics.findByUser = function(userId, options = {}) {
   return this.find(query).sort({ createdAt: -1 })
 }
 
-StorySchema.statics.findStoriesForFeed = function(userIds) {
+StorySchema.statics.findStoriesForFeed = function (userIds) {
   const now = new Date()
   return this.find({
     user: { $in: userIds },
@@ -317,7 +317,7 @@ StorySchema.statics.findStoriesForFeed = function(userIds) {
     .sort({ createdAt: -1 })
 }
 
-StorySchema.statics.cleanupExpiredStories = function() {
+StorySchema.statics.cleanupExpiredStories = function () {
   const now = new Date()
   return this.updateMany(
     { expiresAt: { $lte: now } },
@@ -326,7 +326,7 @@ StorySchema.statics.cleanupExpiredStories = function() {
 }
 
 // Middleware pre-save
-StorySchema.pre('save', function(next) {
+StorySchema.pre('save', function (next) {
   // Validar que hay contenido
   if (this.type === 'image' && !this.content.image.url) {
     return next(new Error('Las historias de imagen deben tener una imagen'))

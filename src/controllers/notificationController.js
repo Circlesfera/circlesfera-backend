@@ -7,15 +7,15 @@ import logger from '../utils/logger.js'
 // Obtener notificaciones del usuario
 export const getNotifications = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 20
     const skip = (page - 1) * limit
     const { type, unreadOnly } = req.query
 
     const options = {}
-    if (type) options.type = type
-    if (unreadOnly === 'true') options.unreadOnly = true
+    if (type) { options.type = type }
+    if (unreadOnly === 'true') { options.unreadOnly = true }
 
     const notifications = await Notification.findByUser(userId, options)
       .skip(skip)
@@ -50,7 +50,7 @@ export const getNotifications = async (req, res) => {
 // Obtener conteo de notificaciones no leídas
 export const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
     const count = await Notification.getUnreadCount(userId)
 
     res.json({
@@ -104,7 +104,7 @@ export const markAsRead = async (req, res) => {
 // Marcar todas las notificaciones como leídas
 export const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
     await Notification.markAllAsRead(userId)
 
     res.json({
@@ -158,7 +158,7 @@ export const deleteNotification = async (req, res) => {
 // Eliminar todas las notificaciones leídas
 export const deleteReadNotifications = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
 
     await Notification.updateMany(
       { user: userId, isRead: true, isDeleted: false },
@@ -239,7 +239,7 @@ export const createNotification = async (req, res) => {
 // Obtener estadísticas de notificaciones
 export const getNotificationStats = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
 
     const stats = await Notification.aggregate([
       { $match: { user: mongoose.Types.ObjectId(userId), isDeleted: false } },

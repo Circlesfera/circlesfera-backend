@@ -6,8 +6,8 @@ import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
 import { config } from '../utils/config.js'
 import {
-  getPaginationOptions,
-  createPaginatedResponse
+  createPaginatedResponse,
+  getPaginationOptions
 } from '../utils/queryOptimizer.js'
 
 // Crear un nuevo reel
@@ -135,7 +135,7 @@ export const createReel = async (req, res) => {
 // Obtener reels para el feed
 export const getReelsForFeed = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
     const { page, limit, skip } = getPaginationOptions(
       req.query.page || 1,
       req.query.limit || 20
@@ -256,7 +256,7 @@ export const getUserReels = async (req, res) => {
 export const getReel = async (req, res) => {
   try {
     const { id } = req.params
-    const userId = req.userId
+    const { userId } = req
 
     const reel = await Reel.findOne({
       _id: id,
@@ -297,7 +297,7 @@ export const getReel = async (req, res) => {
 export const likeReel = async (req, res) => {
   try {
     const { id } = req.params
-    const userId = req.userId
+    const { userId } = req
 
     const reel = await Reel.findById(id)
     if (!reel) {
@@ -367,7 +367,7 @@ export const likeReel = async (req, res) => {
 export const unlikeReel = async (req, res) => {
   try {
     const { id } = req.params
-    const userId = req.userId
+    const { userId } = req
 
     const reel = await Reel.findById(id)
     if (!reel) {
@@ -403,7 +403,7 @@ export const commentReel = async (req, res) => {
   try {
     const { id } = req.params
     const { content } = req.body
-    const userId = req.userId
+    const { userId } = req
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
@@ -479,7 +479,7 @@ export const commentReel = async (req, res) => {
 export const deleteReel = async (req, res) => {
   try {
     const { id } = req.params
-    const userId = req.userId
+    const { userId } = req
 
     const reel = await Reel.findById(id)
     if (!reel) {
@@ -627,7 +627,7 @@ export const getTrendingReels = async (req, res) => {
 export const saveReel = async (req, res) => {
   try {
     const reelId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     // Verificar que el reel existe
     const reel = await Reel.findById(reelId)
@@ -669,7 +669,7 @@ export const saveReel = async (req, res) => {
 export const unsaveReel = async (req, res) => {
   try {
     const reelId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     // Remover reel de savedPosts del usuario
     const user = await User.findById(userId)
@@ -704,7 +704,7 @@ export const unsaveReel = async (req, res) => {
 export const viewReel = async (req, res) => {
   try {
     const reelId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     const reel = await Reel.findById(reelId)
 

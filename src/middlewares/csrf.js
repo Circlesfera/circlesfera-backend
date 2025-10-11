@@ -237,7 +237,7 @@ export function includeCsrfInResponse(req, res, next) {
   // Interceptar res.json para agregar csrfToken
   const originalJson = res.json.bind(res)
 
-  res.json = function(data) {
+  res.json = function (data) {
     if (req.csrfToken) {
       // Agregar token a la respuesta si existe
       data.csrfToken = req.csrfToken

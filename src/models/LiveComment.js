@@ -119,10 +119,10 @@ LiveCommentSchema.virtual('reactionCount').get(function () {
 })
 
 // Virtual para verificar si un usuario reaccionó
-LiveCommentSchema.virtual('userReaction').get(function () {
+LiveCommentSchema.virtual('userReaction').get(() => 
   // Este virtual se poblará dinámicamente
-  return null
-})
+  null
+)
 
 // Método para agregar reacción
 LiveCommentSchema.methods.addReaction = function (

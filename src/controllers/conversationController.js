@@ -384,9 +384,9 @@ export const updateConversation = async (req, res) => {
     }
 
     // Actualizar campos
-    if (name) conversation.name = name
-    if (description) conversation.description = description
-    if (avatar) conversation.avatar = avatar
+    if (name) { conversation.name = name }
+    if (description) { conversation.description = description }
+    if (avatar) { conversation.avatar = avatar }
 
     await conversation.save()
     await conversation.populate('participants', 'username avatar fullName')

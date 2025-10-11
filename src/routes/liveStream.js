@@ -1,17 +1,17 @@
 import express from 'express'
 const router = express.Router()
 import { body, param, query, validationResult } from 'express-validator'
-import { auth as protect, optionalAuth } from '../middlewares/auth.js'
+import { optionalAuth, auth as protect } from '../middlewares/auth.js'
 import {
-  createLiveStream,
-  getLiveStreams,
-  getLiveStream,
-  startLiveStream,
-  endLiveStream,
   addViewer,
-  removeViewer,
+  createLiveStream,
+  endLiveStream,
+  getLiveStream,
+  getLiveStreams,
   inviteCoHost,
   likeLiveStream,
+  removeViewer,
+  startLiveStream,
   unlikeLiveStream
 } from '../controllers/liveStreamController.js'
 

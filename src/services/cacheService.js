@@ -116,7 +116,7 @@ class CacheService {
   async delPattern(pattern) {
     try {
       const keys = await redisService.keys(pattern)
-      if (keys.length === 0) return 0
+      if (keys.length === 0) { return 0 }
 
       let deleted = 0
       for (const key of keys) {
@@ -274,9 +274,9 @@ class CacheService {
 
     if (userId) {
       return await this.del(pattern) ? 1 : 0
-    } else {
-      return await this.delPattern(pattern)
-    }
+    } 
+    return await this.delPattern(pattern)
+    
   }
 
   /**

@@ -59,16 +59,16 @@ CommentSchema.index({ post: 1, parentComment: 1, createdAt: -1 })
 CommentSchema.index({ user: 1, post: 1, createdAt: -1 })
 
 // Virtuals
-CommentSchema.virtual('likesCount').get(function() {
+CommentSchema.virtual('likesCount').get(function () {
   return this.likes.length
 })
 
-CommentSchema.virtual('repliesCount').get(function() {
+CommentSchema.virtual('repliesCount').get(function () {
   return this.replies.length
 })
 
 // Métodos de instancia
-CommentSchema.methods.addLike = function(userId) {
+CommentSchema.methods.addLike = function (userId) {
   if (!this.likes.includes(userId)) {
     this.likes.push(userId)
     return this.save()
@@ -76,16 +76,16 @@ CommentSchema.methods.addLike = function(userId) {
   return Promise.resolve(this)
 }
 
-CommentSchema.methods.removeLike = function(userId) {
+CommentSchema.methods.removeLike = function (userId) {
   this.likes = this.likes.filter(id => !id.equals(userId))
   return this.save()
 }
 
-CommentSchema.methods.isLikedBy = function(userId) {
+CommentSchema.methods.isLikedBy = function (userId) {
   return this.likes.some(id => id.equals(userId))
 }
 
-CommentSchema.methods.addReply = function(replyId) {
+CommentSchema.methods.addReply = function (replyId) {
   if (!this.replies.includes(replyId)) {
     this.replies.push(replyId)
     return this.save()
@@ -93,14 +93,14 @@ CommentSchema.methods.addReply = function(replyId) {
   return Promise.resolve(this)
 }
 
-CommentSchema.methods.softDelete = function() {
+CommentSchema.methods.softDelete = function () {
   this.isDeleted = true
   this.content = '[Comentario eliminado]'
   return this.save()
 }
 
 // Métodos estáticos
-CommentSchema.statics.findByPost = function(postId, options = {}) {
+CommentSchema.statics.findByPost = function (postId, options = {}) {
   const query = {
     post: postId,
     isDeleted: false,
@@ -124,7 +124,7 @@ CommentSchema.statics.findByPost = function(postId, options = {}) {
   return queryBuilder
 }
 
-CommentSchema.statics.findReplies = function(commentId) {
+CommentSchema.statics.findReplies = function (commentId) {
   return this.find({
     parentComment: commentId,
     isDeleted: false
@@ -134,7 +134,7 @@ CommentSchema.statics.findReplies = function(commentId) {
 }
 
 // Middleware pre-save
-CommentSchema.pre('save', function(next) {
+CommentSchema.pre('save', function (next) {
   // Detectar menciones en el contenido
   // const mentionRegex = /@(\w+)/g;
   const mentions = []
@@ -150,14 +150,14 @@ CommentSchema.pre('save', function(next) {
 })
 
 // Middleware post-save para actualizar el post
-CommentSchema.post('save', async function() {
+CommentSchema.post('save', async function () {
   await Post.findByIdAndUpdate(this.post, {
     $addToSet: { comments: this._id }
   })
 })
 
 // Middleware post-remove para limpiar referencias
-CommentSchema.post('remove', async function() {
+CommentSchema.post('remove', async function () {
   await Post.findByIdAndUpdate(this.post, {
     $pull: { comments: this._id }
   })

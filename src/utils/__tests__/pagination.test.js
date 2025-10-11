@@ -1,7 +1,7 @@
 import {
+  createPaginationObject,
   parsePaginationParams,
-  parseSortParams,
-  createPaginationObject
+  parseSortParams
 } from '../pagination.js'
 
 describe('Pagination Utils', () => {

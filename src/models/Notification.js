@@ -106,40 +106,40 @@ NotificationSchema.index({ expiresAt: 1 })
 NotificationSchema.index({ isDeleted: 1 })
 
 // Virtuals
-NotificationSchema.virtual('isExpired').get(function() {
+NotificationSchema.virtual('isExpired').get(function () {
   return new Date() > this.expiresAt
 })
 
-NotificationSchema.virtual('timeAgo').get(function() {
+NotificationSchema.virtual('timeAgo').get(function () {
   const now = new Date()
   const createdAt = new Date(this.createdAt)
   const diffInSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000)
 
-  if (diffInSeconds < 60) return 'ahora'
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d`
+  if (diffInSeconds < 60) { return 'ahora' }
+  if (diffInSeconds < 3600) { return `${Math.floor(diffInSeconds / 60)}m` }
+  if (diffInSeconds < 86400) { return `${Math.floor(diffInSeconds / 3600)}h` }
+  if (diffInSeconds < 2592000) { return `${Math.floor(diffInSeconds / 86400)}d` }
   return createdAt.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })
 })
 
 // Métodos de instancia
-NotificationSchema.methods.markAsRead = function() {
+NotificationSchema.methods.markAsRead = function () {
   this.isRead = true
   return this.save()
 }
 
-NotificationSchema.methods.markAsUnread = function() {
+NotificationSchema.methods.markAsUnread = function () {
   this.isRead = false
   return this.save()
 }
 
-NotificationSchema.methods.softDelete = function() {
+NotificationSchema.methods.softDelete = function () {
   this.isDeleted = true
   return this.save()
 }
 
 // Métodos estáticos
-NotificationSchema.statics.findByUser = function(userId, options = {}) {
+NotificationSchema.statics.findByUser = function (userId, options = {}) {
   const query = {
     user: userId,
     isDeleted: false
@@ -161,7 +161,7 @@ NotificationSchema.statics.findByUser = function(userId, options = {}) {
     .sort({ createdAt: -1 })
 }
 
-NotificationSchema.statics.getUnreadCount = function(userId) {
+NotificationSchema.statics.getUnreadCount = function (userId) {
   return this.countDocuments({
     user: userId,
     isRead: false,
@@ -169,14 +169,14 @@ NotificationSchema.statics.getUnreadCount = function(userId) {
   })
 }
 
-NotificationSchema.statics.markAllAsRead = function(userId) {
+NotificationSchema.statics.markAllAsRead = function (userId) {
   return this.updateMany(
     { user: userId, isRead: false, isDeleted: false },
     { $set: { isRead: true } }
   )
 }
 
-NotificationSchema.statics.deleteOldNotifications = function(days = 30) {
+NotificationSchema.statics.deleteOldNotifications = function (days = 30) {
   const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   return this.updateMany(
     { createdAt: { $lt: cutoffDate }, isRead: true },
@@ -185,7 +185,7 @@ NotificationSchema.statics.deleteOldNotifications = function(days = 30) {
 }
 
 // Middleware pre-save para generar título y mensaje automáticamente
-NotificationSchema.pre('save', function(next) {
+NotificationSchema.pre('save', function (next) {
   if (!this.title || !this.message) {
     const titles = {
       follow: 'Nuevo seguidor',
@@ -234,7 +234,7 @@ NotificationSchema.pre('save', function(next) {
 })
 
 // Middleware post-save para limpiar notificaciones antiguas
-NotificationSchema.post('save', async function() {
+NotificationSchema.post('save', async function () {
   // Limpiar notificaciones antiguas si hay más de 1000
   const count = await this.constructor.countDocuments({ user: this.user })
   if (count > 1000) {

@@ -18,7 +18,7 @@ const FILE_LIMITS = {
     allowedTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
     allowedExtensions: ['mp4', 'webm', 'mov'],
     maxDuration: 60, // 60 segundos para reels
-    allowedAspectRatios: [9/16, 16/9, 1/1] // Vertical, horizontal, cuadrado
+    allowedAspectRatios: [9 / 16, 16 / 9, 1 / 1] // Vertical, horizontal, cuadrado
   },
   audio: {
     maxSize: 10 * 1024 * 1024, // 10MB
@@ -202,47 +202,45 @@ export const validateAudio = async (req, res, next) => {
 /**
  * Validar múltiples archivos
  */
-export const validateMultipleFiles = (fileType) => {
-  return async (req, res, next) => {
-    try {
-      const files = req.files
+export const validateMultipleFiles = (fileType) => async (req, res, next) => {
+  try {
+    const { files } = req
 
-      if (!files || Object.keys(files).length === 0) {
-        return next()
-      }
+    if (!files || Object.keys(files).length === 0) {
+      return next()
+    }
 
-      // Validar cada archivo
-      for (const fieldname in files) {
-        const fileArray = Array.isArray(files[fieldname]) ? files[fieldname] : [files[fieldname]]
+    // Validar cada archivo
+    for (const fieldname in files) {
+      const fileArray = Array.isArray(files[fieldname]) ? files[fieldname] : [files[fieldname]]
 
-        for (const file of fileArray) {
-          // Validar tamaño
-          if (!validateFileSize(file.size, fileType)) {
-            return res.status(400).json({
-              success: false,
-              message: 'Uno de los archivos excede el tamaño máximo permitido'
-            })
-          }
+      for (const file of fileArray) {
+        // Validar tamaño
+        if (!validateFileSize(file.size, fileType)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Uno de los archivos excede el tamaño máximo permitido'
+          })
+        }
 
-          // Validar tipo
-          const isValid = await validateFileType(file.buffer, fileType)
-          if (!isValid) {
-            return res.status(400).json({
-              success: false,
-              message: 'Uno de los archivos no es del tipo permitido'
-            })
-          }
+        // Validar tipo
+        const isValid = await validateFileType(file.buffer, fileType)
+        if (!isValid) {
+          return res.status(400).json({
+            success: false,
+            message: 'Uno de los archivos no es del tipo permitido'
+          })
         }
       }
-
-      next()
-    } catch (error) {
-      logger.error('Error al validar archivos:', error)
-      return res.status(500).json({
-        success: false,
-        message: 'Error al validar los archivos'
-      })
     }
+
+    next()
+  } catch (error) {
+    logger.error('Error al validar archivos:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Error al validar los archivos'
+    })
   }
 }
 

@@ -108,19 +108,19 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.get(key)
-      } else {
-        // Fallback a memoria
-        const item = this.memoryStore.get(key)
-        if (!item) return null
+      } 
+      // Fallback a memoria
+      const item = this.memoryStore.get(key)
+      if (!item) { return null }
 
-        // Verificar expiración
-        if (item.expiresAt && Date.now() > item.expiresAt) {
-          this.memoryStore.delete(key)
-          return null
-        }
-
-        return item.value
+      // Verificar expiración
+      if (item.expiresAt && Date.now() > item.expiresAt) {
+        this.memoryStore.delete(key)
+        return null
       }
+
+      return item.value
+      
     } catch (error) {
       logger.error(`Error al obtener de Redis/Memoria (${key}):`, error)
       return null
@@ -153,18 +153,18 @@ class RedisService {
       if (this.client) {
         const result = await this.client.exists(key)
         return result === 1
-      } else {
-        const item = this.memoryStore.get(key)
-        if (!item) return false
+      } 
+      const item = this.memoryStore.get(key)
+      if (!item) { return false }
 
-        // Verificar expiración
-        if (item.expiresAt && Date.now() > item.expiresAt) {
-          this.memoryStore.delete(key)
-          return false
-        }
-
-        return true
+      // Verificar expiración
+      if (item.expiresAt && Date.now() > item.expiresAt) {
+        this.memoryStore.delete(key)
+        return false
       }
+
+      return true
+      
     } catch (error) {
       logger.error(`Error al verificar existencia en Redis/Memoria (${key}):`, error)
       return false
@@ -180,11 +180,11 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.keys(pattern)
-      } else {
-        // Fallback a memoria con regex
-        const regex = new RegExp('^' + pattern.replace('*', '.*') + '$')
-        return Array.from(this.memoryStore.keys()).filter(key => regex.test(key))
-      }
+      } 
+      // Fallback a memoria con regex
+      const regex = new RegExp(`^${pattern.replace('*', '.*')}$`)
+      return Array.from(this.memoryStore.keys()).filter(key => regex.test(key))
+      
     } catch (error) {
       logger.error(`Error al buscar claves en Redis/Memoria (${pattern}):`, error)
       return []
@@ -200,12 +200,12 @@ class RedisService {
     try {
       if (this.client) {
         return await this.client.incr(key)
-      } else {
-        const item = this.memoryStore.get(key)
-        const value = item ? parseInt(item.value || '0') + 1 : 1
-        this.memoryStore.set(key, { value: value.toString(), expiresAt: null })
-        return value
-      }
+      } 
+      const item = this.memoryStore.get(key)
+      const value = item ? parseInt(item.value || '0') + 1 : 1
+      this.memoryStore.set(key, { value: value.toString(), expiresAt: null })
+      return value
+      
     } catch (error) {
       logger.error(`Error al incrementar en Redis/Memoria (${key}):`, error)
       return 0

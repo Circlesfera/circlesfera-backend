@@ -1,4 +1,4 @@
-import { optimizeImage, createThumbnail } from '../utils/mediaProcessor.js'
+import { createThumbnail, optimizeImage } from '../utils/mediaProcessor.js'
 import logger from '../utils/logger.js'
 
 /**

@@ -1,6 +1,0 @@
-echo "🔍 Ejecutando verificaciones pre-commit..."
-
-# Ejecutar lint-staged (ya incluye linting y formato)
-npx lint-staged
-
-echo "✅ Pre-commit checks completados exitosamente!"

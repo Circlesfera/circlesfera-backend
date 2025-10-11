@@ -33,10 +33,10 @@ const ipLimiter = rateLimit({
 const userLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: config.isDevelopment ? 1000 : 100,
-  keyGenerator: (req) => {
+  keyGenerator: (req) => 
     // Si hay userId, usar ese, sino usar IP
-    return req.userId?.toString() || req.ip
-  },
+    req.userId?.toString() || req.ip
+  ,
   skipSuccessfulRequests: false,
   handler: (req, res) => {
     logger.warn(`Rate limit exceeded for user: ${req.userId || req.ip}`, {
@@ -58,9 +58,7 @@ const strictLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
   max: config.isDevelopment ? 100 : 10,
   skipSuccessfulRequests: true, // No contar requests exitosos
-  keyGenerator: (req) => {
-    return req.userId?.toString() || req.ip
-  },
+  keyGenerator: (req) => req.userId?.toString() || req.ip,
   handler: (req, res) => {
     logger.warn(`Strict rate limit exceeded: ${req.userId || req.ip}`, {
       requestId: req.id,
@@ -80,9 +78,7 @@ const strictLimiter = rateLimit({
 const contentLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: config.isDevelopment ? 100 : 10, // 10 posts/minuto
-  keyGenerator: (req) => {
-    return req.userId?.toString() || req.ip
-  },
+  keyGenerator: (req) => req.userId?.toString() || req.ip,
   handler: (req, res) => {
     logger.warn(`Content creation rate limit exceeded: ${req.userId}`, {
       requestId: req.id,

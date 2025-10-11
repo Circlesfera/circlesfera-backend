@@ -325,23 +325,23 @@ export const moderateComment = async (req, res) => {
     let result
 
     switch (action) {
-    case 'hide':
-      result = await comment.moderate(req.user.id, reason, 'hide')
-      break
-    case 'delete':
-      result = await comment.moderate(req.user.id, reason, 'delete')
-      break
-    case 'pin':
-      result = await comment.pin()
-      break
-    case 'unpin':
-      result = await comment.unpin()
-      break
-    default:
-      return res.status(400).json({
-        success: false,
-        message: 'Acción de moderación no válida'
-      })
+      case 'hide':
+        result = await comment.moderate(req.user.id, reason, 'hide')
+        break
+      case 'delete':
+        result = await comment.moderate(req.user.id, reason, 'delete')
+        break
+      case 'pin':
+        result = await comment.pin()
+        break
+      case 'unpin':
+        result = await comment.unpin()
+        break
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Acción de moderación no válida'
+        })
     }
 
     // Limpiar caché

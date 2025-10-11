@@ -125,7 +125,7 @@ export const getLiveStreams = async (req, res) => {
       })
     } else {
       const query = { status }
-      if (userId) query.user = userId
+      if (userId) { query.user = userId }
 
       streams = await LiveStream.find(query)
         .populate('user', 'username avatar fullName isVerified')
@@ -668,7 +668,7 @@ export const getUserLiveStreams = async (req, res) => {
 export const likeLiveStream = async (req, res) => {
   try {
     const streamId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     const stream = await LiveStream.findById(streamId)
 
@@ -712,7 +712,7 @@ export const likeLiveStream = async (req, res) => {
 export const unlikeLiveStream = async (req, res) => {
   try {
     const streamId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     const stream = await LiveStream.findById(streamId)
 

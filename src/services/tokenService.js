@@ -170,7 +170,7 @@ class TokenService {
       const key = `user:${userId}:tokens_invalidated`
       const invalidatedTimestamp = await redisService.get(key)
 
-      if (!invalidatedTimestamp) return false
+      if (!invalidatedTimestamp) { return false }
 
       // Si el token fue emitido antes de la invalidación, está invalidado
       return tokenIssuedAt < parseInt(invalidatedTimestamp)
@@ -202,7 +202,7 @@ class TokenService {
   getTokenTimeRemaining(token) {
     try {
       const decoded = jwt.decode(token)
-      if (!decoded || !decoded.exp) return null
+      if (!decoded || !decoded.exp) { return null }
 
       const now = Math.floor(Date.now() / 1000)
       const remaining = decoded.exp - now

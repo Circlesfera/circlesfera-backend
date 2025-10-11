@@ -8,7 +8,7 @@ const monitoringMiddleware = (req, res, next) => {
 
   // Interceptar el método end para registrar métricas
   const originalEnd = res.end
-  res.end = function(...args) {
+  res.end = function (...args) {
     const responseTime = Date.now() - startTime
 
     // Registrar la petición
@@ -38,7 +38,7 @@ const errorMonitoringMiddleware = (err, req, res, next) => {
  */
 const cacheMonitoringMiddleware = (req, res, next) => {
   const originalJson = res.json
-  res.json = function(data) {
+  res.json = function (data) {
     // Verificar si la respuesta viene del caché
     if (req.fromCache) {
       monitoringService.recordCacheHit()

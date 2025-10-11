@@ -27,14 +27,14 @@ try {
 
 // Configuración de monitoreo y optimización
 import { initMonitoring } from './src/utils/monitoring.js'
-import { monitoringMiddleware, errorMonitoringMiddleware } from './src/middlewares/monitoring.js'
+import { errorMonitoringMiddleware, monitoringMiddleware } from './src/middlewares/monitoring.js'
 import cache from './src/utils/cache.js'
 
 // Request ID tracking
 import requestId from './src/middlewares/requestId.js'
 
 // Sanitización - Compatible con Express 5
-import { sanitizeMongo, sanitizeBody } from './src/middlewares/sanitize.js'
+import { sanitizeBody, sanitizeMongo } from './src/middlewares/sanitize.js'
 
 // Health check endpoints
 import healthRoutes from './src/routes/health.js'

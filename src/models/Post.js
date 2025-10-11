@@ -151,20 +151,20 @@ PostSchema.index({ createdAt: -1, views: -1 }) // Para posts recientes y popular
 PostSchema.index({ tags: 1, isPublic: 1, isDeleted: 1 }) // Para búsqueda por tags
 
 // Virtuals
-PostSchema.virtual('likesCount').get(function() {
+PostSchema.virtual('likesCount').get(function () {
   return this.likes.length
 })
 
-PostSchema.virtual('commentsCount').get(function() {
+PostSchema.virtual('commentsCount').get(function () {
   return this.comments.length
 })
 
-PostSchema.virtual('engagement').get(function() {
+PostSchema.virtual('engagement').get(function () {
   return this.likesCount + this.commentsCount + this.shares
 })
 
 // Métodos de instancia
-PostSchema.methods.addLike = function(userId) {
+PostSchema.methods.addLike = function (userId) {
   if (!this.likes) {
     this.likes = []
   }
@@ -177,7 +177,7 @@ PostSchema.methods.addLike = function(userId) {
   return Promise.resolve(this)
 }
 
-PostSchema.methods.removeLike = function(userId) {
+PostSchema.methods.removeLike = function (userId) {
   if (!this.likes) {
     this.likes = []
   }
@@ -187,7 +187,7 @@ PostSchema.methods.removeLike = function(userId) {
   return this.save()
 }
 
-PostSchema.methods.isLikedBy = function(userId) {
+PostSchema.methods.isLikedBy = function (userId) {
   if (!this.likes || this.likes.length === 0) {
     return false
   }
@@ -196,28 +196,28 @@ PostSchema.methods.isLikedBy = function(userId) {
   return this.likes.some(id => id.toString() === userIdStr)
 }
 
-PostSchema.methods.incrementViews = function() {
+PostSchema.methods.incrementViews = function () {
   this.views += 1
   return this.save()
 }
 
-PostSchema.methods.archive = function() {
+PostSchema.methods.archive = function () {
   this.isArchived = true
   return this.save()
 }
 
-PostSchema.methods.unarchive = function() {
+PostSchema.methods.unarchive = function () {
   this.isArchived = false
   return this.save()
 }
 
-PostSchema.methods.softDelete = function() {
+PostSchema.methods.softDelete = function () {
   this.isDeleted = true
   return this.save()
 }
 
 // Métodos estáticos
-PostSchema.statics.findPublicPosts = function() {
+PostSchema.statics.findPublicPosts = function () {
   return this.find({
     isPublic: true,
     isArchived: false,
@@ -225,7 +225,7 @@ PostSchema.statics.findPublicPosts = function() {
   })
 }
 
-PostSchema.statics.findByUser = function(userId, options = {}) {
+PostSchema.statics.findByUser = function (userId, options = {}) {
   const query = { user: userId, isDeleted: false }
 
   if (options.includeArchived === false) {
@@ -235,7 +235,7 @@ PostSchema.statics.findByUser = function(userId, options = {}) {
   return this.find(query).sort({ createdAt: -1 })
 }
 
-PostSchema.statics.findTrending = function(limit = 10) {
+PostSchema.statics.findTrending = function (limit = 10) {
   return this.find({
     isPublic: true,
     isArchived: false,
@@ -246,7 +246,7 @@ PostSchema.statics.findTrending = function(limit = 10) {
 }
 
 // Middleware pre-save
-PostSchema.pre('save', function(next) {
+PostSchema.pre('save', function (next) {
   // Limpiar tags duplicados y vacíos
   if (this.tags) {
     this.tags = [...new Set(this.tags.filter(tag => tag.trim()))]

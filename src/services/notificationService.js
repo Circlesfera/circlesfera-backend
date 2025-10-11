@@ -144,7 +144,7 @@ class NotificationService {
    * @param {string} contentId - ID del contenido
    */
   async createLikeNotification(userId, fromUserId, contentType, contentId) {
-    if (userId === fromUserId) return // No notificar likes propios
+    if (userId === fromUserId) { return } // No notificar likes propios
 
     const typeMap = {
       post: 'like',
@@ -181,7 +181,7 @@ class NotificationService {
    * @param {string} commentId - ID del comentario
    */
   async createCommentNotification(userId, fromUserId, contentType, contentId, commentId) {
-    if (userId === fromUserId) return
+    if (userId === fromUserId) { return }
 
     const titleMap = {
       post: 'comentó en tu publicación',
@@ -209,7 +209,7 @@ class NotificationService {
    * @param {string} fromUserId - ID del usuario que sigue
    */
   async createFollowNotification(userId, fromUserId) {
-    if (userId === fromUserId) return
+    if (userId === fromUserId) { return }
 
     return this.createNotification({
       user: userId,
@@ -232,7 +232,7 @@ class NotificationService {
    * @param {string} context - Contexto de la mención
    */
   async createMentionNotification(userId, fromUserId, contentType, contentId, context) {
-    if (userId === fromUserId) return
+    if (userId === fromUserId) { return }
 
     return this.createNotification({
       user: userId,
@@ -255,7 +255,7 @@ class NotificationService {
    * @param {string} messagePreview - Vista previa del mensaje
    */
   async createMessageNotification(userId, fromUserId, conversationId, messagePreview) {
-    if (userId === fromUserId) return
+    if (userId === fromUserId) { return }
 
     return this.createNotification({
       user: userId,
@@ -316,8 +316,8 @@ class NotificationService {
         isDeleted: false
       }
 
-      if (type) query.type = type
-      if (unreadOnly) query.isRead = false
+      if (type) { query.type = type }
+      if (unreadOnly) { query.isRead = false }
 
       const notifications = await Notification.find(query)
         .populate('from', 'username avatar fullName isVerified')

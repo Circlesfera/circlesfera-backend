@@ -6,7 +6,7 @@ import logger from '../utils/logger.js'
  * Compatible con Express 5
  */
 const sanitizeObject = (obj, replaceWith = '_') => {
-  if (!obj || typeof obj !== 'object') return obj
+  if (!obj || typeof obj !== 'object') { return obj }
 
   const sanitized = Array.isArray(obj) ? [] : {}
   
@@ -58,7 +58,7 @@ const sanitizeMongo = (req, res, next) => {
  * Previene XSS básico
  */
 const sanitizeString = (str) => {
-  if (typeof str !== 'string') return str
+  if (typeof str !== 'string') { return str }
 
   return str
     .replace(/[<>]/g, '') // Remover < y >

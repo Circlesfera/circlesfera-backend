@@ -197,7 +197,7 @@ export function invalidateOnSuccess(invalidationFn) {
     // Interceptar res.json para detectar respuesta exitosa
     const originalJson = res.json.bind(res)
 
-    res.json = function(data) {
+    res.json = function (data) {
       // Si la respuesta es exitosa, invalidar caché
       if (data.success === true || (res.statusCode >= 200 && res.statusCode < 300)) {
         invalidationFn(req, res, () => {}).catch(error => {

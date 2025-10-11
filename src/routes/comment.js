@@ -2,12 +2,12 @@ import express from 'express'
 const router = express.Router()
 import {
   createComment,
+  deleteComment,
   getComments,
   getReplies,
+  getUserComments,
   toggleLike,
-  updateComment,
-  deleteComment,
-  getUserComments
+  updateComment
 } from '../controllers/commentController.js'
 import { auth, optionalAuth } from '../middlewares/auth.js'
 import { validate } from '../middlewares/validate.js'

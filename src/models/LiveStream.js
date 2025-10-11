@@ -204,7 +204,7 @@ LiveStreamSchema.index({ createdAt: -1 })
 
 // Virtual para duración de la transmisión
 LiveStreamSchema.virtual('duration').get(function () {
-  if (!this.startedAt) return 0
+  if (!this.startedAt) { return 0 }
   const endTime = this.endedAt || new Date()
   return Math.floor((endTime - this.startedAt) / 1000) // en segundos
 })
@@ -293,7 +293,7 @@ LiveStreamSchema.methods.removeCoHost = function (userId) {
 }
 
 // Método para agregar like
-LiveStreamSchema.methods.addLike = function(userId) {
+LiveStreamSchema.methods.addLike = function (userId) {
   const existingLike = this.likes.find(like => like.user.equals(userId))
   if (!existingLike) {
     this.likes.push({ user: userId })
@@ -303,13 +303,13 @@ LiveStreamSchema.methods.addLike = function(userId) {
 }
 
 // Método para remover like
-LiveStreamSchema.methods.removeLike = function(userId) {
+LiveStreamSchema.methods.removeLike = function (userId) {
   this.likes = this.likes.filter(like => !like.user.equals(userId))
   return this.save()
 }
 
 // Virtual para contar likes
-LiveStreamSchema.virtual('likesCount').get(function() {
+LiveStreamSchema.virtual('likesCount').get(function () {
   return this.likes.length
 })
 

@@ -107,38 +107,38 @@ export const getCSTVVideos = async (req, res) => {
     let videos
 
     switch (sortBy) {
-    case 'trending':
-      videos = await CSTV.getTrendingVideos(options)
-      break
-    case 'views':
-      videos = await CSTV.find({
-        isPublished: true,
-        visibility: 'public',
-        'moderation.status': 'approved',
-        ...(category && { category }),
-        ...(userId && { user: userId })
-      })
-        .populate('user', 'username avatar fullName isVerified')
-        .sort({ 'views.total': -1 })
-        .limit(options.limit)
-        .skip(options.skip)
-      break
-    case 'likes':
-      videos = await CSTV.find({
-        isPublished: true,
-        visibility: 'public',
-        'moderation.status': 'approved',
-        ...(category && { category }),
-        ...(userId && { user: userId })
-      })
-        .populate('user', 'username avatar fullName isVerified')
-        .sort({ likesCount: -1 })
-        .limit(options.limit)
-        .skip(options.skip)
-      break
-    default: // newest
-      videos = await CSTV.getPublicVideos(options)
-      break
+      case 'trending':
+        videos = await CSTV.getTrendingVideos(options)
+        break
+      case 'views':
+        videos = await CSTV.find({
+          isPublished: true,
+          visibility: 'public',
+          'moderation.status': 'approved',
+          ...(category && { category }),
+          ...(userId && { user: userId })
+        })
+          .populate('user', 'username avatar fullName isVerified')
+          .sort({ 'views.total': -1 })
+          .limit(options.limit)
+          .skip(options.skip)
+        break
+      case 'likes':
+        videos = await CSTV.find({
+          isPublished: true,
+          visibility: 'public',
+          'moderation.status': 'approved',
+          ...(category && { category }),
+          ...(userId && { user: userId })
+        })
+          .populate('user', 'username avatar fullName isVerified')
+          .sort({ likesCount: -1 })
+          .limit(options.limit)
+          .skip(options.skip)
+        break
+      default: // newest
+        videos = await CSTV.getPublicVideos(options)
+        break
     }
 
     const total = await CSTV.countDocuments({

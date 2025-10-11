@@ -1,26 +1,26 @@
 import express from 'express'
 const router = express.Router()
 import {
-  register,
-  login,
-  getProfile,
-  updateProfile,
   changePassword,
+  checkUsernameAvailability,
+  getProfile,
+  login,
   logout,
   refreshToken,
-  checkUsernameAvailability
+  register,
+  updateProfile
 } from '../controllers/authController.js'
 import { auth } from '../middlewares/auth.js'
-import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import { handleUploadError, uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
 import {
-  registerSchema,
+  changePasswordSchema,
   loginSchema,
-  updateProfileSchema,
-  changePasswordSchema
+  registerSchema,
+  updateProfileSchema
 } from '../schemas/userSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'
-import { provideCsrfToken, refreshCsrfToken, clearCsrfCookie, csrfProtection } from '../middlewares/csrf.js'
+import { clearCsrfCookie, csrfProtection, provideCsrfToken, refreshCsrfToken } from '../middlewares/csrf.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
 
 // Rutas públicas

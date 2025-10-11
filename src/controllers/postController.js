@@ -6,8 +6,8 @@ import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
 import { config } from '../utils/config.js'
 import {
-  getPaginationOptions,
   createPaginatedResponse,
+  getPaginationOptions,
   getPostPopulateOptions
 } from '../utils/queryOptimizer.js'
 
@@ -42,65 +42,65 @@ export const createPost = async (req, res) => {
 
     // Manejar diferentes tipos de contenido
     switch (type) {
-    case 'image': {
-      if (!req.files || !req.files.images) {
-        return res.status(400).json({
-          success: false,
-          message: 'La imagen es obligatoria para publicaciones de imagen'
-        })
-      }
-
-      const images = Array.isArray(req.files.images)
-        ? req.files.images
-        : [req.files.images]
-      postData.content = {
-        images: images.map(file => ({
-          url: `${baseUrl}/uploads/${file.filename}`,
-          alt: caption || '',
-          width: 0,
-          height: 0
-        }))
-      }
-      break
-    }
-
-    case 'video':
-      if (!req.files || !req.files.video) {
-        return res.status(400).json({
-          success: false,
-          message: 'El video es obligatorio para publicaciones de video'
-        })
-      }
-
-      postData.content = {
-        video: {
-          url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
-          duration: 0,
-          thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
-          width: 0,
-          height: 0
+      case 'image': {
+        if (!req.files || !req.files.images) {
+          return res.status(400).json({
+            success: false,
+            message: 'La imagen es obligatoria para publicaciones de imagen'
+          })
         }
-      }
-      break
 
-    case 'text':
-      if (!text) {
+        const images = Array.isArray(req.files.images)
+          ? req.files.images
+          : [req.files.images]
+        postData.content = {
+          images: images.map(file => ({
+            url: `${baseUrl}/uploads/${file.filename}`,
+            alt: caption || '',
+            width: 0,
+            height: 0
+          }))
+        }
+        break
+      }
+
+      case 'video':
+        if (!req.files || !req.files.video) {
+          return res.status(400).json({
+            success: false,
+            message: 'El video es obligatorio para publicaciones de video'
+          })
+        }
+
+        postData.content = {
+          video: {
+            url: `${baseUrl}/uploads/${req.files.video[0].filename}`,
+            duration: 0,
+            thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
+            width: 0,
+            height: 0
+          }
+        }
+        break
+
+      case 'text':
+        if (!text) {
+          return res.status(400).json({
+            success: false,
+            message: 'El texto es obligatorio para publicaciones de texto'
+          })
+        }
+
+        postData.content = {
+          text
+        }
+        break
+
+      default:
         return res.status(400).json({
           success: false,
-          message: 'El texto es obligatorio para publicaciones de texto'
+          message: 'Tipo de publicación no válido'
         })
-      }
-
-      postData.content = {
-        text
-      }
-      break
-
-    default:
-      return res.status(400).json({
-        success: false,
-        message: 'Tipo de publicación no válido'
-      })
     }
 
     const post = new Post(postData)
@@ -130,7 +130,7 @@ export const createPost = async (req, res) => {
 // Obtener el feed de publicaciones
 export const getFeed = async (req, res) => {
   try {
-    const userId = req.userId
+    const { userId } = req
     const { page, limit, skip } = getPaginationOptions(
       req.query.page,
       req.query.limit
@@ -213,7 +213,7 @@ export const getFeed = async (req, res) => {
 export const getPost = async (req, res) => {
   try {
     const postId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     // Implementar caché para posts individuales
     const cacheKey = `post:${postId}:${userId}`
@@ -275,7 +275,7 @@ export const getPost = async (req, res) => {
 export const toggleLike = async (req, res) => {
   try {
     const postId = req.params.id
-    const userId = req.userId
+    const { userId } = req
 
     const post = await Post.findById(postId)
 
@@ -635,9 +635,9 @@ export const updatePost = async (req, res) => {
     }
 
     // Actualizar campos permitidos
-    if (caption !== undefined) post.caption = caption
-    if (location !== undefined) post.location = { name: location }
-    if (tags !== undefined) post.tags = tags.split(',').map(tag => tag.trim())
+    if (caption !== undefined) { post.caption = caption }
+    if (location !== undefined) { post.location = { name: location } }
+    if (tags !== undefined) { post.tags = tags.split(',').map(tag => tag.trim()) }
 
     await post.save()
 

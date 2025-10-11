@@ -81,7 +81,7 @@ logger.error = (message, ...args) => {
   )
 
   if (processedArgs.length > 0) {
-    originalError(message + ' ' + processedArgs.join(' '))
+    originalError(`${message} ${processedArgs.join(' ')}`)
   } else {
     originalError(message)
   }

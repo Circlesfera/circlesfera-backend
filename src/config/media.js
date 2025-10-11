@@ -62,10 +62,10 @@ const MEDIA_CONFIG = {
 
 // Función para validar proporción de imagen/video
 const validateAspectRatio = (width, height, targetType) => {
-  if (!width || !height) return true // Skip validation if dimensions not provided
+  if (!width || !height) { return true } // Skip validation if dimensions not provided
 
   const config = MEDIA_CONFIG[targetType]
-  if (!config) return true // Skip validation if type not found
+  if (!config) { return true } // Skip validation if type not found
 
   const ratio = width / height
   const tolerance = 0.1 // 10% tolerance

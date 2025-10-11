@@ -1,15 +1,15 @@
 import express from 'express'
 const router = express.Router()
 import {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
+  cleanupOldNotifications,
+  createNotification,
   deleteNotification,
   deleteReadNotifications,
-  createNotification,
+  getNotifications,
   getNotificationStats,
-  cleanupOldNotifications
+  getUnreadCount,
+  markAllAsRead,
+  markAsRead
 } from '../controllers/notificationController.js'
 import { auth } from '../middlewares/auth.js'
 import { validate } from '../middlewares/validate.js'

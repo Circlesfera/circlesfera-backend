@@ -169,25 +169,25 @@ UserSchema.index({ isActive: 1, createdAt: -1 })
 UserSchema.index({ isActive: 1, isPrivate: 1 })
 
 // Virtuals
-UserSchema.virtual('followersCount').get(function() {
+UserSchema.virtual('followersCount').get(function () {
   return this.followers ? this.followers.length : 0
 })
 
-UserSchema.virtual('followingCount').get(function() {
+UserSchema.virtual('followingCount').get(function () {
   return this.following ? this.following.length : 0
 })
 
-UserSchema.virtual('postsCount').get(function() {
+UserSchema.virtual('postsCount').get(function () {
   return this.posts ? this.posts.length : 0
 })
 
-UserSchema.virtual('isFollowing').get(() => {
-  return false // Se calculará dinámicamente
-})
+UserSchema.virtual('isFollowing').get(() => 
+  false // Se calculará dinámicamente
+)
 
 // Métodos de instancia
 // Middleware pre-save para validar auto-acciones
-UserSchema.pre('save', function(next) {
+UserSchema.pre('save', function (next) {
   // Validar que no se siga a sí mismo
   if (this.following && this.following.includes(this._id)) {
     const error = new Error('Un usuario no puede seguirse a sí mismo')
@@ -205,11 +205,11 @@ UserSchema.pre('save', function(next) {
   next()
 })
 
-UserSchema.methods.comparePassword = async function(candidatePassword) {
+UserSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password)
 }
 
-UserSchema.methods.toPublicJSON = function() {
+UserSchema.methods.toPublicJSON = function () {
   const user = this.toObject()
   delete user.password
   delete user.email
@@ -220,14 +220,14 @@ UserSchema.methods.toPublicJSON = function() {
   return user
 }
 
-UserSchema.methods.updateLastSeen = function() {
+UserSchema.methods.updateLastSeen = function () {
   this.lastSeen = new Date()
   return this.save()
 }
 
 // Middleware pre-save para encriptar contraseña
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next()
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) { return next() }
 
   try {
     const salt = await bcrypt.genSalt(config.bcryptSaltRounds)
@@ -239,11 +239,11 @@ UserSchema.pre('save', async function(next) {
 })
 
 // Métodos estáticos
-UserSchema.statics.findByUsername = function(username) {
+UserSchema.statics.findByUsername = function (username) {
   return this.findOne({ username: username.toLowerCase() })
 }
 
-UserSchema.statics.searchUsers = function(query, limit = 10) {
+UserSchema.statics.searchUsers = function (query, limit = 10) {
   return this.find({
     $or: [
       { username: { $regex: query, $options: 'i' } },
@@ -254,7 +254,7 @@ UserSchema.statics.searchUsers = function(query, limit = 10) {
 }
 
 // Método para verificar si un username está disponible (no está en uso ni bloqueado)
-UserSchema.statics.isUsernameAvailable = async function(username) {
+UserSchema.statics.isUsernameAvailable = async function (username) {
   const normalizedUsername = username.toLowerCase().trim()
 
   // Verificar si el username está en uso
@@ -272,7 +272,7 @@ UserSchema.statics.isUsernameAvailable = async function(username) {
 }
 
 // Método para bloquear un username
-UserSchema.statics.blockUsername = async function(userId, username) {
+UserSchema.statics.blockUsername = async function (userId, username) {
   const normalizedUsername = username.toLowerCase().trim()
   return this.findByIdAndUpdate(
     userId,
@@ -282,7 +282,7 @@ UserSchema.statics.blockUsername = async function(userId, username) {
 }
 
 // Método para desbloquear un username
-UserSchema.statics.unblockUsername = async function(userId, username) {
+UserSchema.statics.unblockUsername = async function (userId, username) {
   const normalizedUsername = username.toLowerCase().trim()
   return this.findByIdAndUpdate(
     userId,

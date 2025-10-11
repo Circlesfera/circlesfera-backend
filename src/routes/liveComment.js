@@ -1,14 +1,14 @@
 import express from 'express'
 const router = express.Router()
 import { body, param, query, validationResult } from 'express-validator'
-import { auth as protect, optionalAuth } from '../middlewares/auth.js'
+import { optionalAuth, auth as protect } from '../middlewares/auth.js'
 import {
   createComment,
   getComments,
-  reactToComment,
-  removeReaction,
+  getCommentStats,
   moderateComment,
-  getCommentStats
+  reactToComment,
+  removeReaction
 } from '../controllers/liveCommentController.js'
 
 // Validaciones

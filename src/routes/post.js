@@ -2,18 +2,18 @@ import express from 'express'
 const router = express.Router()
 import {
   createPost,
+  deletePost,
   getFeed,
+  getLikes,
   getPost,
+  getRecentPosts,
+  getTrendingPosts,
   likePost,
   unlikePost,
-  getLikes,
-  getTrendingPosts,
-  getRecentPosts,
-  deletePost,
   updatePost
 } from '../controllers/postController.js'
 import { auth } from '../middlewares/auth.js'
-import { uploadFields, handleUploadError } from '../middlewares/upload.js'
+import { handleUploadError, uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
 import { createPostSchema, updatePostSchema } from '../schemas/postSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'

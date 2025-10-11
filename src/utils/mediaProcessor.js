@@ -43,18 +43,18 @@ const processImage = async (inputPath, outputPath, options = {}) => {
 
     // Aplicar formato y calidad
     switch (format.toLowerCase()) {
-    case 'jpeg':
-    case 'jpg':
-      pipeline = pipeline.jpeg({ quality, progressive: true })
-      break
-    case 'png':
-      pipeline = pipeline.png({ quality, progressive: true })
-      break
-    case 'webp':
-      pipeline = pipeline.webp({ quality })
-      break
-    default:
-      pipeline = pipeline.jpeg({ quality, progressive: true })
+      case 'jpeg':
+      case 'jpg':
+        pipeline = pipeline.jpeg({ quality, progressive: true })
+        break
+      case 'png':
+        pipeline = pipeline.png({ quality, progressive: true })
+        break
+      case 'webp':
+        pipeline = pipeline.webp({ quality })
+        break
+      default:
+        pipeline = pipeline.jpeg({ quality, progressive: true })
     }
 
     // Guardar archivo procesado

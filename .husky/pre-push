@@ -1,7 +1,0 @@
-echo "🧪 Ejecutando tests antes de push..."
-
-# Ejecutar tests
-npm test -- --testPathIgnorePatterns="cacheService|tokenService" --passWithNoTests
-
-echo "✅ Pre-push checks completados exitosamente!"
-

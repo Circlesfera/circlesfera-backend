@@ -69,8 +69,8 @@ const configFull = {
 }
 
 // URLs Públicas - calculadas después de la definición del objeto
-const isProduction = configFull.isProduction
-const port = configFull.port
+const { isProduction } = configFull
+const { port } = configFull
 configFull.appUrl = process.env.APP_URL || (isProduction ? null : `http://localhost:${port}`)
 configFull.apiUrl = process.env.API_URL || (isProduction ? null : `http://localhost:${port}`)
 
@@ -110,7 +110,7 @@ const validateConfig = () => {
   // Validar longitud mínima del JWT secret (seguridad)
   if (configFull.jwtSecret && configFull.jwtSecret.length < 32) {
     errors.push(
-      'JWT_SECRET debe tener al menos 32 caracteres para ser seguro (actualmente: ' + configFull.jwtSecret.length + ' caracteres)'
+      `JWT_SECRET debe tener al menos 32 caracteres para ser seguro (actualmente: ${configFull.jwtSecret.length} caracteres)`
     )
   }
 

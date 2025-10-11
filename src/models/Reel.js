@@ -256,32 +256,32 @@ ReelSchema.index({ isPublic: 1, isDeleted: 1, hashtags: 1 })
 ReelSchema.index({ createdAt: -1, views: 1 }) // Para reels trending por vistas
 
 // Virtuals para estadísticas
-ReelSchema.virtual('viewsCount').get(function() {
+ReelSchema.virtual('viewsCount').get(function () {
   return this.views.length
 })
 
-ReelSchema.virtual('likesCount').get(function() {
+ReelSchema.virtual('likesCount').get(function () {
   return this.likes.length
 })
 
-ReelSchema.virtual('commentsCount').get(function() {
+ReelSchema.virtual('commentsCount').get(function () {
   return this.comments.length
 })
 
-ReelSchema.virtual('sharesCount').get(function() {
+ReelSchema.virtual('sharesCount').get(function () {
   return this.shares.length
 })
 
-ReelSchema.virtual('duetsCount').get(function() {
+ReelSchema.virtual('duetsCount').get(function () {
   return this.duets.length
 })
 
-ReelSchema.virtual('stitchesCount').get(function() {
+ReelSchema.virtual('stitchesCount').get(function () {
   return this.stitches.length
 })
 
 // Métodos de instancia
-ReelSchema.methods.addView = function(userId) {
+ReelSchema.methods.addView = function (userId) {
   const existingView = this.views.find(view => view.user.equals(userId))
   if (!existingView) {
     this.views.push({ user: userId })
@@ -290,7 +290,7 @@ ReelSchema.methods.addView = function(userId) {
   return this
 }
 
-ReelSchema.methods.addLike = function(userId) {
+ReelSchema.methods.addLike = function (userId) {
   const existingLike = this.likes.find(like => like.user.equals(userId))
   if (!existingLike) {
     this.likes.push({ user: userId })
@@ -299,23 +299,23 @@ ReelSchema.methods.addLike = function(userId) {
   return this
 }
 
-ReelSchema.methods.removeLike = function(userId) {
+ReelSchema.methods.removeLike = function (userId) {
   this.likes = this.likes.filter(like => !like.user.equals(userId))
   return this.save()
 }
 
-ReelSchema.methods.addComment = function(userId, content) {
+ReelSchema.methods.addComment = function (userId, content) {
   this.comments.push({ user: userId, content })
   return this.save()
 }
 
-ReelSchema.methods.softDelete = function() {
+ReelSchema.methods.softDelete = function () {
   this.isDeleted = true
   return this.save()
 }
 
 // Middleware pre-save para validaciones
-ReelSchema.pre('save', function(next) {
+ReelSchema.pre('save', function (next) {
   // Validar que hay video
   if (!this.video.url) {
     return next(new Error('El video es obligatorio para reels'))

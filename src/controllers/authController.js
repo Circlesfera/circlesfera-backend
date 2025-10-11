@@ -243,14 +243,14 @@ export const updateProfile = async (req, res) => {
     }
 
     // Actualizar otros campos permitidos
-    if (fullName !== undefined) user.fullName = fullName
-    if (bio !== undefined) user.bio = bio
-    if (website !== undefined) user.website = website
-    if (location !== undefined) user.location = location
-    if (phone !== undefined) user.phone = phone
-    if (gender !== undefined) user.gender = gender
-    if (birthDate !== undefined) user.birthDate = birthDate
-    if (isPrivate !== undefined) user.isPrivate = isPrivate
+    if (fullName !== undefined) { user.fullName = fullName }
+    if (bio !== undefined) { user.bio = bio }
+    if (website !== undefined) { user.website = website }
+    if (location !== undefined) { user.location = location }
+    if (phone !== undefined) { user.phone = phone }
+    if (gender !== undefined) { user.gender = gender }
+    if (birthDate !== undefined) { user.birthDate = birthDate }
+    if (isPrivate !== undefined) { user.isPrivate = isPrivate }
 
     await user.save()
 

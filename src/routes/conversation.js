@@ -2,19 +2,19 @@ import express from 'express'
 const router = express.Router()
 import { body } from 'express-validator'
 import {
-  getConversations,
-  getConversation,
+  addAdmin,
+  addParticipant,
+  archiveConversation,
   createDirectConversation,
   createGroupConversation,
-  addParticipant,
-  removeParticipant,
-  addAdmin,
-  removeAdmin,
-  updateConversation,
-  archiveConversation,
-  unarchiveConversation,
   deleteConversation,
-  getConversationStats
+  getConversation,
+  getConversations,
+  getConversationStats,
+  removeAdmin,
+  removeParticipant,
+  unarchiveConversation,
+  updateConversation
 } from '../controllers/conversationController.js'
 import { auth } from '../middlewares/auth.js'
 

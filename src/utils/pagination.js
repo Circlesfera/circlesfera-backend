@@ -19,9 +19,9 @@ export const parsePaginationParams = (query, options = {}) => {
   let limit = parseInt(query.limit) || defaultLimit
 
   // Validar valores
-  if (page < 1) page = 1
-  if (limit < 1) limit = defaultLimit
-  if (limit > maxLimit) limit = maxLimit
+  if (page < 1) { page = 1 }
+  if (limit < 1) { limit = defaultLimit }
+  if (limit > maxLimit) { limit = maxLimit }
 
   const skip = (page - 1) * limit
 
@@ -112,11 +112,9 @@ export const createPaginationObject = (page, limit, total) => {
  * @param {Object} params - Parámetros de paginación
  * @returns {Object} Query con paginación aplicada
  */
-export const applyPagination = (query, params) => {
-  return query
-    .limit(params.limit)
-    .skip(params.skip)
-}
+export const applyPagination = (query, params) => query
+  .limit(params.limit)
+  .skip(params.skip)
 
 /**
  * Aplicar ordenamiento a un query de Mongoose
@@ -124,7 +122,5 @@ export const applyPagination = (query, params) => {
  * @param {Object} sortObj - Objeto de ordenamiento
  * @returns {Object} Query con ordenamiento aplicado
  */
-export const applySort = (query, sortObj) => {
-  return query.sort(sortObj)
-}
+export const applySort = (query, sortObj) => query.sort(sortObj)
 

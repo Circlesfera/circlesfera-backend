@@ -808,11 +808,11 @@ export const updatePrivacySettings = async (req, res) => {
     const { isPrivate, allowMessages, showEmail, showPhone, showBirthDate } = req.body
 
     const updateData = {}
-    if (typeof isPrivate === 'boolean') updateData.isPrivate = isPrivate
-    if (allowMessages) updateData.allowMessages = allowMessages
-    if (typeof showEmail === 'boolean') updateData.showEmail = showEmail
-    if (typeof showPhone === 'boolean') updateData.showPhone = showPhone
-    if (typeof showBirthDate === 'boolean') updateData.showBirthDate = showBirthDate
+    if (typeof isPrivate === 'boolean') { updateData.isPrivate = isPrivate }
+    if (allowMessages) { updateData.allowMessages = allowMessages }
+    if (typeof showEmail === 'boolean') { updateData.showEmail = showEmail }
+    if (typeof showPhone === 'boolean') { updateData.showPhone = showPhone }
+    if (typeof showBirthDate === 'boolean') { updateData.showBirthDate = showBirthDate }
 
     const user = await User.findByIdAndUpdate(
       req.userId,
@@ -846,13 +846,13 @@ export const updateNotificationSettings = async (req, res) => {
     const { likes, comments, follows, mentions, messages, stories, posts } = req.body
 
     const notificationSettings = {}
-    if (typeof likes === 'boolean') notificationSettings.likes = likes
-    if (typeof comments === 'boolean') notificationSettings.comments = comments
-    if (typeof follows === 'boolean') notificationSettings.follows = follows
-    if (typeof mentions === 'boolean') notificationSettings.mentions = mentions
-    if (typeof messages === 'boolean') notificationSettings.messages = messages
-    if (typeof stories === 'boolean') notificationSettings.stories = stories
-    if (typeof posts === 'boolean') notificationSettings.posts = posts
+    if (typeof likes === 'boolean') { notificationSettings.likes = likes }
+    if (typeof comments === 'boolean') { notificationSettings.comments = comments }
+    if (typeof follows === 'boolean') { notificationSettings.follows = follows }
+    if (typeof mentions === 'boolean') { notificationSettings.mentions = mentions }
+    if (typeof messages === 'boolean') { notificationSettings.messages = messages }
+    if (typeof stories === 'boolean') { notificationSettings.stories = stories }
+    if (typeof posts === 'boolean') { notificationSettings.posts = posts }
 
     const user = await User.findByIdAndUpdate(
       req.userId,
@@ -886,8 +886,8 @@ export const updateSecuritySettings = async (req, res) => {
     const { loginNotifications, suspiciousActivityAlerts } = req.body
 
     const updateData = {}
-    if (typeof loginNotifications === 'boolean') updateData.loginNotifications = loginNotifications
-    if (typeof suspiciousActivityAlerts === 'boolean') updateData.suspiciousActivityAlerts = suspiciousActivityAlerts
+    if (typeof loginNotifications === 'boolean') { updateData.loginNotifications = loginNotifications }
+    if (typeof suspiciousActivityAlerts === 'boolean') { updateData.suspiciousActivityAlerts = suspiciousActivityAlerts }
 
     const user = await User.findByIdAndUpdate(
       req.userId,

@@ -1,25 +1,25 @@
 import express from 'express'
 const router = express.Router()
 import {
-  getUserProfile,
+  blockUser,
   followUser,
-  unfollowUser,
+  getBlockedUsers,
   getFollowers,
   getFollowing,
-  searchUsers,
-  blockUser,
-  unblockUser,
-  getBlockedUsers,
-  getUserSuggestions,
+  getUserProfile,
   getUserSettings,
-  updatePrivacySettings,
-  updateNotificationSettings,
-  updateSecuritySettings,
-  toggleTwoFactor,
+  getUserSuggestions,
   muteUser,
-  unmuteUser,
   restrictUser,
-  unrestrictUser
+  searchUsers,
+  toggleTwoFactor,
+  unblockUser,
+  unfollowUser,
+  unmuteUser,
+  unrestrictUser,
+  updateNotificationSettings,
+  updatePrivacySettings,
+  updateSecuritySettings
 } from '../controllers/userController.js'
 import { auth, optionalAuth } from '../middlewares/auth.js'
 

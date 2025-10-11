@@ -125,16 +125,16 @@ ConversationSchema.index({ 'settings.isActive': 1, 'settings.isArchived': 1, 'se
 ConversationSchema.index({ createdAt: -1 })
 
 // Virtuals
-ConversationSchema.virtual('isGroup').get(function() {
+ConversationSchema.virtual('isGroup').get(function () {
   return this.type === 'group'
 })
 
-ConversationSchema.virtual('isDirect').get(function() {
+ConversationSchema.virtual('isDirect').get(function () {
   return this.type === 'direct'
 })
 
 // Métodos de instancia
-ConversationSchema.methods.addParticipant = function(userId) {
+ConversationSchema.methods.addParticipant = function (userId) {
   if (!this.participants.includes(userId)) {
     this.participants.push(userId)
     this.metadata.participantCount = this.participants.length
@@ -143,13 +143,13 @@ ConversationSchema.methods.addParticipant = function(userId) {
   return Promise.resolve(this)
 }
 
-ConversationSchema.methods.removeParticipant = function(userId) {
+ConversationSchema.methods.removeParticipant = function (userId) {
   this.participants = this.participants.filter(id => !id.equals(userId))
   this.metadata.participantCount = this.participants.length
   return this.save()
 }
 
-ConversationSchema.methods.addAdmin = function(userId) {
+ConversationSchema.methods.addAdmin = function (userId) {
   if (!this.admins.includes(userId)) {
     this.admins.push(userId)
     return this.save()
@@ -157,12 +157,12 @@ ConversationSchema.methods.addAdmin = function(userId) {
   return Promise.resolve(this)
 }
 
-ConversationSchema.methods.removeAdmin = function(userId) {
+ConversationSchema.methods.removeAdmin = function (userId) {
   this.admins = this.admins.filter(id => !id.equals(userId))
   return this.save()
 }
 
-ConversationSchema.methods.updateLastMessage = function(message) {
+ConversationSchema.methods.updateLastMessage = function (message) {
   this.lastMessage = {
     content: message.content,
     sender: message.sender,
@@ -174,7 +174,7 @@ ConversationSchema.methods.updateLastMessage = function(message) {
   return this.save()
 }
 
-ConversationSchema.methods.markAsRead = function(userId) {
+ConversationSchema.methods.markAsRead = function (userId) {
   const userSetting = this.settings.userSettings.find(setting =>
     setting.user.toString() === userId
   )
@@ -193,7 +193,7 @@ ConversationSchema.methods.markAsRead = function(userId) {
   return this.save()
 }
 
-ConversationSchema.methods.incrementUnreadCount = function(userId) {
+ConversationSchema.methods.incrementUnreadCount = function (userId) {
   const userSetting = this.settings.userSettings.find(setting =>
     setting.user.toString() === userId
   )
@@ -210,7 +210,7 @@ ConversationSchema.methods.incrementUnreadCount = function(userId) {
   return this.save()
 }
 
-ConversationSchema.methods.toggleMute = function(userId) {
+ConversationSchema.methods.toggleMute = function (userId) {
   const userSetting = this.settings.userSettings.find(setting =>
     setting.user.toString() === userId
   )
@@ -227,7 +227,7 @@ ConversationSchema.methods.toggleMute = function(userId) {
   return this.save()
 }
 
-ConversationSchema.methods.togglePin = function(userId) {
+ConversationSchema.methods.togglePin = function (userId) {
   const userSetting = this.settings.userSettings.find(setting =>
     setting.user.toString() === userId
   )
@@ -244,23 +244,23 @@ ConversationSchema.methods.togglePin = function(userId) {
   return this.save()
 }
 
-ConversationSchema.methods.archive = function() {
+ConversationSchema.methods.archive = function () {
   this.settings.isArchived = true
   return this.save()
 }
 
-ConversationSchema.methods.unarchive = function() {
+ConversationSchema.methods.unarchive = function () {
   this.settings.isArchived = false
   return this.save()
 }
 
-ConversationSchema.methods.softDelete = function() {
+ConversationSchema.methods.softDelete = function () {
   this.settings.isDeleted = true
   return this.save()
 }
 
 // Métodos estáticos
-ConversationSchema.statics.findByUser = function(userId, options = {}) {
+ConversationSchema.statics.findByUser = function (userId, options = {}) {
   const query = {
     participants: userId,
     'settings.isDeleted': false
@@ -283,7 +283,7 @@ ConversationSchema.statics.findByUser = function(userId, options = {}) {
     .sort({ 'lastMessage.timestamp': -1 })
 }
 
-ConversationSchema.statics.findDirectConversation = function(userId1, userId2) {
+ConversationSchema.statics.findDirectConversation = function (userId1, userId2) {
   return this.findOne({
     type: 'direct',
     participants: { $all: [userId1, userId2] },
@@ -291,7 +291,7 @@ ConversationSchema.statics.findDirectConversation = function(userId1, userId2) {
   })
 }
 
-ConversationSchema.statics.findOrCreateDirectConversation = async function(userId1, userId2) {
+ConversationSchema.statics.findOrCreateDirectConversation = async function (userId1, userId2) {
   let conversation = await this.findDirectConversation(userId1, userId2)
 
   if (!conversation) {
@@ -308,7 +308,7 @@ ConversationSchema.statics.findOrCreateDirectConversation = async function(userI
   return conversation
 }
 
-ConversationSchema.statics.getUnreadCount = function(userId) {
+ConversationSchema.statics.getUnreadCount = function (userId) {
   return this.aggregate([
     { $match: { participants: mongoose.Types.ObjectId(userId), 'settings.isDeleted': false } },
     { $unwind: '$settings.userSettings' },
@@ -321,7 +321,7 @@ ConversationSchema.statics.getUnreadCount = function(userId) {
 }
 
 // Middleware pre-save
-ConversationSchema.pre('save', function(next) {
+ConversationSchema.pre('save', function (next) {
   // Actualizar metadatos
   this.metadata.participantCount = this.participants.length
   this.metadata.updatedAt = new Date()

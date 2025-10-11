@@ -195,47 +195,47 @@ MessageSchema.index({ isDeleted: 1 })
 MessageSchema.index({ createdAt: -1 })
 
 // Virtuals
-MessageSchema.virtual('isText').get(function() {
+MessageSchema.virtual('isText').get(function () {
   return this.type === 'text'
 })
 
-MessageSchema.virtual('isMedia').get(function() {
+MessageSchema.virtual('isMedia').get(function () {
   return ['image', 'video', 'audio', 'file'].includes(this.type)
 })
 
-MessageSchema.virtual('isLocation').get(function() {
+MessageSchema.virtual('isLocation').get(function () {
   return this.type === 'location'
 })
 
-MessageSchema.virtual('isContact').get(function() {
+MessageSchema.virtual('isContact').get(function () {
   return this.type === 'contact'
 })
 
 // Métodos de instancia
-MessageSchema.methods.markAsDelivered = function() {
+MessageSchema.methods.markAsDelivered = function () {
   this.status = 'delivered'
   return this.save()
 }
 
-MessageSchema.methods.markAsRead = function() {
+MessageSchema.methods.markAsRead = function () {
   this.status = 'read'
   return this.save()
 }
 
-MessageSchema.methods.edit = function(newContent) {
+MessageSchema.methods.edit = function (newContent) {
   this.content = newContent
   this.isEdited = true
   this.editedAt = new Date()
   return this.save()
 }
 
-MessageSchema.methods.softDelete = function() {
+MessageSchema.methods.softDelete = function () {
   this.isDeleted = true
   this.deletedAt = new Date()
   return this.save()
 }
 
-MessageSchema.methods.forward = function(targetConversationId) {
+MessageSchema.methods.forward = function (targetConversationId) {
   const Message = this.constructor
   const forwardedMessage = new Message({
     conversation: targetConversationId,
@@ -249,7 +249,7 @@ MessageSchema.methods.forward = function(targetConversationId) {
 }
 
 // Métodos estáticos
-MessageSchema.statics.findByConversation = function(conversationId, options = {}) {
+MessageSchema.statics.findByConversation = function (conversationId, options = {}) {
   const query = {
     conversation: conversationId,
     isDeleted: false
@@ -271,7 +271,7 @@ MessageSchema.statics.findByConversation = function(conversationId, options = {}
     .limit(options.limit || 50)
 }
 
-MessageSchema.statics.findUnreadMessages = function(conversationId, userId) {
+MessageSchema.statics.findUnreadMessages = function (conversationId, userId) {
   return this.find({
     conversation: conversationId,
     sender: { $ne: userId },
@@ -280,7 +280,7 @@ MessageSchema.statics.findUnreadMessages = function(conversationId, userId) {
   })
 }
 
-MessageSchema.statics.markConversationAsRead = function(conversationId, userId) {
+MessageSchema.statics.markConversationAsRead = function (conversationId, userId) {
   return this.updateMany(
     {
       conversation: conversationId,
@@ -292,7 +292,7 @@ MessageSchema.statics.markConversationAsRead = function(conversationId, userId) 
   )
 }
 
-MessageSchema.statics.searchMessages = function(conversationId, query, options = {}) {
+MessageSchema.statics.searchMessages = function (conversationId, query, options = {}) {
   const searchQuery = {
     conversation: conversationId,
     isDeleted: false,
@@ -305,7 +305,7 @@ MessageSchema.statics.searchMessages = function(conversationId, query, options =
     .limit(options.limit || 20)
 }
 
-MessageSchema.statics.getMessageStats = function(conversationId) {
+MessageSchema.statics.getMessageStats = function (conversationId) {
   return this.aggregate([
     { $match: { conversation: mongoose.Types.ObjectId(conversationId), isDeleted: false } },
     { $group: {
@@ -317,7 +317,7 @@ MessageSchema.statics.getMessageStats = function(conversationId) {
 }
 
 // Middleware pre-save
-MessageSchema.pre('save', function(next) {
+MessageSchema.pre('save', function (next) {
   // Validar que hay contenido según el tipo
   if (this.type === 'text' && !this.content.text) {
     return next(new Error('Los mensajes de texto deben tener contenido'))
@@ -351,7 +351,7 @@ MessageSchema.pre('save', function(next) {
 })
 
 // Middleware post-save para actualizar la conversación
-MessageSchema.post('save', async function() {
+MessageSchema.post('save', async function () {
   // Actualizar último mensaje de la conversación
   await Conversation.findByIdAndUpdate(this.conversation, {
     $set: {

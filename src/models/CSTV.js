@@ -273,16 +273,16 @@ CSTVSchema.virtual('savesCount').get(function () {
 })
 
 // Virtual para verificar si un usuario le dio like
-CSTVSchema.virtual('isLikedByUser').get(function () {
+CSTVSchema.virtual('isLikedByUser').get(() => 
   // Este virtual se poblará dinámicamente
-  return false
-})
+  false
+)
 
 // Virtual para verificar si un usuario guardó el video
-CSTVSchema.virtual('isSavedByUser').get(function () {
+CSTVSchema.virtual('isSavedByUser').get(() => 
   // Este virtual se poblará dinámicamente
-  return false
-})
+  false
+)
 
 // Virtual para obtener duración formateada
 CSTVSchema.virtual('formattedDuration').get(function () {
@@ -292,9 +292,9 @@ CSTVSchema.virtual('formattedDuration').get(function () {
 
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-  } else {
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
+  } 
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  
 })
 
 // Método para agregar view
