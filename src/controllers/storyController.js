@@ -758,6 +758,58 @@ export const markStoryNotificationsAsRead = async (req, res) => {
   }
 }
 
+// Registrar visualización de una story
+export const viewStory = async (req, res) => {
+  try {
+    const storyId = req.params.id
+    const userId = req.userId
+
+    const story = await Story.findById(storyId)
+
+    if (!story) {
+      return res.status(404).json({
+        success: false,
+        message: 'Story no encontrada'
+      })
+    }
+
+    // Verificar que la story no ha expirado
+    if (story.expiresAt < new Date()) {
+      return res.status(410).json({
+        success: false,
+        message: 'La story ha expirado'
+      })
+    }
+
+    // Solo agregar vista si el usuario no es el dueño
+    if (story.user.toString() !== userId) {
+      await story.addView(userId)
+      logger.info('View registered for story:', { storyId, userId })
+
+      // Crear notificación para el dueño
+      await Notification.create({
+        user: story.user,
+        type: 'story_view',
+        from: userId,
+        story: story._id,
+        title: 'Nueva vista',
+        message: 'Ha visto tu historia'
+      })
+    }
+
+    res.json({
+      success: true,
+      viewsCount: story.views.length
+    })
+  } catch (error) {
+    logger.error('Error en viewStory:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
 export default {
   createStory,
   getStoriesForFeed,
@@ -770,6 +822,7 @@ export default {
   cleanupExpiredStories,
   getUsersWithStories,
   getStoryNotificationStats,
-  markStoryNotificationsAsRead
+  markStoryNotificationsAsRead,
+  viewStory
 }
 

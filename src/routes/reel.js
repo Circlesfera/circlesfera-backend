@@ -25,6 +25,7 @@ router.post('/:id/like', auth, csrfProtection(), rateLimitByUser('like'), reelCo
 router.delete('/:id/like', auth, csrfProtection(), reelController.unlikeReel)
 router.post('/:id/save', auth, csrfProtection(), rateLimitByUser('save'), reelController.saveReel)
 router.delete('/:id/save', auth, csrfProtection(), reelController.unsaveReel)
+router.post('/:id/view', auth, reelController.viewReel)
 router.post('/:id/comment', auth, csrfProtection(), rateLimitByUser('createComment'), validate(reelCommentSchema), reelController.commentReel)
 router.delete('/:id', auth, csrfProtection(), checkReelOwnership(), rateLimitByUser('deletePost'), reelController.deleteReel)
 

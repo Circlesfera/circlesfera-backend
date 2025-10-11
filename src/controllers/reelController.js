@@ -700,6 +700,40 @@ export const unsaveReel = async (req, res) => {
   }
 }
 
+// Registrar visualización de un reel
+export const viewReel = async (req, res) => {
+  try {
+    const reelId = req.params.id
+    const userId = req.userId
+
+    const reel = await Reel.findById(reelId)
+
+    if (!reel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel no encontrado'
+      })
+    }
+
+    // Solo agregar vista si el usuario no es el dueño
+    if (reel.user.toString() !== userId) {
+      await reel.addView(userId)
+      logger.info('View registered for reel:', { reelId, userId })
+    }
+
+    res.json({
+      success: true,
+      viewsCount: reel.views.length
+    })
+  } catch (error) {
+    logger.error('Error en viewReel:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
 export default {
   createReel,
   getReelsForFeed,
@@ -712,6 +746,7 @@ export default {
   getTrendingReels,
   searchReelsByHashtag,
   saveReel,
-  unsaveReel
+  unsaveReel,
+  viewReel
 }
 

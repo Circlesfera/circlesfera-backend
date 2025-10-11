@@ -9,7 +9,8 @@ import {
   addReply,
   deleteStory,
   cleanupExpiredStories,
-  getUsersWithStories
+  getUsersWithStories,
+  viewStory
 } from '../controllers/storyController.js'
 import { auth } from '../middlewares/auth.js'
 import { uploadFields, handleUploadError } from '../middlewares/upload.js'
@@ -38,8 +39,8 @@ router.post(
 )
 
 router.post('/:id/reaction', auth, rateLimitByUser('like'), addReaction)
-
 router.delete('/:id/reaction', auth, removeReaction)
+router.post('/:id/view', auth, viewStory)
 router.post('/:id/reply', auth, rateLimitByUser('createComment'), addReply)
 router.delete('/:id', auth, checkStoryOwnership(), deleteStory)
 
