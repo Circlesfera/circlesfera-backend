@@ -23,7 +23,7 @@ export const createPost = async (req, res) => {
       })
     }
 
-    const { type, caption, location, tags, text } = req.body
+    const { type, caption, location, tags, text, aspectRatio, originalAspectRatio } = req.body
 
     const postData = {
       user: req.userId,
@@ -31,6 +31,9 @@ export const createPost = async (req, res) => {
       caption: caption || '',
       tags: tags ? tags.split(',').map(tag => tag.trim()) : []
     }
+
+    // Inicializar content object
+    postData.content = {}
 
     // Agregar ubicación si se proporciona
     if (location) {
@@ -59,7 +62,9 @@ export const createPost = async (req, res) => {
             alt: caption || '',
             width: 0,
             height: 0
-          }))
+          })),
+          aspectRatio: aspectRatio || '1:1',
+          originalAspectRatio: originalAspectRatio ? parseFloat(originalAspectRatio) : 1
         }
         break
       }
@@ -79,7 +84,9 @@ export const createPost = async (req, res) => {
             thumbnail: `${baseUrl}/uploads/${req.files.video[0].filename.replace(/\.[^/.]+$/, '_thumb.jpg')}`,
             width: 0,
             height: 0
-          }
+          },
+          aspectRatio: aspectRatio || '1:1',
+          originalAspectRatio: originalAspectRatio ? parseFloat(originalAspectRatio) : 1
         }
         break
 

@@ -7,7 +7,11 @@ export const createPostSchema = z.object({
   }),
   caption: z.string().max(2200, 'La descripción no puede exceder 2200 caracteres').optional(),
   location: z.string().max(100, 'La ubicación no puede exceder 100 caracteres').optional(),
-  tags: z.string().max(500, 'Los tags no pueden exceder 500 caracteres').optional()
+  tags: z.string().max(500, 'Los tags no pueden exceder 500 caracteres').optional(),
+  aspectRatio: z.enum(['1:1', '4:5'], {
+    errorMap: () => ({ message: 'El aspect ratio debe ser 1:1 o 4:5' })
+  }).optional(),
+  originalAspectRatio: z.string().optional()
 })
 
 // Schema para actualizar post

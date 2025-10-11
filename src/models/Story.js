@@ -25,11 +25,11 @@ const StorySchema = new mongoose.Schema({
       },
       width: {
         type: Number,
-        default: 1080,
+        default: 1080
       },
       height: {
         type: Number,
-        default: 1920,
+        default: 1920
       }
     },
     video: {
@@ -49,11 +49,11 @@ const StorySchema = new mongoose.Schema({
       },
       width: {
         type: Number,
-        default: 1080,
+        default: 1080
       },
       height: {
         type: Number,
-        default: 1920,
+        default: 1920
       }
     },
     text: {
