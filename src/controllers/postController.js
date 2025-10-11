@@ -360,7 +360,12 @@ export const getLikes = async (req, res) => {
 export const getUserPosts = async (req, res) => {
   try {
     const { username } = req.params
-    const user = await User.findOne({ username })
+    logger.info('getUserPosts - Buscando usuario:', { username, params: req.params })
+
+    // Buscar usuario case-insensitive
+    const user = await User.findOne({ username: username.toLowerCase() })
+
+    logger.info('getUserPosts - Resultado búsqueda:', { found: !!user, username: user?.username })
 
     if (!user) {
       return res.status(404).json({
