@@ -757,3 +757,19 @@ export const markStoryNotificationsAsRead = async (req, res) => {
     })
   }
 }
+
+export default {
+  createStory,
+  getStoriesForFeed,
+  getUserStories,
+  getStory,
+  addReaction,
+  removeReaction,
+  addReply,
+  deleteStory,
+  cleanupExpiredStories,
+  getUsersWithStories,
+  getStoryNotificationStats,
+  markStoryNotificationsAsRead
+}
+

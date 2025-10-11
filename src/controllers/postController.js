@@ -687,3 +687,23 @@ export const getRecentPosts = async (req, res) => {
     })
   }
 }
+
+// Alias para compatibilidad con rutas
+export const likePost = toggleLike
+export const unlikePost = toggleLike
+
+export default {
+  createPost,
+  getFeed,
+  getPost,
+  toggleLike,
+  likePost,
+  unlikePost,
+  getLikes,
+  getUserPosts,
+  getTrendingPosts,
+  deletePost,
+  updatePost,
+  getRecentPosts
+}
+

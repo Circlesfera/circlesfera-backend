@@ -663,3 +663,16 @@ export const getUserLiveStreams = async (req, res) => {
     })
   }
 }
+
+export default {
+  createLiveStream,
+  getLiveStreams,
+  getLiveStream,
+  startLiveStream,
+  endLiveStream,
+  addViewer,
+  removeViewer,
+  inviteCoHost,
+  getUserLiveStreams
+}
+

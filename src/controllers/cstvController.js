@@ -625,3 +625,19 @@ export const getUserCSTVVideos = async (req, res) => {
     })
   }
 }
+
+export default {
+  createCSTVVideo,
+  getCSTVVideos,
+  getCSTVVideo,
+  updateCSTVVideo,
+  deleteCSTVVideo,
+  likeCSTVVideo,
+  unlikeCSTVVideo,
+  saveCSTVVideo,
+  unsaveCSTVVideo,
+  getTrendingVideos,
+  searchVideos,
+  getUserCSTVVideos
+}
+
