@@ -174,6 +174,13 @@ const LiveStreamSchema = new mongoose.Schema(
         enum: ['donations', 'subscriptions', 'ads'],
         default: 'donations'
       }
+    },
+
+    // Soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
     }
   },
   {
