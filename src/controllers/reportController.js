@@ -8,13 +8,54 @@ import LiveStream from '../models/LiveStream.js'
 import Message from '../models/Message.js'
 import Notification from '../models/Notification.js'
 import logger from '../utils/logger.js'
-import { config } from '../utils/config.js'
+
+// Función auxiliar para ejecutar acciones de moderación
+const executeModeractionAction = async (contentType, contentId, action) => {
+  try {
+    switch (action) {
+      case 'content_removed':
+        // Soft delete del contenido
+        switch (contentType) {
+          case 'post':
+            await Post.findByIdAndUpdate(contentId, { isDeleted: true })
+            break
+          case 'reel':
+            await Reel.findByIdAndUpdate(contentId, { isDeleted: true })
+            break
+          case 'story':
+            await Story.findByIdAndUpdate(contentId, { isDeleted: true })
+            break
+          case 'comment':
+            await Comment.findByIdAndUpdate(contentId, { isDeleted: true })
+            break
+          default:
+            break
+        }
+        break
+
+      case 'user_banned':
+      case 'user_suspended':
+        // Desactivar usuario (implementar lógica según necesidades)
+        if (contentType === 'user') {
+          await User.findByIdAndUpdate(contentId, {
+            isActive: false,
+            suspensionReason: action === 'user_banned' ? 'banned' : 'suspended'
+          })
+        }
+        break
+      default:
+        break
+    }
+  } catch (error) {
+    logger.error('Error ejecutando acción de moderación:', error)
+  }
+}
 
 // Crear un nuevo reporte
 export const createReport = async (req, res) => {
   try {
     const { contentType, contentId, reason, description } = req.body
-    const userId = req.userId
+    const { userId } = req
 
     // Verificar que el contenido existe
     let contentExists = false
@@ -118,9 +159,9 @@ export const getReports = async (req, res) => {
 
     const query = {}
 
-    if (status) query.status = status
-    if (contentType) query.contentType = contentType
-    if (reason) query.reason = reason
+    if (status) { query.status = status }
+    if (contentType) { query.contentType = contentType }
+    if (reason) { query.reason = reason }
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
@@ -139,46 +180,55 @@ export const getReports = async (req, res) => {
     for (const report of reports) {
       let content = null
       switch (report.contentType) {
-        case 'post':
+        case 'post': {
           content = await Post.findById(report.contentId)
             .select('caption content user createdAt')
             .populate('user', 'username avatar')
             .lean()
           break
-        case 'reel':
+        }
+        case 'reel': {
           content = await Reel.findById(report.contentId)
             .select('caption video user createdAt')
             .populate('user', 'username avatar')
             .lean()
           break
-        case 'story':
+        }
+        case 'story': {
           content = await Story.findById(report.contentId)
             .select('media user createdAt')
             .populate('user', 'username avatar')
             .lean()
           break
-        case 'comment':
+        }
+        case 'comment': {
           content = await Comment.findById(report.contentId)
             .select('content user post createdAt')
             .populate('user', 'username avatar')
             .lean()
           break
-        case 'user':
+        }
+        case 'user': {
           content = await User.findById(report.contentId)
             .select('username avatar fullName bio')
             .lean()
           break
-        case 'live_stream':
+        }
+        case 'live_stream': {
           content = await LiveStream.findById(report.contentId)
             .select('title description user createdAt')
             .populate('user', 'username avatar')
             .lean()
           break
-        case 'message':
+        }
+        case 'message': {
           content = await Message.findById(report.contentId)
             .select('content user createdAt')
             .populate('user', 'username avatar')
             .lean()
+          break
+        }
+        default:
           break
       }
 
@@ -297,8 +347,8 @@ export const updateReportStatus = async (req, res) => {
     report.reviewedBy = moderatorId
     report.reviewedAt = new Date()
 
-    if (action) report.action = action
-    if (moderatorNotes) report.moderatorNotes = moderatorNotes
+    if (action) { report.action = action }
+    if (moderatorNotes) { report.moderatorNotes = moderatorNotes }
 
     await report.save()
 
@@ -386,44 +436,6 @@ export const getReportStats = async (req, res) => {
       success: false,
       message: 'Error interno del servidor'
     })
-  }
-}
-
-// Función auxiliar para ejecutar acciones de moderación
-async function executeModeractionAction(contentType, contentId, action) {
-  try {
-    switch (action) {
-      case 'content_removed':
-        // Soft delete del contenido
-        switch (contentType) {
-          case 'post':
-            await Post.findByIdAndUpdate(contentId, { isDeleted: true })
-            break
-          case 'reel':
-            await Reel.findByIdAndUpdate(contentId, { isDeleted: true })
-            break
-          case 'story':
-            await Story.findByIdAndUpdate(contentId, { isDeleted: true })
-            break
-          case 'comment':
-            await Comment.findByIdAndUpdate(contentId, { isDeleted: true })
-            break
-        }
-        break
-
-      case 'user_banned':
-      case 'user_suspended':
-        // Desactivar usuario (implementar lógica según necesidades)
-        if (contentType === 'user') {
-          await User.findByIdAndUpdate(contentId, {
-            isActive: false,
-            suspensionReason: action === 'user_banned' ? 'banned' : 'suspended'
-          })
-        }
-        break
-    }
-  } catch (error) {
-    logger.error('Error ejecutando acción de moderación:', error)
   }
 }
 

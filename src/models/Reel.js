@@ -235,7 +235,7 @@ const ReelSchema = new mongoose.Schema({
   originalReel: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Reel',
-    required: function () {
+    required() {
       return this.isDuet || this.isStitch
     }
   },

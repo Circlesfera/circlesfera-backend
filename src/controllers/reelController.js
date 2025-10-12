@@ -740,7 +740,7 @@ export const createDuet = async (req, res) => {
   try {
     const { originalReelId } = req.params
     const { caption, hashtags, location, audioTitle, audioArtist } = req.body
-    const userId = req.userId
+    const { userId } = req
 
     // Verificar que se subió un video
     if (!req.files || !req.files.video) {
@@ -869,7 +869,7 @@ export const createStitch = async (req, res) => {
   try {
     const { originalReelId } = req.params
     const { caption, hashtags, location, audioTitle, audioArtist, stitchStartTime, stitchDuration } = req.body
-    const userId = req.userId
+    const { userId } = req
 
     // Verificar que se subió un video
     if (!req.files || !req.files.video) {

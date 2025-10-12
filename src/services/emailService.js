@@ -85,10 +85,10 @@ El equipo de CircleSfera
         logger.info('📧 Email (DEV MODE):', {
           to,
           subject,
-          preview: text.substring(0, 100) + '...'
+          preview: `${text.substring(0, 100)}...`
         })
         logger.debug('Email completo:', { to, subject, html, text })
-        return { success: true, messageId: 'dev-mode-' + Date.now() }
+        return { success: true, messageId: `dev-mode-${Date.now()}` }
       }
 
       // TODO: En producción, integrar servicio real de email

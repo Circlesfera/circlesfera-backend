@@ -216,7 +216,7 @@ class SocketService {
               } else {
                 presenceData[userId] = 'offline'
               }
-            } catch (error) {
+            } catch (_error) {
               presenceData[userId] = 'offline'
             }
           }

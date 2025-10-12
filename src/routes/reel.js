@@ -3,7 +3,7 @@ const router = express.Router()
 import { auth } from '../middlewares/auth.js'
 import { uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
-import { createReelSchema, reelCommentSchema, createDuetSchema, createStitchSchema } from '../schemas/reelSchema.js'
+import { createDuetSchema, createReelSchema, createStitchSchema, reelCommentSchema } from '../schemas/reelSchema.js'
 import reelController from '../controllers/reelController.js'
 import { checkReelOwnership } from '../middlewares/checkOwnership.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'

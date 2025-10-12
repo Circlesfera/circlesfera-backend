@@ -4,15 +4,14 @@ import { auth } from '../middlewares/auth.js'
 import { validate } from '../middlewares/validate.js'
 import {
   createReportSchema,
-  updateReportStatusSchema,
-  reportFiltersSchema
+  updateReportStatusSchema
 } from '../schemas/reportSchema.js'
 import {
   createReport,
-  getReports,
   getReportById,
-  updateReportStatus,
-  getReportStats
+  getReports,
+  getReportStats,
+  updateReportStatus
 } from '../controllers/reportController.js'
 import { csrfProtection } from '../middlewares/csrf.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
