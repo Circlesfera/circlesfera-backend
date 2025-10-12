@@ -2,6 +2,7 @@ import Notification from '../models/Notification.js'
 import User from '../models/User.js'
 import logger from '../utils/logger.js'
 import cache from '../utils/cache.js'
+import socketService from './socketService.js'
 
 /**
  * Servicio de notificaciones para CircleSfera
@@ -18,7 +19,8 @@ class NotificationService {
    */
   initializeSocketService() {
     try {
-      this.socketService = require('./socketService')
+      this.socketService = socketService
+      logger.info('✅ Socket service inicializado correctamente')
     } catch (error) {
       logger.warn('Socket service no disponible:', error.message)
     }
