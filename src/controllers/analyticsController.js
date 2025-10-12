@@ -1,4 +1,11 @@
 import AnalyticsEvent from '../models/AnalyticsEvent.js'
+import User from '../models/User.js'
+import Post from '../models/Post.js'
+import Reel from '../models/Reel.js'
+import Story from '../models/Story.js'
+import LiveStream from '../models/LiveStream.js'
+import Report from '../models/Report.js'
+import Message from '../models/Message.js'
 import logger from '../utils/logger.js'
 
 /**
@@ -166,6 +173,110 @@ export const cleanup = async (req, res) => {
     })
   } catch (error) {
     logger.error('Error en cleanup:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+/**
+ * @desc    Obtener estadísticas generales del sistema (para dashboard admin)
+ * @route   GET /api/analytics/dashboard
+ * @access  Private (Admin/Moderator)
+ */
+export const getDashboardStats = async (req, res) => {
+  try {
+    // Ejecutar todas las consultas en paralelo para mejor performance
+    const [
+      totalUsers,
+      activeUsers,
+      totalPosts,
+      totalReels,
+      totalStories,
+      totalReports,
+      pendingReports,
+      resolvedReports,
+      rejectedReports,
+      activeLiveStreams,
+      totalMessages,
+      usersLast24h,
+      postsLast24h,
+      reelsLast24h
+    ] = await Promise.all([
+      // Usuarios
+      User.countDocuments({ isActive: true }),
+      User.countDocuments({
+        isActive: true,
+        lastSeen: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }),
+
+      // Contenido
+      Post.countDocuments({ isDeleted: false }),
+      Reel.countDocuments({ isDeleted: false }),
+      Story.countDocuments({
+        expiresAt: { $gt: new Date() }
+      }),
+
+      // Reportes
+      Report.countDocuments(),
+      Report.countDocuments({ status: 'pending' }),
+      Report.countDocuments({ status: 'resolved' }),
+      Report.countDocuments({ status: 'rejected' }),
+
+      // Live y mensajes
+      LiveStream.countDocuments({ status: 'live' }),
+      Message.countDocuments(),
+
+      // Crecimiento (últimas 24h)
+      User.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }),
+      Post.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }),
+      Reel.countDocuments({
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      })
+    ])
+
+    // Calcular tendencias
+    const reportsTrend = pendingReports > 0
+      ? Math.round((pendingReports / totalReports) * 100)
+      : 0
+
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          new24h: usersLast24h,
+          activePercentage: Math.round((activeUsers / totalUsers) * 100)
+        },
+        content: {
+          posts: totalPosts,
+          reels: totalReels,
+          stories: totalStories,
+          posts24h: postsLast24h,
+          reels24h: reelsLast24h
+        },
+        reports: {
+          total: totalReports,
+          pending: pendingReports,
+          resolved: resolvedReports,
+          rejected: rejectedReports,
+          underReview: totalReports - pendingReports - resolvedReports - rejectedReports,
+          trend: reportsTrend
+        },
+        activity: {
+          liveStreams: activeLiveStreams,
+          totalMessages
+        }
+      }
+    })
+  } catch (error) {
+    logger.error('Error en getDashboardStats:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
