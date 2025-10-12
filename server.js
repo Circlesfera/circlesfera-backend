@@ -149,8 +149,8 @@ app.use(cors({
 // Middleware de monitoreo (sin Morgan - usamos Winston)
 app.use(monitoringMiddleware)
 
-// Conexión a la base de datos
-connectDB()
+// Conexión a la base de datos se hace en startServer()
+// No llamar aquí para evitar duplicados
 
 // Redis eliminado para simplificar el desarrollo local
 
