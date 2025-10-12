@@ -81,7 +81,9 @@ configFull.frontendUrl = process.env.FRONTEND_URL || (isProduction ? null : 'htt
 
 // Email
 configFull.emailFrom = process.env.EMAIL_FROM || 'CircleSfera <noreply@circlesfera.com>'
+configFull.emailFromName = process.env.EMAIL_FROM_NAME || 'CircleSfera'
 configFull.emailService = process.env.EMAIL_SERVICE || 'development' // 'sendgrid', 'nodemailer', 'development'
+configFull.sendgridApiKey = process.env.SENDGRID_API_KEY || null
 
 /**
  * Valida que todas las variables de entorno críticas estén configuradas
@@ -106,6 +108,9 @@ const validateConfig = () => {
     }
     if (configFull.corsOrigin.length === 0) {
       errors.push('CORS_ORIGIN es requerido en producción')
+    }
+    if (configFull.emailService === 'sendgrid' && !configFull.sendgridApiKey) {
+      errors.push('SENDGRID_API_KEY es requerido cuando EMAIL_SERVICE=sendgrid')
     }
   }
 

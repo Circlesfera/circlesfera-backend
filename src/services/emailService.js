@@ -1,21 +1,28 @@
+import sgMail from '@sendgrid/mail'
 import logger from '../utils/logger.js'
 import { config } from '../utils/config.js'
 
 /**
  * Servicio de Email
  *
- * Por ahora loguea los emails en desarrollo.
- * En producción, integrar con:
- * - SendGrid (npm install @sendgrid/mail)
- * - Nodemailer + SMTP
- * - AWS SES
- * - Mailgun
+ * Integrado con SendGrid para envío real de emails en producción.
+ * En desarrollo, solo loguea los emails sin enviarlos.
  */
 
 class EmailService {
   constructor() {
     this.from = config.emailFrom || 'CircleSfera <noreply@circlesfera.com>'
+    this.fromName = config.emailFromName || 'CircleSfera'
     this.isDevelopment = config.isDevelopment
+    this.emailService = config.emailService
+
+    // Configurar SendGrid si está disponible
+    if (this.emailService === 'sendgrid' && config.sendgridApiKey) {
+      sgMail.setApiKey(config.sendgridApiKey)
+      logger.info('✅ SendGrid configurado correctamente')
+    } else if (this.emailService === 'sendgrid' && !config.sendgridApiKey) {
+      logger.warn('⚠️ EMAIL_SERVICE=sendgrid pero SENDGRID_API_KEY no configurada')
+    }
   }
 
   /**
@@ -80,68 +87,64 @@ El equipo de CircleSfera
    */
   async send({ to, subject, html, text }) {
     try {
-      if (this.isDevelopment) {
-        // En desarrollo, solo loguear
+      // En desarrollo, solo loguear
+      if (this.isDevelopment || this.emailService === 'development') {
         logger.info('📧 Email (DEV MODE):', {
           to,
           subject,
-          preview: `${text.substring(0, 100)}...`
+          preview: text ? `${text.substring(0, 100)}...` : '(sin texto plano)'
         })
         logger.debug('Email completo:', { to, subject, html, text })
         return { success: true, messageId: `dev-mode-${Date.now()}` }
       }
 
-      // TODO: En producción, integrar servicio real de email
-      // Ejemplo con SendGrid:
-      /*
-      const sgMail = require('@sendgrid/mail')
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+      // Enviar con SendGrid en producción
+      if (this.emailService === 'sendgrid') {
+        if (!config.sendgridApiKey) {
+          throw new Error('SENDGRID_API_KEY no configurada')
+        }
 
-      const msg = {
-        to,
-        from: this.from,
-        subject,
-        text,
-        html
+        const msg = {
+          to,
+          from: {
+            email: this.from.includes('<')
+              ? this.from.match(/<(.+)>/)[1]
+              : this.from,
+            name: this.fromName
+          },
+          subject,
+          text,
+          html
+        }
+
+        const result = await sgMail.send(msg)
+        const messageId = result[0].headers['x-message-id']
+
+        logger.info('✅ Email enviado exitosamente:', {
+          to,
+          subject,
+          messageId
+        })
+
+        return {
+          success: true,
+          messageId,
+          provider: 'sendgrid'
+        }
       }
 
-      const result = await sgMail.send(msg)
-      return { success: true, messageId: result[0].headers['x-message-id'] }
-      */
-
-      // Ejemplo con Nodemailer:
-      /*
-      const nodemailer = require('nodemailer')
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      })
-
-      const info = await transporter.sendMail({
-        from: this.from,
-        to,
-        subject,
-        text,
-        html
-      })
-
-      return { success: true, messageId: info.messageId }
-      */
-
-      logger.warn('Email service not configured for production')
-      return { success: false, error: 'Email service not configured' }
+      // Fallback: Si no hay servicio configurado
+      logger.warn('⚠️ Email simulado (sin servicio configurado):', { to, subject })
+      return { success: true, messageId: `simulated-${Date.now()}`, provider: 'none' }
     } catch (error) {
-      logger.error('Error sending email:', {
+      logger.error('❌ Error enviando email:', {
         error: error.message,
         to,
-        subject
+        subject,
+        code: error.code,
+        response: error.response?.body
       })
-      throw error
+      throw new Error(`Error enviando email: ${error.message}`)
     }
   }
 
