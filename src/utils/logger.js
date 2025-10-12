@@ -43,9 +43,19 @@ if (process.env.NODE_ENV !== 'production') {
   )
 }
 
+// Determinar nivel de log basado en entorno
+const getLogLevel = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // En producción, solo info, warn y error (NO debug)
+    return process.env.LOG_LEVEL || 'info'
+  }
+  // En desarrollo, permitir debug
+  return process.env.LOG_LEVEL || 'debug'
+}
+
 // Crear logger
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: getLogLevel(),
   format: customFormat,
   transports,
   // No salir al recibir error
