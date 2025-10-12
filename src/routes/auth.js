@@ -3,11 +3,13 @@ const router = express.Router()
 import {
   changePassword,
   checkUsernameAvailability,
+  forgotPassword,
   getProfile,
   login,
   logout,
   refreshToken,
   register,
+  resetPassword,
   updateProfile
 } from '../controllers/authController.js'
 import { auth } from '../middlewares/auth.js'
@@ -15,8 +17,10 @@ import { handleUploadError, uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   updateProfileSchema
 } from '../schemas/userSchema.js'
 import imageOptimizer from '../middlewares/imageOptimizer.js'
@@ -37,6 +41,10 @@ router.get('/csrf-token', provideCsrfToken, (req, res) => {
 router.post('/register', validate(registerSchema), register, refreshCsrfToken)
 router.post('/login', rateLimitByUser('login', { enforceInDev: true }), validate(loginSchema), login, refreshCsrfToken)
 router.get('/check-username/:username', checkUsernameAvailability)
+
+// Recuperación de contraseña (públicas con rate limiting estricto)
+router.post('/forgot-password', rateLimitByUser('forgotPassword', { enforceInDev: true }), validate(forgotPasswordSchema), forgotPassword)
+router.post('/reset-password', rateLimitByUser('resetPassword', { enforceInDev: true }), validate(resetPasswordSchema), resetPassword)
 
 // Rutas protegidas (con protección CSRF)
 router.get('/profile', auth, getProfile)

@@ -77,6 +77,11 @@ const { isProduction } = configFull
 const { port } = configFull
 configFull.appUrl = process.env.APP_URL || (isProduction ? null : `http://localhost:${port}`)
 configFull.apiUrl = process.env.API_URL || (isProduction ? null : `http://localhost:${port}`)
+configFull.frontendUrl = process.env.FRONTEND_URL || (isProduction ? null : 'http://localhost:3001')
+
+// Email
+configFull.emailFrom = process.env.EMAIL_FROM || 'CircleSfera <noreply@circlesfera.com>'
+configFull.emailService = process.env.EMAIL_SERVICE || 'development' // 'sendgrid', 'nodemailer', 'development'
 
 /**
  * Valida que todas las variables de entorno críticas estén configuradas

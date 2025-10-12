@@ -118,10 +118,36 @@ const changePasswordSchema = z.object({
     .regex(/[0-9]/, 'Password debe contener al menos un número')
 })
 
+/**
+ * Schema de validación para solicitar recuperación de contraseña
+ */
+const forgotPasswordSchema = z.object({
+  email: z.string()
+    .email('Email inválido')
+    .transform(val => val.toLowerCase())
+})
+
+/**
+ * Schema de validación para restablecer contraseña
+ */
+const resetPasswordSchema = z.object({
+  token: z.string()
+    .min(1, 'Token es requerido')
+    .length(64, 'Token inválido'),
+
+  newPassword: z.string()
+    .min(8, 'Nueva contraseña debe tener al menos 8 caracteres')
+    .regex(/[A-Z]/, 'Password debe contener al menos una letra mayúscula')
+    .regex(/[a-z]/, 'Password debe contener al menos una letra minúscula')
+    .regex(/[0-9]/, 'Password debe contener al menos un número')
+})
+
 export {
   registerSchema,
   loginSchema,
   updateProfileSchema,
-  changePasswordSchema
+  changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema
 }
 

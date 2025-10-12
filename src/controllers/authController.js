@@ -1,8 +1,10 @@
 import User from '../models/User.js'
+import PasswordReset from '../models/PasswordReset.js'
 import { validationResult } from 'express-validator'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
 import tokenService from '../services/tokenService.js'
+import emailService from '../services/emailService.js'
 
 // Respuesta de usuario sin información sensible
 const sanitizeUser = (user) => {
@@ -420,6 +422,145 @@ export const checkUsernameAvailability = async (req, res) => {
 
   } catch (error) {
     logger.error('Error verificando disponibilidad de username:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Solicitar recuperación de contraseña
+export const forgotPassword = async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array()
+      })
+    }
+
+    const { email } = req.body
+
+    // Buscar usuario por email
+    const user = await User.findOne({ email: email.toLowerCase() })
+
+    // Por seguridad, siempre devolver el mismo mensaje
+    // (no revelar si el email existe o no)
+    const successMessage = 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
+
+    if (!user) {
+      logger.info('Forgot password solicitado para email no registrado:', { email })
+      return res.json({
+        success: true,
+        message: successMessage
+      })
+    }
+
+    // Crear token de reset
+    const { token } = await PasswordReset.createResetToken(
+      user._id,
+      req.ip,
+      req.get('user-agent')
+    )
+
+    // Enviar email
+    try {
+      await emailService.sendPasswordResetEmail(user.email, user.username, token)
+
+      logger.info('Password reset email enviado:', {
+        userId: user._id,
+        email: user.email
+      })
+    } catch (emailError) {
+      logger.error('Error enviando email de reset:', {
+        error: emailError.message,
+        userId: user._id
+      })
+      // No fallar la petición si el email falla
+    }
+
+    res.json({
+      success: true,
+      message: successMessage
+    })
+
+  } catch (error) {
+    logger.error('Error en forgotPassword:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Restablecer contraseña con token
+export const resetPassword = async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        errors: errors.array()
+      })
+    }
+
+    const { token, newPassword } = req.body
+
+    // Verificar token
+    const resetToken = await PasswordReset.verifyToken(token)
+
+    if (!resetToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token inválido o expirado'
+      })
+    }
+
+    // Obtener usuario
+    const user = await User.findById(resetToken.user)
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      })
+    }
+
+    // Cambiar contraseña
+    user.password = newPassword
+    await user.save()
+
+    // Marcar token como usado
+    await resetToken.markAsUsed()
+
+    // Invalidar todos los tokens JWT existentes del usuario
+    await tokenService.invalidateAllUserTokens(user._id.toString())
+
+    // Enviar email de confirmación
+    try {
+      await emailService.sendPasswordChangedEmail(user.email, user.username)
+    } catch (emailError) {
+      logger.error('Error enviando email de confirmación:', {
+        error: emailError.message,
+        userId: user._id
+      })
+    }
+
+    logger.info('Contraseña restablecida exitosamente:', {
+      userId: user._id,
+      email: user.email
+    })
+
+    res.json({
+      success: true,
+      message: 'Contraseña restablecida exitosamente. Puedes iniciar sesión con tu nueva contraseña.'
+    })
+
+  } catch (error) {
+    logger.error('Error en resetPassword:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'
