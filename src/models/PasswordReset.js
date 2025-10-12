@@ -23,8 +23,8 @@ const PasswordResetSchema = new mongoose.Schema({
 
   expiresAt: {
     type: Date,
-    required: [true, 'La fecha de expiración es requerida'],
-    index: true
+    required: [true, 'La fecha de expiración es requerida']
+    // index: true eliminado - ya hay un TTL index definido abajo
   },
 
   used: {

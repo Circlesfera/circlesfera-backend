@@ -120,7 +120,6 @@ ConversationSchema.index({ type: 1 })
 // Índices adicionales Fase 2 para búsquedas rápidas
 ConversationSchema.index({ participants: 1, updatedAt: -1 }) // Para listar conversaciones ordenadas
 ConversationSchema.index({ 'lastMessage.timestamp': -1 }) // Para ordenar por último mensaje
-ConversationSchema.index({ 'lastMessage.timestamp': -1 })
 ConversationSchema.index({ 'settings.isActive': 1, 'settings.isArchived': 1, 'settings.isDeleted': 1 })
 ConversationSchema.index({ createdAt: -1 })
 
@@ -313,10 +312,12 @@ ConversationSchema.statics.getUnreadCount = function (userId) {
     { $match: { participants: mongoose.Types.ObjectId(userId), 'settings.isDeleted': false } },
     { $unwind: '$settings.userSettings' },
     { $match: { 'settings.userSettings.user': mongoose.Types.ObjectId(userId) } },
-    { $group: {
-      _id: null,
-      totalUnread: { $sum: '$settings.userSettings.unreadCount' }
-    } }
+    {
+      $group: {
+        _id: null,
+        totalUnread: { $sum: '$settings.userSettings.unreadCount' }
+      }
+    }
   ])
 }
 
