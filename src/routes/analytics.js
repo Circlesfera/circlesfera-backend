@@ -3,6 +3,7 @@ const router = express.Router()
 import {
   cleanup,
   getDashboardStats,
+  getRecentActivity,
   getStats,
   getUserAnalytics,
   trackEvent
@@ -18,7 +19,8 @@ router.get('/stats', auth, getStats)
 router.get('/user/:userId', auth, getUserAnalytics)
 router.delete('/cleanup', auth, checkRole(['admin']), cleanup)
 
-// Ruta de dashboard (admin/moderator)
+// Rutas de dashboard (admin/moderator)
 router.get('/dashboard', auth, checkRole(['admin', 'moderator']), getDashboardStats)
+router.get('/recent-activity', auth, checkRole(['admin', 'moderator']), getRecentActivity)
 
 export default router

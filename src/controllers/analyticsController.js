@@ -181,6 +181,148 @@ export const cleanup = async (req, res) => {
 }
 
 /**
+ * @desc    Obtener actividad reciente del sistema
+ * @route   GET /api/analytics/recent-activity
+ * @access  Private (Admin/Moderator)
+ */
+export const getRecentActivity = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20
+
+    // Obtener actividad reciente de diferentes modelos en paralelo
+    const [
+      recentReports,
+      recentUsers,
+      recentPosts,
+      recentReels,
+      recentLiveStreams
+    ] = await Promise.all([
+      // Reportes recientes
+      Report.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('contentType reason status createdAt reportedBy')
+        .populate('reportedBy', 'username avatar')
+        .lean(),
+
+      // Usuarios nuevos
+      User.find({ isActive: true })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('username avatar fullName createdAt')
+        .lean(),
+
+      // Posts recientes
+      Post.find({ isDeleted: false })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('caption createdAt user')
+        .populate('user', 'username avatar')
+        .lean(),
+
+      // Reels recientes
+      Reel.find({ isDeleted: false })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('caption createdAt user')
+        .populate('user', 'username avatar')
+        .lean(),
+
+      // Lives recientes
+      LiveStream.find()
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select('title status createdAt user')
+        .populate('user', 'username avatar')
+        .lean()
+    ])
+
+    // Combinar y formatear actividades
+    const activities = []
+
+    // Reportes
+    recentReports.forEach(report => {
+      activities.push({
+        type: 'report',
+        message: `Nuevo reporte: ${report.reason} en ${report.contentType}`,
+        timestamp: report.createdAt,
+        user: report.reportedBy?.username,
+        relatedId: report._id,
+        status: report.status,
+        severity: report.reason === 'spam' ? 'low' : report.reason === 'harassment' ? 'high' : 'medium'
+      })
+    })
+
+    // Usuarios nuevos
+    recentUsers.forEach(user => {
+      activities.push({
+        type: 'user_join',
+        message: `Nuevo usuario: ${user.username}`,
+        timestamp: user.createdAt,
+        user: user.username,
+        relatedId: user._id,
+        severity: 'info'
+      })
+    })
+
+    // Posts
+    recentPosts.forEach(post => {
+      activities.push({
+        type: 'content_post',
+        message: `Nuevo post de ${post.user?.username}`,
+        timestamp: post.createdAt,
+        user: post.user?.username,
+        relatedId: post._id,
+        severity: 'info'
+      })
+    })
+
+    // Reels
+    recentReels.forEach(reel => {
+      activities.push({
+        type: 'content_reel',
+        message: `Nuevo reel de ${reel.user?.username}`,
+        timestamp: reel.createdAt,
+        user: reel.user?.username,
+        relatedId: reel._id,
+        severity: 'info'
+      })
+    })
+
+    // Lives
+    recentLiveStreams.forEach(live => {
+      const statusText = live.status === 'live' ? 'inició transmisión' : 'finalizó transmisión'
+      activities.push({
+        type: 'live_stream',
+        message: `${live.user?.username} ${statusText}`,
+        timestamp: live.createdAt,
+        user: live.user?.username,
+        relatedId: live._id,
+        status: live.status,
+        severity: 'info'
+      })
+    })
+
+    // Ordenar por fecha (más reciente primero) y limitar
+    const sortedActivities = activities
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, limit)
+
+    res.json({
+      success: true,
+      data: sortedActivities,
+      total: sortedActivities.length
+    })
+  } catch (error) {
+    logger.error('Error en getRecentActivity:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+/**
  * @desc    Obtener estadísticas generales del sistema (para dashboard admin)
  * @route   GET /api/analytics/dashboard
  * @access  Private (Admin/Moderator)
