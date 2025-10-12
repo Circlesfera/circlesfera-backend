@@ -53,6 +53,7 @@ import messageRoutes from './src/routes/message.js'
 import analyticsRoutes from './src/routes/analytics.js'
 import liveStreamRoutes from './src/routes/liveStream.js'
 import cstvRoutes from './src/routes/cstv.js'
+import reportRoutes from './src/routes/report.js'
 
 // Compresión HTTP
 app.use(compression())
@@ -110,6 +111,7 @@ app.use('/api/conversations', limiter)
 app.use('/api/messages', limiter)
 app.use('/api/live-streams', limiter)
 app.use('/api/cstv', limiter)
+app.use('/api/reports', limiter)
 // Rate limiting para rutas de contenido de usuario
 app.use('/api/:username', limiter)
 
@@ -208,6 +210,7 @@ app.use('/api/messages', messageRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/live-streams', liveStreamRoutes)
 app.use('/api/cstv', cstvRoutes)
+app.use('/api/reports', reportRoutes)
 // User content routes al final (captura /:username/*)
 app.use('/api', userContentRoutes)
 
