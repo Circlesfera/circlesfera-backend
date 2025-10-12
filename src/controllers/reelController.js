@@ -735,6 +735,368 @@ export const viewReel = async (req, res) => {
   }
 }
 
+// Crear un Duet (video lado a lado con el original)
+export const createDuet = async (req, res) => {
+  try {
+    const { originalReelId } = req.params
+    const { caption, hashtags, location, audioTitle, audioArtist } = req.body
+    const userId = req.userId
+
+    // Verificar que se subió un video
+    if (!req.files || !req.files.video) {
+      return res.status(400).json({
+        success: false,
+        message: 'El video es obligatorio para crear un duet'
+      })
+    }
+
+    // Verificar que el reel original existe
+    const originalReel = await Reel.findById(originalReelId)
+      .populate('user', 'username avatar fullName')
+
+    if (!originalReel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel original no encontrado'
+      })
+    }
+
+    // Verificar que el reel permite duets
+    if (!originalReel.allowDuets) {
+      return res.status(403).json({
+        success: false,
+        message: 'Este reel no permite duets'
+      })
+    }
+
+    // Verificar que no sea el mismo usuario
+    if (originalReel.user._id.toString() === userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes hacer un duet de tu propio reel'
+      })
+    }
+
+    // Obtener URL del video nuevo
+    const baseUrl = config.appUrl || `${req.protocol}://${req.get('host')}`
+    const videoUrl = `${baseUrl}/uploads/${req.files.video[0].filename}`
+
+    // Crear nuevo reel como duet
+    const duetData = {
+      user: userId,
+      video: {
+        url: videoUrl,
+        thumbnail: videoUrl.replace(/\.[^/.]+$/, '_thumb.jpg'),
+        duration: 0,
+        width: 1080,
+        height: 1920
+      },
+      caption: caption || `Duet con @${originalReel.user.username}`,
+      hashtags: hashtags
+        ? hashtags.split(',').map(tag => tag.trim().replace('#', ''))
+        : [],
+      allowComments: true,
+      allowDuets: true,
+      allowStitches: true,
+      // Referencia al reel original en el array de duets
+      isDuet: true,
+      originalReel: originalReelId
+    }
+
+    if (audioTitle || audioArtist) {
+      duetData.audio = {
+        title: audioTitle || originalReel.audio?.title || '',
+        artist: audioArtist || originalReel.audio?.artist || ''
+      }
+    }
+
+    if (location) {
+      duetData.location = { name: location }
+    }
+
+    // Crear el duet
+    const duetReel = new Reel(duetData)
+    await duetReel.save()
+    await duetReel.populate('user', 'username avatar fullName')
+
+    // Agregar referencia en el reel original
+    originalReel.duets.push({
+      originalReel: duetReel._id,
+      user: userId
+    })
+    await originalReel.save()
+
+    // Notificar al dueño del reel original
+    const currentUser = await User.findById(userId)
+    await Notification.create({
+      user: originalReel.user._id,
+      type: 'duet',
+      fromUser: userId,
+      content: `${currentUser.username} hizo un duet con tu reel`,
+      relatedContent: {
+        type: 'reel',
+        id: duetReel._id
+      }
+    })
+
+    logger.info('Duet creado exitosamente:', {
+      duetId: duetReel._id,
+      originalReelId,
+      userId
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Duet creado exitosamente',
+      reel: duetReel,
+      originalReel: {
+        _id: originalReel._id,
+        user: originalReel.user,
+        caption: originalReel.caption
+      }
+    })
+  } catch (error) {
+    logger.error('Error en createDuet:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Crear un Stitch (usar clip del original y agregar reacción)
+export const createStitch = async (req, res) => {
+  try {
+    const { originalReelId } = req.params
+    const { caption, hashtags, location, audioTitle, audioArtist, stitchStartTime, stitchDuration } = req.body
+    const userId = req.userId
+
+    // Verificar que se subió un video
+    if (!req.files || !req.files.video) {
+      return res.status(400).json({
+        success: false,
+        message: 'El video es obligatorio para crear un stitch'
+      })
+    }
+
+    // Verificar que el reel original existe
+    const originalReel = await Reel.findById(originalReelId)
+      .populate('user', 'username avatar fullName')
+
+    if (!originalReel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel original no encontrado'
+      })
+    }
+
+    // Verificar que el reel permite stitches
+    if (!originalReel.allowStitches) {
+      return res.status(403).json({
+        success: false,
+        message: 'Este reel no permite stitches'
+      })
+    }
+
+    // Verificar que no sea el mismo usuario
+    if (originalReel.user._id.toString() === userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes hacer un stitch de tu propio reel'
+      })
+    }
+
+    // Obtener URL del video nuevo
+    const baseUrl = config.appUrl || `${req.protocol}://${req.get('host')}`
+    const videoUrl = `${baseUrl}/uploads/${req.files.video[0].filename}`
+
+    // Crear nuevo reel como stitch
+    const stitchData = {
+      user: userId,
+      video: {
+        url: videoUrl,
+        thumbnail: videoUrl.replace(/\.[^/.]+$/, '_thumb.jpg'),
+        duration: 0,
+        width: 1080,
+        height: 1920
+      },
+      caption: caption || `Stitch con @${originalReel.user.username}`,
+      hashtags: hashtags
+        ? hashtags.split(',').map(tag => tag.trim().replace('#', ''))
+        : [],
+      allowComments: true,
+      allowDuets: true,
+      allowStitches: true,
+      // Referencia al reel original
+      isStitch: true,
+      originalReel: originalReelId,
+      stitchMetadata: {
+        startTime: parseInt(stitchStartTime) || 0,
+        duration: parseInt(stitchDuration) || 5
+      }
+    }
+
+    if (audioTitle || audioArtist) {
+      stitchData.audio = {
+        title: audioTitle || originalReel.audio?.title || '',
+        artist: audioArtist || originalReel.audio?.artist || ''
+      }
+    }
+
+    if (location) {
+      stitchData.location = { name: location }
+    }
+
+    // Crear el stitch
+    const stitchReel = new Reel(stitchData)
+    await stitchReel.save()
+    await stitchReel.populate('user', 'username avatar fullName')
+
+    // Agregar referencia en el reel original
+    originalReel.stitches.push({
+      originalReel: stitchReel._id,
+      user: userId
+    })
+    await originalReel.save()
+
+    // Notificar al dueño del reel original
+    const currentUser = await User.findById(userId)
+    await Notification.create({
+      user: originalReel.user._id,
+      type: 'stitch',
+      fromUser: userId,
+      content: `${currentUser.username} hizo un stitch con tu reel`,
+      relatedContent: {
+        type: 'reel',
+        id: stitchReel._id
+      }
+    })
+
+    logger.info('Stitch creado exitosamente:', {
+      stitchId: stitchReel._id,
+      originalReelId,
+      userId
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Stitch creado exitosamente',
+      reel: stitchReel,
+      originalReel: {
+        _id: originalReel._id,
+        user: originalReel.user,
+        caption: originalReel.caption
+      }
+    })
+  } catch (error) {
+    logger.error('Error en createStitch:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Obtener duets de un reel
+export const getReelDuets = async (req, res) => {
+  try {
+    const { reelId } = req.params
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const skip = (page - 1) * limit
+
+    const reel = await Reel.findById(reelId)
+
+    if (!reel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel no encontrado'
+      })
+    }
+
+    // Obtener IDs de duets
+    const duetIds = reel.duets.map(d => d.originalReel)
+
+    // Obtener duets con paginación
+    const [duets, total] = await Promise.all([
+      Reel.find({ _id: { $in: duetIds } })
+        .populate('user', 'username avatar fullName isVerified')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      duetIds.length
+    ])
+
+    res.json({
+      success: true,
+      duets,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    logger.error('Error en getReelDuets:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+// Obtener stitches de un reel
+export const getReelStitches = async (req, res) => {
+  try {
+    const { reelId } = req.params
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const skip = (page - 1) * limit
+
+    const reel = await Reel.findById(reelId)
+
+    if (!reel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reel no encontrado'
+      })
+    }
+
+    // Obtener IDs de stitches
+    const stitchIds = reel.stitches.map(s => s.originalReel)
+
+    // Obtener stitches con paginación
+    const [stitches, total] = await Promise.all([
+      Reel.find({ _id: { $in: stitchIds } })
+        .populate('user', 'username avatar fullName isVerified')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      stitchIds.length
+    ])
+
+    res.json({
+      success: true,
+      stitches,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    logger.error('Error en getReelStitches:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
 export default {
   createReel,
   getReelsForFeed,
@@ -748,6 +1110,10 @@ export default {
   searchReelsByHashtag,
   saveReel,
   unsaveReel,
-  viewReel
+  viewReel,
+  createDuet,
+  createStitch,
+  getReelDuets,
+  getReelStitches
 }
 

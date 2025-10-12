@@ -221,6 +221,39 @@ const ReelSchema = new mongoose.Schema({
     }
   },
 
+  // Campos para Duets y Stitches
+  isDuet: {
+    type: Boolean,
+    default: false
+  },
+
+  isStitch: {
+    type: Boolean,
+    default: false
+  },
+
+  originalReel: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Reel',
+    required: function () {
+      return this.isDuet || this.isStitch
+    }
+  },
+
+  stitchMetadata: {
+    startTime: {
+      type: Number,
+      default: 0,
+      min: [0, 'El tiempo de inicio no puede ser negativo']
+    },
+    duration: {
+      type: Number,
+      default: 5,
+      min: [1, 'La duración del clip debe ser al menos 1 segundo'],
+      max: [15, 'La duración del clip no puede exceder 15 segundos']
+    }
+  },
+
   // Metadatos del archivo
   metadata: {
     fileSize: {

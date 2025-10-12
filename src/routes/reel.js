@@ -3,7 +3,7 @@ const router = express.Router()
 import { auth } from '../middlewares/auth.js'
 import { uploadFields } from '../middlewares/upload.js'
 import { validate } from '../middlewares/validate.js'
-import { createReelSchema, reelCommentSchema } from '../schemas/reelSchema.js'
+import { createReelSchema, reelCommentSchema, createDuetSchema, createStitchSchema } from '../schemas/reelSchema.js'
 import reelController from '../controllers/reelController.js'
 import { checkReelOwnership } from '../middlewares/checkOwnership.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
@@ -28,5 +28,11 @@ router.delete('/:id/save', auth, csrfProtection(), reelController.unsaveReel)
 router.post('/:id/view', auth, reelController.viewReel)
 router.post('/:id/comment', auth, csrfProtection(), rateLimitByUser('createComment'), validate(reelCommentSchema), reelController.commentReel)
 router.delete('/:id', auth, csrfProtection(), checkReelOwnership(), rateLimitByUser('deletePost'), reelController.deleteReel)
+
+// Rutas para Duets y Stitches
+router.post('/:originalReelId/duet', auth, csrfProtection(), rateLimitByUser('createReel'), uploadFields, validate(createDuetSchema), reelController.createDuet)
+router.post('/:originalReelId/stitch', auth, csrfProtection(), rateLimitByUser('createReel'), uploadFields, validate(createStitchSchema), reelController.createStitch)
+router.get('/:reelId/duets', reelController.getReelDuets)
+router.get('/:reelId/stitches', reelController.getReelStitches)
 
 export default router
