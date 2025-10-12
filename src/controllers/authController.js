@@ -128,8 +128,10 @@ export const login = async (req, res) => {
       })
     }
 
-    // Actualizar último acceso
+    // Actualizar último acceso y último login
     await user.updateLastSeen()
+    user.lastLogin = new Date()
+    await user.save()
 
     // Generar par de tokens (access + refresh)
     const tokens = tokenService.generateTokenPair(user._id)

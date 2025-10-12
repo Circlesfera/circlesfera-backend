@@ -36,7 +36,6 @@ const ReportSchema = new mongoose.Schema({
       'harassment',
       'hate_speech',
       'violence',
-      'nudity',
       'false_information',
       'copyright',
       'suicide_or_self_harm',

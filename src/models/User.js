@@ -69,9 +69,19 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  role: {
+    type: String,
+    enum: ['user', 'moderator', 'admin'],
+    default: 'user',
+    index: true
+  },
   lastSeen: {
     type: Date,
     default: Date.now
+  },
+  lastLogin: {
+    type: Date,
+    default: null
   },
   // Configuraciones de privacidad
   allowMessages: {

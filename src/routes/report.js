@@ -1,6 +1,7 @@
 import express from 'express'
 const router = express.Router()
 import { auth } from '../middlewares/auth.js'
+import { checkRole } from '../middlewares/checkRole.js'
 import { validate } from '../middlewares/validate.js'
 import {
   createReportSchema,
@@ -16,19 +17,6 @@ import {
 import { csrfProtection } from '../middlewares/csrf.js'
 import { rateLimitByUser } from '../middlewares/rateLimitByUser.js'
 
-// Middleware para verificar que el usuario es admin/moderador
-const checkModerator = (req, res, next) => {
-  // TODO: Implementar verificación de rol de moderador
-  // Por ahora, todos los usuarios autenticados pueden ver reportes (cambiar en producción)
-  if (!req.userId) {
-    return res.status(403).json({
-      success: false,
-      message: 'No tienes permisos para acceder a esta función'
-    })
-  }
-  next()
-}
-
 // Rutas públicas (con autenticación)
 // Crear un reporte
 router.post(
@@ -40,12 +28,12 @@ router.post(
   createReport
 )
 
-// Rutas de moderación (requieren permisos especiales)
+// Rutas de moderación (requieren permisos de moderador o admin)
 // Obtener todos los reportes
 router.get(
   '/',
   auth,
-  checkModerator,
+  checkRole(['moderator', 'admin']),
   getReports
 )
 
@@ -53,7 +41,7 @@ router.get(
 router.get(
   '/stats',
   auth,
-  checkModerator,
+  checkRole(['moderator', 'admin']),
   getReportStats
 )
 
@@ -61,7 +49,7 @@ router.get(
 router.get(
   '/:reportId',
   auth,
-  checkModerator,
+  checkRole(['moderator', 'admin']),
   getReportById
 )
 
@@ -70,7 +58,7 @@ router.put(
   '/:reportId/status',
   auth,
   csrfProtection(),
-  checkModerator,
+  checkRole(['moderator', 'admin']),
   validate(updateReportStatusSchema),
   updateReportStatus
 )
