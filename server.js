@@ -349,12 +349,15 @@ const startServer = async () => {
   try {
     // Conectar a MongoDB
     await connectDB()
-    logger.info('✅ MongoDB conectado')
+    // Log ya se hace en db.js con más detalles
 
     // Conectar a Redis para tokens y blacklist
     try {
       await redisService.connect()
-      logger.info('✅ Redis conectado (blacklist de tokens + caché)')
+      // Log de conexión exitosa solo si hay Redis URL configurado
+      if (config.redisUrl) {
+        logger.info('✅ Redis conectado (blacklist de tokens + caché)')
+      }
     } catch (error) {
       logger.warn('⚠️ Redis no disponible, usando memoria (solo desarrollo)', error.message)
     }

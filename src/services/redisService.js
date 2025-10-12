@@ -44,12 +44,9 @@ class RedisService {
         logger.error('Redis Error:', err)
       })
 
-      this.client.on('connect', () => {
-        logger.info('Redis conectado exitosamente')
-      })
-
+      // Eventos de conexión (sin logs duplicados, se loguea desde server.js)
       this.client.on('ready', () => {
-        logger.info('Redis listo para usar')
+        logger.debug('Redis ready event triggered')
         this.connected = true
       })
 
