@@ -164,6 +164,67 @@ class SocketService {
         })
       })
 
+      // Eventos de presencia
+      socket.on('presence:update', async (data) => {
+        const { status } = data // 'online', 'away', 'offline'
+
+        if (!['online', 'away', 'offline'].includes(status)) {
+          return
+        }
+
+        // Actualizar lastSeen del usuario en BD
+        try {
+          await User.findByIdAndUpdate(socket.userId, { lastSeen: new Date() })
+        } catch (error) {
+          logger.error('Error actualizando lastSeen:', error)
+        }
+
+        // Emitir cambio de estado a todos
+        this.io.emit('presence:change', {
+          userId: socket.userId,
+          username: socket.user.username,
+          status,
+          timestamp: new Date().toISOString()
+        })
+
+        logger.info(`👤 ${socket.user.username} cambió estado a: ${status}`)
+      })
+
+      socket.on('presence:get', async (data) => {
+        const { userIds } = data
+
+        if (!Array.isArray(userIds)) {
+          return
+        }
+
+        // Obtener estado de presencia de usuarios solicitados
+        const presenceData = {}
+        for (const userId of userIds) {
+          if (this.connectedUsers.has(userId)) {
+            presenceData[userId] = 'online'
+          } else {
+            // Verificar lastSeen en BD
+            try {
+              const user = await User.findById(userId).select('lastSeen')
+              if (user && user.lastSeen) {
+                const minutesAgo = (Date.now() - new Date(user.lastSeen).getTime()) / (1000 * 60)
+                if (minutesAgo < 5) {
+                  presenceData[userId] = 'away'
+                } else {
+                  presenceData[userId] = 'offline'
+                }
+              } else {
+                presenceData[userId] = 'offline'
+              }
+            } catch (error) {
+              presenceData[userId] = 'offline'
+            }
+          }
+        }
+
+        socket.emit('presence:bulk', presenceData)
+      })
+
       // Manejo de desconexión
       socket.on('disconnect', () => {
         logger.info(`👤 Usuario desconectado: ${socket.user.username} (${socket.id})`)
