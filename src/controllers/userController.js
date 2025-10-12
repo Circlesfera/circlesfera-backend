@@ -1,10 +1,10 @@
-import User from '../models/User.js'
-import Post from '../models/Post.js'
-import Story from '../models/Story.js'
-import Notification from '../models/Notification.js'
+import cacheService from '../services/cacheService.js'
 import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
-import cacheService from '../services/cacheService.js'
+import Notification from '../models/Notification.js'
+import Post from '../models/Post.js'
+import Story from '../models/Story.js'
+import User from '../models/User.js'
 
 // Obtener perfil de usuario público (OPTIMIZADO - Fase 2)
 export const getUserProfile = async (req, res) => {
@@ -1175,6 +1175,94 @@ export const unrestrictUser = async (req, res) => {
     })
   } catch (error) {
     logger.error('Error en unrestrictUser:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+/**
+ * @desc    Cambiar rol de un usuario (solo admin)
+ * @route   PUT /api/users/:userId/role
+ * @access  Private (Admin only)
+ */
+export const changeUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params
+    const { role } = req.body
+    const adminId = req.user.id
+
+    // Validar rol
+    const validRoles = ['user', 'moderator', 'admin']
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Rol inválido. Roles permitidos: ${validRoles.join(', ')}`
+      })
+    }
+
+    // Buscar usuario objetivo
+    const targetUser = await User.findById(userId)
+    if (!targetUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      })
+    }
+
+    // No permitir que un usuario se cambie el rol a sí mismo
+    if (userId === adminId) {
+      return res.status(403).json({
+        success: false,
+        message: 'No puedes cambiar tu propio rol'
+      })
+    }
+
+    // Guardar rol anterior
+    const oldRole = targetUser.role || 'user'
+
+    // Actualizar rol
+    targetUser.role = role
+    await targetUser.save()
+
+    // Notificar al usuario
+    await Notification.create({
+      user: userId,
+      type: 'system',
+      message: role === 'admin'
+        ? '¡Felicidades! Ahora eres administrador de CircleSfera'
+        : role === 'moderator'
+          ? 'Has sido designado como moderador de CircleSfera'
+          : 'Tu rol ha sido actualizado a usuario estándar',
+      relatedContent: {
+        type: 'user',
+        id: userId
+      }
+    })
+
+    logger.info('Rol de usuario actualizado:', {
+      targetUserId: userId,
+      targetUsername: targetUser.username,
+      oldRole,
+      newRole: role,
+      changedBy: adminId
+    })
+
+    res.json({
+      success: true,
+      message: `Rol actualizado de "${oldRole}" a "${role}" exitosamente`,
+      user: {
+        _id: targetUser._id,
+        username: targetUser.username,
+        email: targetUser.email,
+        role: targetUser.role,
+        fullName: targetUser.fullName,
+        avatar: targetUser.avatar
+      }
+    })
+  } catch (error) {
+    logger.error('Error en changeUserRole:', error)
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

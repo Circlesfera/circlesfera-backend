@@ -2,6 +2,7 @@ import express from 'express'
 const router = express.Router()
 import {
   blockUser,
+  changeUserRole,
   followUser,
   getBlockedUsers,
   getFollowers,
@@ -21,7 +22,11 @@ import {
   updatePrivacySettings,
   updateSecuritySettings
 } from '../controllers/userController.js'
+import { changeRoleSchema } from '../schemas/userSchema.js'
 import { auth, optionalAuth } from '../middlewares/auth.js'
+import { checkRole } from '../middlewares/checkRole.js'
+import { csrfProtection } from '../middlewares/csrf.js'
+import { validate } from '../middlewares/validate.js'
 
 // Rutas públicas
 router.get('/search', searchUsers)
@@ -49,5 +54,8 @@ router.put('/settings/privacy', auth, updatePrivacySettings)
 router.put('/settings/notifications', auth, updateNotificationSettings)
 router.put('/settings/security', auth, updateSecuritySettings)
 router.put('/two-factor', auth, toggleTwoFactor)
+
+// Rutas de administración (solo admin)
+router.put('/:userId/role', auth, csrfProtection(), checkRole(['admin']), validate(changeRoleSchema), changeUserRole)
 
 export default router

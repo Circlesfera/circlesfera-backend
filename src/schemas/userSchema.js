@@ -142,12 +142,22 @@ const resetPasswordSchema = z.object({
     .regex(/[0-9]/, 'Password debe contener al menos un número')
 })
 
+/**
+ * Schema de validación para cambiar rol de usuario (solo admin)
+ */
+const changeRoleSchema = z.object({
+  role: z.enum(['user', 'moderator', 'admin'], {
+    errorMap: () => ({ message: 'Rol debe ser: user, moderator o admin' })
+  })
+})
+
 export {
-  registerSchema,
-  loginSchema,
-  updateProfileSchema,
   changePasswordSchema,
+  changeRoleSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  updateProfileSchema
 }
 
