@@ -47,6 +47,7 @@ class AnalyticsService {
    */
   static async getDashboardMetrics(timeRange = '24h') {
     try {
+      logger.info('getDashboardMetrics called with timeRange:', timeRange)
       const now = new Date()
       let startDate
 
@@ -66,6 +67,12 @@ class AnalyticsService {
         default:
           startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
       }
+
+      logger.info('Date range calculated:', { 
+        timeRange, 
+        startDate: startDate.toISOString(), 
+        endDate: now.toISOString() 
+      })
 
       // Ejecutar todas las consultas en paralelo
       const [
@@ -95,6 +102,21 @@ class AnalyticsService {
         this.getPlatformUsage(startDate, now),
         this.getErrorMetrics(startDate, now)
       ])
+
+      logger.info('All queries completed successfully:', {
+        activeUsers,
+        newUsers,
+        totalPosts,
+        totalReels,
+        totalStories,
+        totalReports,
+        hasEngagement: !!engagementMetrics,
+        hasTopContent: !!topContent,
+        hasGrowth: !!userGrowth,
+        hasGeographic: !!geographicData,
+        hasPlatform: !!platformUsage,
+        hasErrors: !!errorMetrics
+      })
 
       return {
         overview: {

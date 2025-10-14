@@ -13,9 +13,21 @@ import logger from '../utils/logger.js'
  */
 export const getRealTimeDashboard = asyncHandler(async (req, res) => {
   try {
+    logger.info('Dashboard request received:', { 
+      timeRange: req.query.timeRange,
+      user: req.user?.id,
+      query: req.query 
+    })
+
     const { timeRange = '24h' } = req.query
 
+    logger.info('Calling AnalyticsService.getDashboardMetrics with:', { timeRange })
     const metrics = await AnalyticsService.getDashboardMetrics(timeRange)
+    logger.info('Dashboard metrics retrieved successfully:', { 
+      overviewKeys: Object.keys(metrics.overview || {}),
+      hasEngagement: !!metrics.engagement,
+      hasTopContent: !!metrics.topContent
+    })
 
     res.json({
       success: true,
@@ -24,7 +36,12 @@ export const getRealTimeDashboard = asyncHandler(async (req, res) => {
     })
 
   } catch (error) {
-    logger.error('Error getting real-time dashboard metrics:', error)
+    logger.error('Error getting real-time dashboard metrics:', {
+      error: error.message,
+      stack: error.stack,
+      timeRange: req.query.timeRange,
+      user: req.user?.id
+    })
     res.status(500).json({
       success: false,
       message: 'Error al obtener métricas del dashboard'
