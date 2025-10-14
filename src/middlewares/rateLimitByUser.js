@@ -33,13 +33,13 @@ const RATE_LIMITS = {
     like: { max: 200, window: 60 * 60 }, // 200 likes en 1 hora
     follow: { max: 100, window: 60 * 60 }, // 100 follows en 1 hora
     unfollow: { max: 100, window: 60 * 60 }, // 100 unfollows en 1 hora
-    sendMessage: { max: 100, window: 60 * 60 } // 100 mensajes en 1 hora
+    sendMessage: { max: 1000, window: 60 * 60 } // 1000 mensajes en 1 hora (desarrollo)
   },
 
   // Operaciones de búsqueda/consulta
   query: {
-    search: { max: 100, window: 15 * 60 }, // 100 búsquedas en 15 min
-    feed: { max: 200, window: 15 * 60 } // 200 consultas al feed en 15 min
+    search: { max: 1000, window: 15 * 60 }, // 1000 búsquedas en 15 min (desarrollo)
+    feed: { max: 1000, window: 15 * 60 } // 1000 consultas al feed en 15 min (desarrollo)
   },
 
   // Operaciones peligrosas

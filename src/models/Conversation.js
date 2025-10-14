@@ -275,11 +275,21 @@ ConversationSchema.statics.findByUser = function (userId, options = {}) {
     query['settings.isArchived'] = false
   }
 
-  return this.find(query)
+  let queryBuilder = this.find(query)
     .populate('participants', 'username avatar fullName')
     .populate('lastMessage.sender', 'username avatar')
     .populate('admins', 'username avatar')
     .sort({ 'lastMessage.timestamp': -1 })
+
+  // Aplicar paginación si se proporciona
+  if (options.skip) {
+    queryBuilder = queryBuilder.skip(options.skip)
+  }
+  if (options.limit) {
+    queryBuilder = queryBuilder.limit(options.limit)
+  }
+
+  return queryBuilder
 }
 
 ConversationSchema.statics.findDirectConversation = function (userId1, userId2) {
@@ -309,9 +319,9 @@ ConversationSchema.statics.findOrCreateDirectConversation = async function (user
 
 ConversationSchema.statics.getUnreadCount = function (userId) {
   return this.aggregate([
-    { $match: { participants: mongoose.Types.ObjectId(userId), 'settings.isDeleted': false } },
+    { $match: { participants: new mongoose.Types.ObjectId(userId), 'settings.isDeleted': false } },
     { $unwind: '$settings.userSettings' },
-    { $match: { 'settings.userSettings.user': mongoose.Types.ObjectId(userId) } },
+    { $match: { 'settings.userSettings.user': new mongoose.Types.ObjectId(userId) } },
     {
       $group: {
         _id: null,

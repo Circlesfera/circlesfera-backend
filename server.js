@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser'
 import http from 'http'
 import connectDB from './src/config/db.js'
 import socketService from './src/services/socketService.js'
+import analyticsSocketService from './src/services/analyticsSocketService.js'
 import redisService from './src/services/redisService.js'
 import logger from './src/utils/logger.js'
 import { config, validateConfig } from './src/utils/config.js'
@@ -303,6 +304,9 @@ const server = http.createServer(app)
 // Inicializar WebSockets
 socketService.initialize(server)
 
+// Inicializar Socket.IO para analytics en tiempo real usando namespace
+analyticsSocketService.initialize(socketService.io)
+
 // Inicializar Sentry
 initMonitoring(app)
 
@@ -325,7 +329,12 @@ setInterval(() => {
 
 // Manejo de errores no capturados
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason)
+  logger.error('Unhandled Rejection:', {
+    reason: reason,
+    promise: promise,
+    stack: reason?.stack,
+    message: reason?.message
+  })
   // Cerrar servidor gracefully
   server.close(() => {
     process.exit(1)
@@ -333,7 +342,13 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 process.on('uncaughtException', error => {
-  logger.error('Uncaught Exception:', error)
+  logger.error('Uncaught Exception:', {
+    message: error.message,
+    stack: error.stack,
+    name: error.name,
+    cause: error.cause,
+    error: error
+  })
   // Cerrar servidor gracefully
   server.close(() => {
     process.exit(1)

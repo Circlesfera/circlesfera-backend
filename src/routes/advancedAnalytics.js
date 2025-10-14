@@ -1,5 +1,5 @@
 import express from 'express'
-import { protect } from '../middlewares/auth.js'
+import { auth as protect } from '../middlewares/auth.js'
 import { requireAdmin, requireAdminPermission } from '../middlewares/adminAuth.js'
 import { validate } from '../middlewares/validate.js'
 import {
@@ -12,7 +12,7 @@ import {
   getPeriodComparison,
   getCustomMetrics
 } from '../controllers/advancedAnalyticsController.js'
-import Joi from 'joi'
+import { z } from 'zod'
 
 const router = express.Router()
 
@@ -21,54 +21,54 @@ router.use(protect)
 router.use(requireAdminPermission('view_analytics'))
 
 // Esquemas de validación
-const timeRangeSchema = Joi.object({
-  timeRange: Joi.string().valid('1h', '24h', '7d', '30d', '90d').default('24h')
+const timeRangeSchema = z.object({
+  timeRange: z.enum(['1h', '24h', '7d', '30d', '90d']).default('24h')
 })
 
-const userAnalyticsSchema = Joi.object({
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d'),
-  userId: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
-  groupBy: Joi.string().valid('daily', 'weekly', 'monthly').default('daily')
+const userAnalyticsSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
+  userId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  groupBy: z.enum(['daily', 'weekly', 'monthly']).default('daily')
 })
 
-const contentAnalyticsSchema = Joi.object({
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d'),
-  contentType: Joi.string().valid('post', 'reel', 'story').optional(),
-  sortBy: Joi.string().valid('engagement', 'likes', 'comments', 'views').default('engagement')
+const contentAnalyticsSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
+  contentType: z.enum(['post', 'reel', 'story']).optional(),
+  sortBy: z.enum(['engagement', 'likes', 'comments', 'views']).default('engagement')
 })
 
-const engagementAnalyticsSchema = Joi.object({
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d'),
-  groupBy: Joi.string().valid('daily', 'weekly', 'monthly').default('daily')
+const engagementAnalyticsSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
+  groupBy: z.enum(['daily', 'weekly', 'monthly']).default('daily')
 })
 
-const geographicAnalyticsSchema = Joi.object({
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d'),
-  country: Joi.string().optional(),
-  region: Joi.string().optional()
+const geographicAnalyticsSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
+  country: z.string().optional(),
+  region: z.string().optional()
 })
 
-const platformAnalyticsSchema = Joi.object({
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d')
+const platformAnalyticsSchema = z.object({
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d')
 })
 
-const periodComparisonSchema = Joi.object({
-  metricType: Joi.string().required(),
-  currentPeriod: Joi.object({
-    start: Joi.date().required(),
-    end: Joi.date().required()
-  }).required(),
-  previousPeriod: Joi.object({
-    start: Joi.date().required(),
-    end: Joi.date().required()
-  }).required()
+const periodComparisonSchema = z.object({
+  metricType: z.string().min(1),
+  currentPeriod: z.object({
+    start: z.coerce.date(),
+    end: z.coerce.date()
+  }),
+  previousPeriod: z.object({
+    start: z.coerce.date(),
+    end: z.coerce.date()
+  })
 })
 
-const customMetricsSchema = Joi.object({
-  metrics: Joi.array().items(
-    Joi.object({
-      name: Joi.string().required(),
-      type: Joi.string().valid(
+const customMetricsSchema = z.object({
+  metrics: z.array(
+    z.object({
+      name: z.string().min(1),
+      type: z.enum([
         'active_users',
         'new_users',
         'content_created',
@@ -76,13 +76,13 @@ const customMetricsSchema = Joi.object({
         'top_content',
         'geographic',
         'platform'
-      ).required(),
-      limit: Joi.number().integer().min(1).max(100).optional()
+      ]),
+      limit: z.number().int().min(1).max(100).optional()
     })
-  ).min(1).required(),
-  timeRange: Joi.string().valid('7d', '30d', '90d').default('30d'),
-  filters: Joi.object().optional(),
-  groupBy: Joi.string().valid('daily', 'weekly', 'monthly').default('daily')
+  ).min(1),
+  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
+  filters: z.object({}).optional(),
+  groupBy: z.enum(['daily', 'weekly', 'monthly']).default('daily')
 })
 
 /**

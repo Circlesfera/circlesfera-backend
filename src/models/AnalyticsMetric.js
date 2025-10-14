@@ -33,8 +33,7 @@ const AnalyticsMetricSchema = new mongoose.Schema({
   // Fecha de inicio del período
   periodStart: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   },
 
   // Fecha de fin del período

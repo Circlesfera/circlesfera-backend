@@ -29,9 +29,6 @@ export const getMessages = async (req, res) => {
     }
 
     const messages = await Message.findByConversation(conversationId, { skip, limit })
-      .populate('sender', 'username avatar fullName')
-      .populate('replyTo', 'content sender createdAt')
-      .sort({ createdAt: -1 })
 
     const total = await Message.countDocuments({
       conversation: conversationId,

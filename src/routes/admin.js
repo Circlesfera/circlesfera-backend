@@ -1,5 +1,5 @@
 import express from 'express'
-import { protect } from '../middlewares/auth.js'
+import { auth as protect } from '../middlewares/auth.js'
 import { requireAdmin, requireSuperAdmin, requireAdminPermission } from '../middlewares/adminAuth.js'
 import { validate } from '../middlewares/validate.js'
 import {

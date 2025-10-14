@@ -183,8 +183,7 @@ const UserSchema = new mongoose.Schema({
     type: Date
   },
   banExpiresAt: {
-    type: Date,
-    index: true
+    type: Date
   },
   unbannedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -205,8 +204,7 @@ const UserSchema = new mongoose.Schema({
     type: Date
   },
   suspensionExpiresAt: {
-    type: Date,
-    index: true
+    type: Date
   },
   unsuspendedBy: {
     type: mongoose.Schema.Types.ObjectId,

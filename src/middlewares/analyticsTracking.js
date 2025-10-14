@@ -1,4 +1,5 @@
 import AnalyticsService from '../services/analyticsService.js'
+import analyticsSocketService from '../services/analyticsSocketService.js'
 import logger from '../utils/logger.js'
 
 /**

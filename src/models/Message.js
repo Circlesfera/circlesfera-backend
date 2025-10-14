@@ -307,7 +307,7 @@ MessageSchema.statics.searchMessages = function (conversationId, query, options 
 
 MessageSchema.statics.getMessageStats = function (conversationId) {
   return this.aggregate([
-    { $match: { conversation: mongoose.Types.ObjectId(conversationId), isDeleted: false } },
+    { $match: { conversation: new mongoose.Types.ObjectId(conversationId), isDeleted: false } },
     {
       $group: {
         _id: '$type',

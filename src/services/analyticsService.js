@@ -1,11 +1,12 @@
 import AnalyticsEvent from '../models/AnalyticsEvent.js'
 import AnalyticsMetric from '../models/AnalyticsMetric.js'
-import { User } from '../models/User.js'
-import { Post } from '../models/Post.js'
-import { Reel } from '../models/Reel.js'
-import { Story } from '../models/Story.js'
-import { Report } from '../models/Report.js'
+import User from '../models/User.js'
+import Post from '../models/Post.js'
+import Reel from '../models/Reel.js'
+import Story from '../models/Story.js'
+import Report from '../models/Report.js'
 import logger from '../utils/logger.js'
+import analyticsSocketService from './analyticsSocketService.js'
 
 /**
  * Servicio de Analytics - Maneja toda la lógica de análisis y métricas
@@ -19,8 +20,20 @@ class AnalyticsService {
       const event = new AnalyticsEvent(eventData)
       await event.save()
 
-      // Emitir evento en tiempo real si hay WebSocket conectado
-      // Esto se implementará más tarde con Socket.IO
+      // Emitir evento en tiempo real a través de WebSockets
+      if (analyticsSocketService && analyticsSocketService.io) {
+        analyticsSocketService.emitToAllAdmins('analytics-event', {
+          type: 'new-event',
+          event: {
+            eventType: event.eventType,
+            userId: event.userId,
+            contentType: event.contentType,
+            category: event.category,
+            severity: event.severity,
+            timestamp: event.createdAt
+          }
+        })
+      }
 
       return event
     } catch (error) {
@@ -65,7 +78,9 @@ class AnalyticsService {
         engagementMetrics,
         topContent,
         userGrowth,
-        geographicData
+        geographicData,
+        platformUsage,
+        errorMetrics
       ] = await Promise.all([
         this.getActiveUsers(startDate, now),
         this.getNewUsers(startDate, now),

@@ -16,7 +16,7 @@ export const getConversations = async (req, res) => {
 
     const total = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false
+      'settings.isDeleted': false
     })
 
     res.json({
@@ -517,7 +517,7 @@ export const getConversationStats = async (req, res) => {
   try {
     const totalConversations = await Conversation.countDocuments({
       participants: req.user.id,
-      isDeleted: false
+      'settings.isDeleted': false
     })
 
     const unreadCount = await Conversation.getUnreadCount(req.user.id)
