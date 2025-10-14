@@ -18,13 +18,18 @@ class AnalyticsSocketService {
    * Inicializar el servicio de WebSockets usando namespace
    */
   initialize(socketServiceInstance) {
-    // Usar namespace en lugar de crear nueva instancia de Server
-    this.io = socketServiceInstance.of('/analytics')
+    try {
+      // Usar namespace en lugar de crear nueva instancia de Server
+      this.io = socketServiceInstance.of('/analytics')
 
-    this.setupEventHandlers()
-    this.startRealTimeUpdates()
+      this.setupEventHandlers()
+      this.startRealTimeUpdates()
 
-    logger.info('Analytics WebSocket service initialized')
+      logger.info('Analytics WebSocket service initialized with namespace /analytics')
+    } catch (error) {
+      logger.error('Error initializing Analytics WebSocket service:', error)
+      throw error
+    }
   }
 
   /**
