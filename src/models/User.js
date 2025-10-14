@@ -163,7 +163,76 @@ const UserSchema = new mongoose.Schema({
     type: String,
     lowercase: true,
     trim: true
-  }]
+  }],
+
+  // Campos de administración
+  isBanned: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  banReason: {
+    type: String,
+    trim: true
+  },
+  bannedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  bannedAt: {
+    type: Date
+  },
+  banExpiresAt: {
+    type: Date,
+    index: true
+  },
+  unbannedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  unbannedAt: {
+    type: Date
+  },
+  suspensionReason: {
+    type: String,
+    trim: true
+  },
+  suspendedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  suspendedAt: {
+    type: Date
+  },
+  suspensionExpiresAt: {
+    type: Date,
+    index: true
+  },
+  unsuspendedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  unsuspendedAt: {
+    type: Date
+  },
+  verifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  verifiedAt: {
+    type: Date
+  },
+  unverifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  unverifiedAt: {
+    type: Date
+  },
+  lastLoginAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
@@ -177,6 +246,13 @@ UserSchema.index({ username: 1, isActive: 1 })
 UserSchema.index({ email: 1, isActive: 1 })
 UserSchema.index({ isActive: 1, createdAt: -1 })
 UserSchema.index({ isActive: 1, isPrivate: 1 })
+// Índices para administración
+UserSchema.index({ role: 1, isActive: 1 })
+UserSchema.index({ isBanned: 1, isActive: 1 })
+UserSchema.index({ isVerified: 1 })
+UserSchema.index({ lastLoginAt: -1 })
+UserSchema.index({ banExpiresAt: 1 })
+UserSchema.index({ suspensionExpiresAt: 1 })
 
 // Virtuals
 UserSchema.virtual('followersCount').get(function () {

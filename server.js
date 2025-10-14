@@ -54,6 +54,7 @@ import analyticsRoutes from './src/routes/analytics.js'
 import liveStreamRoutes from './src/routes/liveStream.js'
 import cstvRoutes from './src/routes/cstv.js'
 import reportRoutes from './src/routes/report.js'
+import adminRoutes from './src/routes/admin.js'
 
 // Compresión HTTP
 app.use(compression())
@@ -211,6 +212,8 @@ app.use('/api/analytics', analyticsRoutes)
 app.use('/api/live-streams', liveStreamRoutes)
 app.use('/api/cstv', cstvRoutes)
 app.use('/api/reports', reportRoutes)
+app.use('/api/admin', adminRoutes)
+
 // User content routes al final (captura /:username/*)
 app.use('/api', userContentRoutes)
 
