@@ -71,14 +71,12 @@ class AnalyticsService {
       const [
         activeUsers,
         newUsers,
-        totalPosts,
-        totalReels,
-        totalStories,
-        totalReports,
+        contentMetrics,
         engagementMetrics,
         topContent,
         userGrowth,
         geographicData,
+        totalReports,
         platformUsage,
         errorMetrics
       ] = await Promise.all([
@@ -98,9 +96,9 @@ class AnalyticsService {
         overview: {
           activeUsers,
           newUsers,
-          totalPosts,
-          totalReels,
-          totalStories,
+          totalPosts: contentMetrics.posts,
+          totalReels: contentMetrics.reels,
+          totalStories: contentMetrics.stories,
           totalReports
         },
         engagement: engagementMetrics,
