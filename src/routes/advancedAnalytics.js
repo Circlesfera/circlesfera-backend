@@ -185,27 +185,6 @@ const customMetricsSchema = z.object({
  */
 router.get('/dashboard', validate(timeRangeSchema), getRealTimeDashboard)
 
-// Endpoint temporal para debugging
-router.get('/dashboard-debug', validate(timeRangeSchema), async (req, res) => {
-  try {
-    const { timeRange = '24h' } = req.query
-    res.json({
-      success: true,
-      data: {
-        message: 'Debug endpoint working',
-        timeRange,
-        timestamp: new Date().toISOString(),
-        user: req.user?.id
-      }
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Debug endpoint error',
-      error: error.message
-    })
-  }
-})
 
 /**
  * @swagger
