@@ -68,10 +68,10 @@ class AnalyticsService {
           startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
       }
 
-      logger.info('Date range calculated:', { 
-        timeRange, 
-        startDate: startDate.toISOString(), 
-        endDate: now.toISOString() 
+      logger.info('Date range calculated:', {
+        timeRange,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString()
       })
 
       // Ejecutar todas las consultas en paralelo

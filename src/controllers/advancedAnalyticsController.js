@@ -13,17 +13,17 @@ import logger from '../utils/logger.js'
  */
 export const getRealTimeDashboard = asyncHandler(async (req, res) => {
   try {
-    logger.info('Dashboard request received:', { 
+    logger.info('Dashboard request received:', {
       timeRange: req.query.timeRange,
       user: req.user?.id,
-      query: req.query 
+      query: req.query
     })
 
     const { timeRange = '24h' } = req.query
 
     logger.info('Calling AnalyticsService.getDashboardMetrics with:', { timeRange })
     const metrics = await AnalyticsService.getDashboardMetrics(timeRange)
-    logger.info('Dashboard metrics retrieved successfully:', { 
+    logger.info('Dashboard metrics retrieved successfully:', {
       overviewKeys: Object.keys(metrics.overview || {}),
       hasEngagement: !!metrics.engagement,
       hasTopContent: !!metrics.topContent

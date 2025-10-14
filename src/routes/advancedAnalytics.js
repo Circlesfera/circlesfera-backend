@@ -22,34 +22,46 @@ router.use(requireAdminPermission('view_analytics'))
 
 // Esquemas de validación
 const timeRangeSchema = z.object({
-  timeRange: z.enum(['1h', '24h', '7d', '30d', '90d']).default('24h')
+  query: z.object({
+    timeRange: z.enum(['1h', '24h', '7d', '30d', '90d']).optional().default('24h')
+  })
 })
 
 const userAnalyticsSchema = z.object({
-  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
-  userId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
-  groupBy: z.enum(['daily', 'weekly', 'monthly']).default('daily')
+  query: z.object({
+    timeRange: z.enum(['7d', '30d', '90d']).optional().default('30d'),
+    userId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+    groupBy: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily')
+  })
 })
 
 const contentAnalyticsSchema = z.object({
-  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
-  contentType: z.enum(['post', 'reel', 'story']).optional(),
-  sortBy: z.enum(['engagement', 'likes', 'comments', 'views']).default('engagement')
+  query: z.object({
+    timeRange: z.enum(['7d', '30d', '90d']).optional().default('30d'),
+    contentType: z.enum(['post', 'reel', 'story']).optional(),
+    sortBy: z.enum(['engagement', 'likes', 'comments', 'views']).optional().default('engagement')
+  })
 })
 
 const engagementAnalyticsSchema = z.object({
-  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
-  groupBy: z.enum(['daily', 'weekly', 'monthly']).default('daily')
+  query: z.object({
+    timeRange: z.enum(['7d', '30d', '90d']).optional().default('30d'),
+    groupBy: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily')
+  })
 })
 
 const geographicAnalyticsSchema = z.object({
-  timeRange: z.enum(['7d', '30d', '90d']).default('30d'),
-  country: z.string().optional(),
-  region: z.string().optional()
+  query: z.object({
+    timeRange: z.enum(['7d', '30d', '90d']).optional().default('30d'),
+    country: z.string().optional(),
+    region: z.string().optional()
+  })
 })
 
 const platformAnalyticsSchema = z.object({
-  timeRange: z.enum(['7d', '30d', '90d']).default('30d')
+  query: z.object({
+    timeRange: z.enum(['7d', '30d', '90d']).optional().default('30d')
+  })
 })
 
 const periodComparisonSchema = z.object({
