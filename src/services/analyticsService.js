@@ -71,23 +71,27 @@ class AnalyticsService {
       const [
         activeUsers,
         newUsers,
-        contentMetrics,
+        totalPosts,
+        totalReels,
+        totalStories,
+        totalReports,
         engagementMetrics,
         topContent,
         userGrowth,
         geographicData,
-        totalReports,
         platformUsage,
         errorMetrics
       ] = await Promise.all([
         this.getActiveUsers(startDate, now),
         this.getNewUsers(startDate, now),
-        this.getContentMetrics(startDate, now),
+        this.getTotalPosts(startDate, now),
+        this.getTotalReels(startDate, now),
+        this.getTotalStories(startDate, now),
+        Report.countDocuments({ createdAt: { $gte: startDate } }),
         this.getEngagementMetrics(startDate, now),
         this.getTopContent(startDate, now),
         this.getUserGrowth(startDate, now),
         this.getGeographicDistribution(startDate, now),
-        Report.countDocuments({ createdAt: { $gte: startDate } }),
         this.getPlatformUsage(startDate, now),
         this.getErrorMetrics(startDate, now)
       ])
@@ -96,9 +100,9 @@ class AnalyticsService {
         overview: {
           activeUsers,
           newUsers,
-          totalPosts: contentMetrics.posts,
-          totalReels: contentMetrics.reels,
-          totalStories: contentMetrics.stories,
+          totalPosts,
+          totalReels,
+          totalStories,
           totalReports
         },
         engagement: engagementMetrics,
@@ -163,6 +167,27 @@ class AnalyticsService {
     ])
 
     return { posts, reels, stories }
+  }
+
+  /**
+   * Obtener total de posts
+   */
+  static async getTotalPosts(startDate, endDate) {
+    return await Post.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
+  }
+
+  /**
+   * Obtener total de reels
+   */
+  static async getTotalReels(startDate, endDate) {
+    return await Reel.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
+  }
+
+  /**
+   * Obtener total de stories
+   */
+  static async getTotalStories(startDate, endDate) {
+    return await Story.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
   }
 
   /**
