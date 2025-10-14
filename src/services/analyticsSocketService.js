@@ -15,17 +15,25 @@ class AnalyticsSocketService {
   }
 
   /**
-   * Inicializar el servicio de WebSockets usando namespace
+   * Inicializar el servicio de WebSockets con servidor separado
    */
-  initialize(socketServiceInstance) {
+  initialize(server) {
     try {
-      // Usar namespace en lugar de crear nueva instancia de Server
-      this.io = socketServiceInstance.of('/analytics')
+      // Crear servidor Socket.IO separado para analytics
+      this.io = new Server(server, {
+        cors: {
+          origin: process.env.CORS_ORIGIN || "http://localhost:3001",
+          methods: ['GET', 'POST'],
+          credentials: true
+        },
+        transports: ['websocket', 'polling'],
+        path: '/analytics-socket.io' // Ruta específica para analytics
+      })
 
       this.setupEventHandlers()
       this.startRealTimeUpdates()
 
-      logger.info('Analytics WebSocket service initialized with namespace /analytics')
+      logger.info('Analytics WebSocket service initialized with separate server on /analytics-socket.io')
     } catch (error) {
       logger.error('Error initializing Analytics WebSocket service:', error)
       throw error

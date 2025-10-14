@@ -314,11 +314,8 @@ const server = http.createServer(app)
 // Inicializar WebSockets
 socketService.initialize(server)
 
-// Inicializar Socket.IO para analytics en tiempo real usando namespace
-// Agregar delay para asegurar que socketService.io esté completamente inicializado
-setTimeout(() => {
-  analyticsSocketService.initialize(socketService.io)
-}, 100)
+// Inicializar Socket.IO para analytics en tiempo real con servidor separado
+analyticsSocketService.initialize(server)
 
 // Inicializar Sentry
 initMonitoring(app)
