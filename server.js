@@ -115,6 +115,16 @@ app.use('/api/messages', limiter)
 app.use('/api/live-streams', limiter)
 app.use('/api/cstv', limiter)
 app.use('/api/reports', limiter)
+// Rate limiting para analytics (más permisivo para desarrollo)
+app.use('/api/admin/analytics', rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.isDevelopment ? 100 : 20, // 100 requests en desarrollo, 20 en producción
+  message: {
+    error: 'Demasiadas solicitudes de analytics desde esta IP, intenta de nuevo más tarde.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+}))
 // Rate limiting para rutas de contenido de usuario
 app.use('/api/:username', limiter)
 
