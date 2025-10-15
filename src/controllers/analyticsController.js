@@ -323,6 +323,298 @@ export const getRecentActivity = async (req, res) => {
 }
 
 /**
+ * @desc    Obtener métricas de engagement reales
+ * @route   GET /api/analytics/engagement
+ * @access  Private (Admin/Moderator)
+ */
+export const getEngagementMetrics = async (req, res) => {
+  try {
+    const { timeRange = '24h' } = req.query
+
+    // Calcular fechas según el rango de tiempo
+    const now = new Date()
+    let startDate
+    let previousStartDate
+
+    switch (timeRange) {
+      case '1h':
+        startDate = new Date(now.getTime() - 60 * 60 * 1000)
+        previousStartDate = new Date(now.getTime() - 2 * 60 * 60 * 1000)
+        break
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        previousStartDate = new Date(now.getTime() - 48 * 60 * 60 * 1000)
+        break
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        previousStartDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+        break
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        previousStartDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+        break
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        previousStartDate = new Date(now.getTime() - 48 * 60 * 60 * 1000)
+    }
+
+    // Obtener métricas de engagement en paralelo
+    const [
+      totalLikes,
+      totalComments,
+      totalViews,
+      totalShares,
+      likesCurrentPeriod,
+      commentsCurrentPeriod,
+      viewsCurrentPeriod,
+      sharesCurrentPeriod,
+      likesPreviousPeriod,
+      commentsPreviousPeriod,
+      viewsPreviousPeriod,
+      sharesPreviousPeriod
+    ] = await Promise.all([
+      // Totales de todos los tiempos
+      Post.aggregate([
+        { $match: { isDeleted: false } },
+        { $group: { _id: null, total: { $sum: { $size: '$likes' } } } }
+      ]).then(result => result[0]?.total || 0),
+
+      Post.aggregate([
+        { $match: { isDeleted: false } },
+        { $group: { _id: null, total: { $sum: { $size: '$comments' } } } }
+      ]).then(result => result[0]?.total || 0),
+
+      Post.aggregate([
+        { $match: { isDeleted: false } },
+        { $group: { _id: null, total: { $sum: '$views' } } }
+      ]).then(result => result[0]?.total || 0),
+
+      Post.aggregate([
+        { $match: { isDeleted: false } },
+        { $group: { _id: null, total: { $sum: '$shares' } } }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período actual - Likes
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            'likes': { $exists: true, $ne: [] }
+          }
+        },
+        { $unwind: '$likes' },
+        {
+          $match: {
+            'likes.createdAt': { $gte: startDate }
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período actual - Comentarios
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            'comments': { $exists: true, $ne: [] }
+          }
+        },
+        { $unwind: '$comments' },
+        {
+          $match: {
+            'comments.createdAt': { $gte: startDate }
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período actual - Views (aproximado por posts creados en el período)
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            createdAt: { $gte: startDate }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$views' } } }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período actual - Shares (aproximado por posts creados en el período)
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            createdAt: { $gte: startDate }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$shares' } } }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período anterior - Likes
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            'likes': { $exists: true, $ne: [] }
+          }
+        },
+        { $unwind: '$likes' },
+        {
+          $match: {
+            'likes.createdAt': { $gte: previousStartDate, $lt: startDate }
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período anterior - Comentarios
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            'comments': { $exists: true, $ne: [] }
+          }
+        },
+        { $unwind: '$comments' },
+        {
+          $match: {
+            'comments.createdAt': { $gte: previousStartDate, $lt: startDate }
+          }
+        },
+        { $count: 'total' }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período anterior - Views
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            createdAt: { $gte: previousStartDate, $lt: startDate }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$views' } } }
+      ]).then(result => result[0]?.total || 0),
+
+      // Período anterior - Shares
+      Post.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            createdAt: { $gte: previousStartDate, $lt: startDate }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$shares' } } }
+      ]).then(result => result[0]?.total || 0)
+    ])
+
+    // Calcular cambios porcentuales
+    const calculatePercentageChange = (current, previous) => {
+      if (previous === 0) return current > 0 ? 100 : 0
+      return Math.round(((current - previous) / previous) * 100)
+    }
+
+    const likesChange = calculatePercentageChange(likesCurrentPeriod, likesPreviousPeriod)
+    const commentsChange = calculatePercentageChange(commentsCurrentPeriod, commentsPreviousPeriod)
+    const viewsChange = calculatePercentageChange(viewsCurrentPeriod, viewsPreviousPeriod)
+    const sharesChange = calculatePercentageChange(sharesCurrentPeriod, sharesPreviousPeriod)
+
+    // Calcular engagement rate promedio
+    const totalEngagement = totalLikes + totalComments + totalShares
+    const totalContent = await Post.countDocuments({ isDeleted: false }) + await Reel.countDocuments({ isDeleted: false })
+    const engagementRate = totalContent > 0 ? Math.round((totalEngagement / totalContent) * 100) / 100 : 0
+
+    res.json({
+      success: true,
+      data: {
+        totalLikes,
+        totalComments,
+        totalViews,
+        totalShares,
+        currentPeriod: {
+          likes: likesCurrentPeriod,
+          comments: commentsCurrentPeriod,
+          views: viewsCurrentPeriod,
+          shares: sharesCurrentPeriod
+        },
+        changes: {
+          likes: likesChange,
+          comments: commentsChange,
+          views: viewsChange,
+          shares: sharesChange
+        },
+        engagementRate,
+        timeRange
+      }
+    })
+  } catch (error) {
+    logger.error('Error en getEngagementMetrics:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+/**
+ * @desc    Obtener actividad en tiempo real
+ * @route   GET /api/analytics/realtime-activity
+ * @access  Private (Admin/Moderator)
+ */
+export const getRealtimeActivity = async (req, res) => {
+  try {
+    const { hours = 24 } = req.query
+    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000)
+
+    // Generar datos de actividad por hora
+    const activityData = []
+    const now = new Date()
+
+    for (let i = 0; i < hours; i++) {
+      const hourStart = new Date(now.getTime() - (hours - i) * 60 * 60 * 1000)
+      const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
+
+      // Contar usuarios activos en esta hora (simulado basado en posts/reels creados)
+      const [postsCount, reelsCount] = await Promise.all([
+        Post.countDocuments({
+          createdAt: { $gte: hourStart, $lt: hourEnd },
+          isDeleted: false
+        }),
+        Reel.countDocuments({
+          createdAt: { $gte: hourStart, $lt: hourEnd },
+          isDeleted: false
+        })
+      ])
+
+      // Estimar usuarios activos basado en contenido creado
+      const estimatedActiveUsers = Math.max(1, Math.floor((postsCount + reelsCount) * 2.5))
+
+      activityData.push({
+        hour: hourStart.getHours(),
+        activeUsers: estimatedActiveUsers,
+        posts: postsCount,
+        reels: reelsCount,
+        timestamp: hourStart.toISOString()
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        activityData,
+        timeRange: `${hours}h`,
+        totalActiveUsers: activityData.reduce((sum, item) => sum + item.activeUsers, 0)
+      }
+    })
+  } catch (error) {
+    logger.error('Error en getRealtimeActivity:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}
+
+/**
  * @desc    Obtener estadísticas generales del sistema (para dashboard admin)
  * @route   GET /api/analytics/dashboard
  * @access  Private (Admin/Moderator)

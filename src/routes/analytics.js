@@ -3,6 +3,8 @@ const router = express.Router()
 import {
   cleanup,
   getDashboardStats,
+  getEngagementMetrics,
+  getRealtimeActivity,
   getRecentActivity,
   getStats,
   getUserAnalytics,
@@ -22,5 +24,7 @@ router.delete('/cleanup', auth, checkRole(['admin']), cleanup)
 // Rutas de dashboard (admin/moderator)
 router.get('/dashboard', auth, checkRole(['admin', 'moderator']), getDashboardStats)
 router.get('/recent-activity', auth, checkRole(['admin', 'moderator']), getRecentActivity)
+router.get('/engagement', auth, checkRole(['admin', 'moderator']), getEngagementMetrics)
+router.get('/realtime-activity', auth, checkRole(['admin', 'moderator']), getRealtimeActivity)
 
 export default router
