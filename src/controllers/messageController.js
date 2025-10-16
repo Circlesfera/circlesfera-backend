@@ -30,6 +30,16 @@ export const getMessages = async (req, res) => {
 
     const messages = await Message.findByConversation(conversationId, { skip, limit })
 
+    // Debug: verificar si hay mensajes con sender null
+    const messagesWithNullSender = messages.filter(msg => !msg.sender)
+    if (messagesWithNullSender.length > 0) {
+      logger.warn('Mensajes con sender null encontrados:', {
+        conversationId,
+        count: messagesWithNullSender.length,
+        messageIds: messagesWithNullSender.map(msg => msg._id)
+      })
+    }
+
     const total = await Message.countDocuments({
       conversation: conversationId,
       isDeleted: false

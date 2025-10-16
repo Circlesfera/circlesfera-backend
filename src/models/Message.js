@@ -263,12 +263,25 @@ MessageSchema.statics.findByConversation = function (conversationId, options = {
     query._id = { $gt: options.afterId }
   }
 
-  return this.find(query)
+  const messages = await this.find(query)
     .populate('sender', 'username avatar fullName')
     .populate('replyTo', 'content sender')
     .populate('originalMessage', 'content sender')
     .sort({ createdAt: -1 })
     .limit(options.limit || 50)
+
+  // Debug: verificar populate de sender
+  const messagesWithNullSender = messages.filter(msg => !msg.sender)
+  if (messagesWithNullSender.length > 0) {
+    console.log('DEBUG - Mensajes con sender null después de populate:', {
+      conversationId,
+      count: messagesWithNullSender.length,
+      messageIds: messagesWithNullSender.map(msg => msg._id),
+      rawSenders: messagesWithNullSender.map(msg => msg.sender)
+    })
+  }
+
+  return messages
 }
 
 MessageSchema.statics.findUnreadMessages = function (conversationId, userId) {
