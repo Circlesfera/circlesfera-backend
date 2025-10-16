@@ -69,9 +69,9 @@ app.use(
         defaultSrc: ['\'self\''],
         styleSrc: ['\'self\'', '\'unsafe-inline\''],
         scriptSrc: ['\'self\''],
-        imgSrc: ['\'self\'', 'data:', 'blob:'],
+        imgSrc: ['\'self\'', 'data:', 'blob:', 'http://localhost:3001', 'http://localhost:5001'],
         mediaSrc: ['\'self\'', 'data:', 'blob:'],
-        connectSrc: ['\'self\''],
+        connectSrc: ['\'self\'', 'http://localhost:3001', 'http://localhost:5001'],
         fontSrc: ['\'self\'', 'https:', 'data:'],
         objectSrc: ['\'none\''],
         upgradeInsecureRequests: []
