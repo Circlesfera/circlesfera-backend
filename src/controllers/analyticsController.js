@@ -573,8 +573,8 @@ export const getRealtimeActivity = async (req, res) => {
       const hourStart = new Date(now.getTime() - (hours - i) * 60 * 60 * 1000)
       const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
 
-      // Contar usuarios activos en esta hora (simulado basado en posts/reels creados)
-      const [postsCount, reelsCount] = await Promise.all([
+      // Contar actividad real en esta hora
+      const [postsCount, reelsCount, commentsCount, likesCount] = await Promise.all([
         Post.countDocuments({
           createdAt: { $gte: hourStart, $lt: hourEnd },
           isDeleted: false
@@ -582,11 +582,56 @@ export const getRealtimeActivity = async (req, res) => {
         Reel.countDocuments({
           createdAt: { $gte: hourStart, $lt: hourEnd },
           isDeleted: false
-        })
+        }),
+        // Contar comentarios creados en esta hora
+        Post.aggregate([
+          {
+            $match: {
+              isDeleted: false,
+              'comments': { $exists: true, $ne: [] }
+            }
+          },
+          { $unwind: '$comments' },
+          {
+            $match: {
+              'comments.createdAt': { $gte: hourStart, $lt: hourEnd }
+            }
+          },
+          { $count: 'total' }
+        ]).then(result => result[0]?.total || 0),
+
+        // Contar likes dados en esta hora
+        Post.aggregate([
+          {
+            $match: {
+              isDeleted: false,
+              'likes': { $exists: true, $ne: [] }
+            }
+          },
+          { $unwind: '$likes' },
+          {
+            $match: {
+              'likes.createdAt': { $gte: hourStart, $lt: hourEnd }
+            }
+          },
+          { $count: 'total' }
+        ]).then(result => result[0]?.total || 0)
       ])
 
-      // Estimar usuarios activos basado en contenido creado
-      const estimatedActiveUsers = Math.max(1, Math.floor((postsCount + reelsCount) * 2.5))
+      // Estimar usuarios activos de manera más realista
+      // Un usuario activo puede crear contenido, comentar o dar likes
+      // Usamos una estimación más conservadora
+      const contentCreators = postsCount + reelsCount
+      const commenters = commentsCount
+      const likers = likesCount
+
+      // Estimación más realista: asumir que algunos usuarios hacen múltiples acciones
+      // pero no todos los likes/comentarios son de usuarios únicos
+      const estimatedActiveUsers = Math.max(1, Math.floor(
+        contentCreators +
+        (commenters * 0.8) + // 80% de los comentarios son de usuarios únicos
+        (likers * 0.3)       // 30% de los likes son de usuarios únicos
+      ))
 
       activityData.push({
         hour: hourStart.getHours(),
