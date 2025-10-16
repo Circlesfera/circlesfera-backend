@@ -249,7 +249,7 @@ MessageSchema.methods.forward = function (targetConversationId) {
 }
 
 // Métodos estáticos
-MessageSchema.statics.findByConversation = function (conversationId, options = {}) {
+MessageSchema.statics.findByConversation = async function (conversationId, options = {}) {
   const query = {
     conversation: conversationId,
     isDeleted: false
