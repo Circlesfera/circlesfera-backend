@@ -8,8 +8,11 @@ import logger from '../utils/logger.js'
  */
 export const checkRole = (roles) => async (req, res, next) => {
   try {
+    logger.info(`checkRole: Verificando roles ${roles.join(', ')} para usuario ${req.user?.id}`)
+
     // Verificar que el usuario esté autenticado (debe venir del middleware auth)
     if (!req.user || !req.user.id) {
+      logger.warn('checkRole: Usuario no autenticado')
       return res.status(401).json({
         success: false,
         message: 'No autenticado'
@@ -18,6 +21,7 @@ export const checkRole = (roles) => async (req, res, next) => {
 
     // Obtener usuario de la base de datos para tener el rol actualizado
     const user = await User.findById(req.user.id).select('role username')
+    logger.info(`checkRole: Usuario encontrado: ${user?.username} con rol: ${user?.role}`)
 
     if (!user) {
       return res.status(404).json({

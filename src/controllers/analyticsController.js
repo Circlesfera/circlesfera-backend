@@ -562,8 +562,11 @@ export const getEngagementMetrics = async (req, res) => {
  */
 export const getRealtimeActivity = async (req, res) => {
   try {
+    logger.info('Iniciando getRealtimeActivity con usuario:', req.user?.id)
     const { hours = 24 } = req.query
     const startTime = new Date(Date.now() - hours * 60 * 60 * 1000)
+
+    logger.info(`Obteniendo actividad de las últimas ${hours} horas`)
 
     // Generar datos de actividad por hora
     const activityData = []
@@ -618,14 +621,21 @@ export const getRealtimeActivity = async (req, res) => {
       })
     }
 
-    res.json({
+    const response = {
       success: true,
       data: {
         activityData,
         timeRange: `${hours}h`,
         totalActiveUsers: activityData.reduce((sum, item) => sum + item.activeUsers, 0)
       }
+    }
+
+    logger.info('Respuesta de getRealtimeActivity:', {
+      totalHours: activityData.length,
+      totalActiveUsers: response.data.totalActiveUsers
     })
+
+    res.json(response)
   } catch (error) {
     logger.error('Error en getRealtimeActivity:', error)
     res.status(500).json({
