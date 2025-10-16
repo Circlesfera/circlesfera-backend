@@ -625,19 +625,17 @@ export const getRealtimeActivity = async (req, res) => {
       const commenters = commentsCount
       const likers = likesCount
 
-      // Estimación más realista: asumir que algunos usuarios hacen múltiples acciones
-      // pero no todos los likes/comentarios son de usuarios únicos
-      let estimatedActiveUsers = Math.max(1, Math.floor(
-        contentCreators +
-        (commenters * 0.8) + // 80% de los comentarios son de usuarios únicos
-        (likers * 0.3)       // 30% de los likes son de usuarios únicos
-      ))
+      // Solo datos reales - contar usuarios únicos que han tenido actividad
+      let estimatedActiveUsers = 0
 
-      // Si hay muy poca actividad, agregar un mínimo de actividad base
-      // para que el gráfico sea más informativo
-      if (estimatedActiveUsers < 3) {
-        estimatedActiveUsers = Math.max(estimatedActiveUsers, Math.floor(Math.random() * 5) + 1)
+      if (totalActivity > 0) {
+        // Contar usuarios únicos que han creado contenido, comentado o dado likes
+        // Esto es una estimación conservadora basada solo en actividad real
+        estimatedActiveUsers = contentCreators + Math.ceil(commenters / 2) + Math.ceil(likers / 3)
       }
+
+      // Si no hay actividad, mostrar 0 (datos reales)
+      estimatedActiveUsers = Math.max(0, estimatedActiveUsers)
 
       activityData.push({
         hour: hourStart.getHours(),
