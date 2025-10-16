@@ -50,7 +50,7 @@ const createPaginatedResponse = (data, total, page, limit) => {
 
   return {
     success: true,
-    data,
+    posts: data, // Cambiado de 'data' a 'posts' para coincidir con el frontend
     pagination: {
       page,
       limit,

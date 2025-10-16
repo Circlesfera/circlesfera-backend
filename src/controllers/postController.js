@@ -221,6 +221,15 @@ export const getFeed = async (req, res) => {
       limit
     )
 
+    logger.info('🔍 getFeed - Respuesta final que se envía al frontend:', {
+      success: response.success,
+      postsCount: response.posts?.length || 0,
+      total: response.total,
+      page: response.page,
+      limit: response.limit,
+      posts: response.posts?.map(p => ({ id: p._id, username: p.user?.username, type: p.type })) || []
+    })
+
     // TEMPORALMENTE DESHABILITADO - Guardar en caché por 2 minutos
     // await cache.set(cacheKey, response, 120)
 
