@@ -173,14 +173,7 @@ export const getReelsForFeed = async (req, res) => {
       Reel.countDocuments(query)
     ])
 
-    const response = createPaginatedResponse({
-      data: reels,
-      page,
-      limit,
-      total,
-      success: true,
-      message: 'Reels obtenidos exitosamente'
-    })
+    const response = createPaginatedResponse(reels, total, page, limit)
 
     // Guardar en caché por 2 minutos
     await cache.set(cacheKey, response, 120)

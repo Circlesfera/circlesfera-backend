@@ -172,7 +172,7 @@ export const getComments = async (req, res) => {
 
     logger.info('getComments respuesta:', {
       success: response.success,
-      commentsCount: response.data.length,
+      commentsCount: response.posts.length, // Nota: posts contiene los comentarios debido a createPaginatedResponse
       total: response.pagination.total
     })
 
