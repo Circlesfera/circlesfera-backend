@@ -424,3 +424,106 @@ export const getUserComments = async (req, res) => {
     })
   }
 }
+
+// Reportar un comentario
+export const reportComment = async (req, res) => {
+  try {
+    const { reason, description } = req.body
+    const { commentId } = req.params
+
+    // Validar que commentId es un ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID de comentario inválido'
+      })
+    }
+
+    // Verificar que el comentario existe
+    const comment = await Comment.findById(commentId)
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comentario no encontrado'
+      })
+    }
+
+    // Validar que no es el propio usuario reportándose
+    if (comment.user.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes reportar tu propio comentario'
+      })
+    }
+
+    // Verificar si ya reportó este comentario
+    const existingReport = await Comment.findOne({
+      _id: commentId,
+      'reports.reportedBy': req.user.id
+    })
+
+    if (existingReport) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya has reportado este comentario'
+      })
+    }
+
+    // Motivos válidos
+    const validReasons = ['spam', 'harassment', 'inappropriate', 'hate_speech', 'false_info', 'other']
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Motivo de reporte inválido'
+      })
+    }
+
+    // Añadir el reporte al comentario
+    const reportData = {
+      reportedBy: req.user.id,
+      reason,
+      description: description?.trim() || '',
+      reportedAt: new Date()
+    }
+
+    await Comment.findByIdAndUpdate(
+      commentId,
+      { $push: { reports: reportData } },
+      { new: true }
+    )
+
+    // Crear notificación para el autor del comentario (opcional)
+    if (comment.user.toString() !== req.user.id) {
+      const notification = new Notification({
+        user: comment.user,
+        type: 'comment_reported',
+        content: `Tu comentario ha sido reportado por ${reason}`,
+        relatedUser: req.user.id,
+        relatedContent: commentId,
+        metadata: {
+          reason,
+          reportedBy: req.user.id
+        }
+      })
+
+      await notification.save()
+    }
+
+    logger.info(`Comentario ${commentId} reportado por usuario ${req.user.id}`, {
+      reason,
+      commentAuthor: comment.user
+    })
+
+    res.json({
+      success: true,
+      message: 'Comentario reportado correctamente'
+    })
+
+  } catch (error) {
+    logger.error('Error en reportComment:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    })
+  }
+}

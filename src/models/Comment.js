@@ -42,6 +42,27 @@ const CommentSchema = new mongoose.Schema({
   mentions: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  }],
+  reports: [{
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    reason: {
+      type: String,
+      required: true,
+      enum: ['spam', 'harassment', 'inappropriate', 'hate_speech', 'false_info', 'other']
+    },
+    description: {
+      type: String,
+      maxlength: [500, 'La descripción no puede exceder 500 caracteres'],
+      trim: true
+    },
+    reportedAt: {
+      type: Date,
+      default: Date.now
+    }
   }]
 }, {
   timestamps: true,
@@ -57,6 +78,8 @@ CommentSchema.index({ likes: 1 })
 // Índices compuestos para queries optimizadas
 CommentSchema.index({ post: 1, parentComment: 1, createdAt: -1 })
 CommentSchema.index({ user: 1, post: 1, createdAt: -1 })
+CommentSchema.index({ 'reports.reportedBy': 1 })
+CommentSchema.index({ 'reports.reason': 1 })
 
 // Virtuals
 CommentSchema.virtual('likesCount').get(function () {
@@ -65,6 +88,10 @@ CommentSchema.virtual('likesCount').get(function () {
 
 CommentSchema.virtual('repliesCount').get(function () {
   return this.replies.length
+})
+
+CommentSchema.virtual('reportsCount').get(function () {
+  return this.reports.length
 })
 
 // Métodos de instancia

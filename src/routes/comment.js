@@ -7,7 +7,8 @@ import {
   getReplies,
   getUserComments,
   toggleLike,
-  updateComment
+  updateComment,
+  reportComment
 } from '../controllers/commentController.js'
 import { auth, optionalAuth } from '../middlewares/auth.js'
 import { validate } from '../middlewares/validate.js'
@@ -27,5 +28,8 @@ router.put('/:commentId', auth, checkCommentOwnership('commentId'), validate(upd
 
 router.post('/:commentId/like', auth, rateLimitByUser('like'), toggleLike)
 router.delete('/:commentId', auth, checkCommentOwnership('commentId'), deleteComment)
+
+// Ruta para reportar comentarios
+router.post('/:commentId/report', auth, rateLimitByUser('report'), reportComment)
 
 export default router
