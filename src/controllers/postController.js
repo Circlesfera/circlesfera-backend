@@ -147,12 +147,12 @@ export const getFeed = async (req, res) => {
     const cacheKey = `feed:${userId}:${page}:${limit}`
     logger.debug('Cache key generado para feed:', { cacheKey })
 
-    // TEMPORALMENTE DESHABILITADO - Intentar obtener del caché
-    // const cachedFeed = await cache.get(cacheKey)
-    // if (cachedFeed) {
-    //   logger.debug(`Feed servido desde caché para usuario ${userId}`)
-    //   return res.json(cachedFeed)
-    // }
+    // Intentar obtener del caché
+    const cachedFeed = await cache.get(cacheKey)
+    if (cachedFeed) {
+      logger.debug(`Feed servido desde caché para usuario ${userId}`)
+      return res.json(cachedFeed)
+    }
 
     const user = await User.findById(userId).select('following').lean()
 
@@ -166,13 +166,6 @@ export const getFeed = async (req, res) => {
     // Usuarios a mostrar: seguidos + propio usuario
     const usersToShow = [userId, ...(user.following || [])]
 
-    logger.info('🔍 getFeed - Debug info:', {
-      userId,
-      following: user.following,
-      usersToShow,
-      followingCount: user.following?.length || 0
-    })
-
     // Query optimizada con índices
     const query = {
       user: { $in: usersToShow },
@@ -180,8 +173,6 @@ export const getFeed = async (req, res) => {
       isArchived: false,
       isDeleted: false
     }
-
-    logger.info('🔍 getFeed - Query:', query)
 
     // Obtener opciones de población optimizadas
     const populateOptions = getPostPopulateOptions()
@@ -199,15 +190,6 @@ export const getFeed = async (req, res) => {
       Post.countDocuments(query)
     ])
 
-    logger.info('🔍 getFeed - Query results:', {
-      postsFound: posts.length,
-      totalPosts: total,
-      skip,
-      limit,
-      postIds: posts.map(p => p._id),
-      postUsers: posts.map(p => ({ id: p.user?._id, username: p.user?.username }))
-    })
-
     // Agregar campo isLiked para el usuario actual
     const postsWithLikeStatus = posts.map(post => ({
       ...post,
@@ -221,17 +203,9 @@ export const getFeed = async (req, res) => {
       limit
     )
 
-    logger.info('🔍 getFeed - Respuesta final que se envía al frontend:', {
-      success: response.success,
-      postsCount: response.posts?.length || 0,
-      total: response.total,
-      page: response.page,
-      limit: response.limit,
-      posts: response.posts?.map(p => ({ id: p._id, username: p.user?.username, type: p.type })) || []
-    })
 
-    // TEMPORALMENTE DESHABILITADO - Guardar en caché por 2 minutos
-    // await cache.set(cacheKey, response, 120)
+    // Guardar en caché por 2 minutos
+    await cache.set(cacheKey, response, 120)
 
     res.json(response)
   } catch (error) {
