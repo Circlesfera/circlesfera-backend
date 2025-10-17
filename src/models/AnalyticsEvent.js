@@ -352,7 +352,7 @@ AnalyticsEventSchema.pre('save', function (next) {
   // Auto-etiquetar eventos críticos
   if (this.eventType.includes('report') || this.eventType === 'admin_action') {
     this.severity = 'high'
-    if (!this.tags) this.tags = []
+    if (!this.tags) { this.tags = [] }
     this.tags.push('moderation')
   }
 

@@ -3,14 +3,14 @@ import { auth as protect } from '../middlewares/auth.js'
 import { requireAdmin, requireAdminPermission } from '../middlewares/adminAuth.js'
 import { validate } from '../middlewares/validate.js'
 import {
-  getRealTimeDashboard,
-  getUserAnalytics,
   getContentAnalytics,
+  getCustomMetrics,
   getEngagementAnalytics,
   getGeographicAnalytics,
-  getPlatformAnalytics,
   getPeriodComparison,
-  getCustomMetrics
+  getPlatformAnalytics,
+  getRealTimeDashboard,
+  getUserAnalytics
 } from '../controllers/advancedAnalyticsController.js'
 import { z } from 'zod'
 

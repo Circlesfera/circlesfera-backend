@@ -56,7 +56,7 @@ class QueryOptimizer {
           _id: 1,
           // Campos básicos que siempre necesitamos
           createdAt: 1,
-          updatedAt: 1,
+          updatedAt: 1
         }
       })
     }
@@ -92,7 +92,7 @@ class QueryOptimizer {
       optimizedQuery.select = {
         _id: 1,
         createdAt: 1,
-        updatedAt: 1,
+        updatedAt: 1
       }
     }
 
@@ -257,7 +257,7 @@ class QueryOptimizer {
           const count = queryCounts.get(key) || 0
           queryCounts.set(key, count + stats.count)
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignorar errores de parsing
       }
     }
@@ -284,7 +284,7 @@ class QueryOptimizer {
     const fields = []
 
     for (const [key, value] of Object.entries(query)) {
-      if (key.startsWith('$')) continue // Ignorar operadores
+      if (key.startsWith('$')) { continue } // Ignorar operadores
 
       if (typeof value === 'object' && value !== null) {
         // Es un operador como $in, $gt, etc.

@@ -126,10 +126,10 @@ export class PostNotificationObserver extends PostObserver {
           type: 'post_liked',
           userId: post.userId,
           fromUserId: userId,
-          postId: postId,
+          postId,
           message: `${liker.username} le gustó tu publicación`,
           data: {
-            postId: postId,
+            postId,
             liker: liker.username
           }
         })
@@ -159,10 +159,10 @@ export class PostNotificationObserver extends PostObserver {
           type: 'post_commented',
           userId: post.userId,
           fromUserId: comment.userId,
-          postId: postId,
+          postId,
           message: `${commenter.username} comentó tu publicación`,
           data: {
-            postId: postId,
+            postId,
             commentId: comment.id,
             commenter: commenter.username
           }
@@ -238,8 +238,8 @@ export class PostAnalyticsObserver extends PostObserver {
     try {
       await this.analyticsService.trackEvent({
         type: 'post_liked',
-        userId: userId,
-        postId: postId,
+        userId,
+        postId,
         timestamp: new Date()
       })
     } catch (error) {
@@ -256,7 +256,7 @@ export class PostAnalyticsObserver extends PostObserver {
       await this.analyticsService.trackEvent({
         type: 'post_commented',
         userId: comment.userId,
-        postId: postId,
+        postId,
         commentId: comment.id,
         timestamp: new Date()
       })

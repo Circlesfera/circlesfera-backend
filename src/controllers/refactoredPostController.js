@@ -82,10 +82,12 @@ class PostController extends BaseController {
   async createPost(req, res) {
     try {
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { type, caption, location, tags, textContent, aspectRatio, originalAspectRatio } = req.body
-      const userId = req.userId
+      const { userId } = req
 
       const postData = {
         user: userId,
@@ -181,7 +183,7 @@ class PostController extends BaseController {
    */
   async getFeed(req, res) {
     try {
-      const userId = req.userId
+      const { userId } = req
       const paginationOptions = this.getPaginationOptions(req)
 
       // Verificar cache
@@ -265,10 +267,12 @@ class PostController extends BaseController {
   async updatePost(req, res) {
     try {
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { id } = req.params
-      const userId = req.userId
+      const { userId } = req
       const updates = req.body
 
       // Verificar ObjectId
@@ -278,7 +282,9 @@ class PostController extends BaseController {
 
       // Verificar que el post existe y pertenece al usuario
       const ownershipError = await this.validateOwnership(Post, id, userId, res)
-      if (ownershipError) return ownershipError
+      if (ownershipError) {
+        return ownershipError
+      }
 
       // Campos permitidos para actualización
       const allowedFields = ['caption', 'location']
@@ -316,7 +322,7 @@ class PostController extends BaseController {
   async deletePost(req, res) {
     try {
       const { id } = req.params
-      const userId = req.userId
+      const { userId } = req
 
       // Verificar ObjectId
       if (!this.validateObjectId(id)) {
@@ -325,7 +331,9 @@ class PostController extends BaseController {
 
       // Verificar que el post existe y pertenece al usuario
       const ownershipError = await this.validateOwnership(Post, id, userId, res)
-      if (ownershipError) return ownershipError
+      if (ownershipError) {
+        return ownershipError
+      }
 
       // Soft delete
       await Post.findByIdAndUpdate(id, {
@@ -354,7 +362,7 @@ class PostController extends BaseController {
   async toggleLike(req, res) {
     try {
       const { id } = req.params
-      const userId = req.userId
+      const { userId } = req
 
       // Verificar ObjectId
       if (!this.validateObjectId(id)) {

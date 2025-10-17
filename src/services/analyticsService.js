@@ -173,7 +173,7 @@ class AnalyticsService {
    * Obtener nuevos usuarios en un período
    */
   static async getNewUsers(startDate, endDate) {
-    return await User.countDocuments({
+    return User.countDocuments({
       createdAt: { $gte: startDate, $lte: endDate }
     })
   }
@@ -195,21 +195,21 @@ class AnalyticsService {
    * Obtener total de posts
    */
   static async getTotalPosts(startDate, endDate) {
-    return await Post.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
+    return Post.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
   }
 
   /**
    * Obtener total de reels
    */
   static async getTotalReels(startDate, endDate) {
-    return await Reel.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
+    return Reel.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
   }
 
   /**
    * Obtener total de stories
    */
   static async getTotalStories(startDate, endDate) {
-    return await Story.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
+    return Story.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } })
   }
 
   /**

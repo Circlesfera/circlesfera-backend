@@ -81,7 +81,9 @@ class AuthController extends BaseController {
     try {
       // Usar validación del BaseController
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { username, email, password, fullName } = req.body
 
@@ -134,7 +136,9 @@ class AuthController extends BaseController {
   async login(req, res) {
     try {
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { email, password } = req.body
 
@@ -237,7 +241,9 @@ class AuthController extends BaseController {
   async forgotPassword(req, res) {
     try {
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { email } = req.body
 
@@ -315,7 +321,9 @@ class AuthController extends BaseController {
   async changePassword(req, res) {
     try {
       const validationError = this.handleValidation(req, res)
-      if (validationError) return validationError
+      if (validationError) {
+        return validationError
+      }
 
       const { currentPassword, newPassword } = req.body
       const userId = req.user.id

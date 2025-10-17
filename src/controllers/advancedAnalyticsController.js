@@ -8,6 +8,392 @@ import Reel from '../models/Reel.js'
 import Report from '../models/Report.js'
 import logger from '../utils/logger.js'
 
+// Funciones auxiliares (definidas al inicio para evitar hoisting issues)
+const getTopActiveUsers = async (startDate, endDate, limit = 10) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      userId: { $exists: true, $ne: null }
+    }
+  },
+  {
+    $group: {
+      _id: '$userId',
+      eventCount: { $sum: 1 },
+      eventTypes: { $addToSet: '$eventType' }
+    }
+  },
+  {
+    $sort: { eventCount: -1 }
+  },
+  {
+    $limit: limit
+  },
+  {
+    $lookup: {
+      from: 'users',
+      localField: '_id',
+      foreignField: '_id',
+      as: 'user'
+    }
+  },
+  {
+    $unwind: '$user'
+  },
+  {
+    $project: {
+      userId: '$_id',
+      username: '$user.username',
+      fullName: '$user.fullName',
+      avatar: '$user.avatar',
+      eventCount: 1,
+      activityCount: 1,
+      lastActivity: 1,
+      eventTypes: 1
+    }
+  }
+])
+
+const getContentTrends = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      eventType: { $in: ['post_create', 'reel_create', 'story_create'] }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        type: '$eventType'
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { '_id.date': 1 }
+  }
+])
+
+const getContentTypeDistribution = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      eventType: { $in: ['post_create', 'reel_create', 'story_create'] }
+    }
+  },
+  {
+    $group: {
+      _id: '$eventType',
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { count: -1 }
+  }
+])
+
+const getEngagementTrends = async (startDate, endDate, groupBy = 'daily') => {
+  const format = groupBy === 'daily' ? '%Y-%m-%d' :
+    groupBy === 'weekly' ? '%Y-%U' : '%Y-%m'
+
+  return AnalyticsEvent.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          date: { $dateToString: { format, date: '$createdAt' } },
+          type: '$eventType'
+        },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { '_id.date': 1 }
+    }
+  ])
+}
+
+const getEngagementByContentType = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] },
+      contentType: { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: '$contentType',
+      likes: {
+        $sum: {
+          $cond: [{ $in: ['$eventType', ['post_like', 'reel_like']] }, 1, 0]
+        }
+      },
+      comments: {
+        $sum: {
+          $cond: [{ $in: ['$eventType', ['post_comment', 'reel_comment']] }, 1, 0]
+        }
+      },
+      views: {
+        $sum: {
+          $cond: [{ $eq: ['$eventType', 'story_view'] }, 1, 0]
+        }
+      },
+      total: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { total: -1 }
+  }
+])
+
+const getEngagementByTimeOfDay = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
+    }
+  },
+  {
+    $group: {
+      _id: { $hour: '$createdAt' },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { '_id': 1 }
+  }
+])
+
+const getEngagementByDayOfWeek = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
+    }
+  },
+  {
+    $group: {
+      _id: { $dayOfWeek: '$createdAt' },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { '_id': 1 }
+  }
+])
+
+const getAverageEngagementPerUser = async (startDate, endDate) => {
+  const result = await AnalyticsEvent.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] },
+        userId: { $exists: true, $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: '$userId',
+        engagementCount: { $sum: 1 }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        avgEngagement: { $avg: '$engagementCount' }
+      }
+    }
+  ])
+
+  return result[0]?.avgEngagement || 0
+}
+
+const getGeographicTrends = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      'location.country': { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        country: '$location.country'
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { '_id.date': 1 }
+  }
+])
+
+const getTopCountries = async (startDate, endDate, limit = 10) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      'location.country': { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: '$location.country',
+      count: { $sum: 1 },
+      users: { $addToSet: '$userId' }
+    }
+  },
+  {
+    $project: {
+      country: '$_id',
+      count: 1,
+      uniqueUsers: { $size: '$users' }
+    }
+  },
+  {
+    $sort: { count: -1 }
+  },
+  {
+    $limit: limit
+  }
+])
+
+const getTopRegions = async (startDate, endDate, limit = 10) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      'location.region': { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        country: '$location.country',
+        region: '$location.region'
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { count: -1 }
+  },
+  {
+    $limit: limit
+  }
+])
+
+const getGeographicEngagement = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      'location.country': { $exists: true },
+      eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
+    }
+  },
+  {
+    $group: {
+      _id: '$location.country',
+      engagementCount: { $sum: 1 },
+      users: { $addToSet: '$userId' }
+    }
+  },
+  {
+    $project: {
+      country: '$_id',
+      engagementCount: 1,
+      uniqueUsers: { $size: '$users' }
+    }
+  },
+  {
+    $sort: { engagementCount: -1 }
+  }
+])
+
+const getPlatformTrends = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      platform: { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: {
+        date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        platform: '$platform'
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $sort: { '_id.date': 1 }
+  }
+])
+
+const getPlatformEngagement = async (startDate, endDate) => AnalyticsEvent.aggregate([
+  {
+    $match: {
+      createdAt: { $gte: startDate, $lte: endDate },
+      platform: { $exists: true },
+      eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
+    }
+  },
+  {
+    $group: {
+      _id: '$platform',
+      engagementCount: { $sum: 1 },
+      users: { $addToSet: '$userId' }
+    }
+  },
+  {
+    $project: {
+      platform: '$_id',
+      engagementCount: 1,
+      uniqueUsers: { $size: '$users' }
+    }
+  },
+  {
+    $sort: { engagementCount: -1 }
+  }
+])
+
+const getPlatformRetention = async (startDate, endDate) =>
+  // Implementación simplificada de retención por plataforma
+  AnalyticsEvent.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+        platform: { $exists: true },
+        eventType: 'user_login'
+      }
+    },
+    {
+      $group: {
+        _id: {
+          platform: '$platform',
+          userId: '$userId'
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$_id.platform',
+        returningUsers: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { returningUsers: -1 }
+    }
+  ])
+
+
 /**
  * Obtener métricas del dashboard en tiempo real
  */
@@ -544,446 +930,3 @@ export const getCustomMetrics = asyncHandler(async (req, res) => {
   }
 })
 
-// Funciones auxiliares
-
-async function getTopActiveUsers(startDate, endDate, limit = 10) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        userId: { $exists: true, $ne: null }
-      }
-    },
-    {
-      $group: {
-        _id: '$userId',
-        activityCount: { $sum: 1 },
-        lastActivity: { $max: '$createdAt' },
-        eventTypes: { $addToSet: '$eventType' }
-      }
-    },
-    {
-      $sort: { activityCount: -1 }
-    },
-    {
-      $limit: limit
-    },
-    {
-      $lookup: {
-        from: 'users',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'user'
-      }
-    },
-    {
-      $unwind: '$user'
-    },
-    {
-      $project: {
-        userId: '$_id',
-        username: '$user.username',
-        fullName: '$user.fullName',
-        avatar: '$user.avatar',
-        activityCount: 1,
-        lastActivity: 1,
-        eventTypes: 1
-      }
-    }
-  ])
-}
-
-async function getContentTrends(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_create', 'reel_create', 'story_create'] }
-      }
-    },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          contentType: '$contentType'
-        },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id.date': 1 }
-    }
-  ])
-}
-
-async function getContentTypeDistribution(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_create', 'reel_create', 'story_create'] }
-      }
-    },
-    {
-      $group: {
-        _id: '$contentType',
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { count: -1 }
-    }
-  ])
-}
-
-async function getEngagementTrends(startDate, endDate, groupBy = 'daily') {
-  const format = groupBy === 'daily' ? '%Y-%m-%d' :
-    groupBy === 'weekly' ? '%Y-%U' : '%Y-%m'
-
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
-      }
-    },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format, date: '$createdAt' } },
-          eventType: '$eventType'
-        },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id.date': 1 }
-    }
-  ])
-}
-
-async function getEngagementByContentType(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] },
-        contentType: { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: '$contentType',
-        likes: {
-          $sum: {
-            $cond: [{ $regexMatch: { input: '$eventType', regex: /like/ } }, 1, 0]
-          }
-        },
-        comments: {
-          $sum: {
-            $cond: [{ $regexMatch: { input: '$eventType', regex: /comment/ } }, 1, 0]
-          }
-        },
-        views: {
-          $sum: {
-            $cond: [{ $regexMatch: { input: '$eventType', regex: /view/ } }, 1, 0]
-          }
-        },
-        total: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { total: -1 }
-    }
-  ])
-}
-
-async function getEngagementByTimeOfDay(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
-      }
-    },
-    {
-      $group: {
-        _id: { $hour: '$createdAt' },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id': 1 }
-    }
-  ])
-}
-
-async function getEngagementByDayOfWeek(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
-      }
-    },
-    {
-      $group: {
-        _id: { $dayOfWeek: '$createdAt' },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id': 1 }
-    }
-  ])
-}
-
-async function getAverageEngagementPerUser(startDate, endDate) {
-  const result = await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] },
-        userId: { $exists: true, $ne: null }
-      }
-    },
-    {
-      $group: {
-        _id: '$userId',
-        engagementCount: { $sum: 1 }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        avgEngagement: { $avg: '$engagementCount' },
-        totalUsers: { $sum: 1 }
-      }
-    }
-  ])
-
-  return result[0]?.avgEngagement || 0
-}
-
-async function getGeographicTrends(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        'location.country': { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          country: '$location.country'
-        },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id.date': 1 }
-    }
-  ])
-}
-
-async function getTopCountries(startDate, endDate, limit = 10) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        'location.country': { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: '$location.country',
-        count: { $sum: 1 },
-        uniqueUsers: { $addToSet: '$userId' }
-      }
-    },
-    {
-      $addFields: {
-        uniqueUserCount: { $size: '$uniqueUsers' }
-      }
-    },
-    {
-      $project: {
-        uniqueUsers: 0
-      }
-    },
-    {
-      $sort: { count: -1 }
-    },
-    {
-      $limit: limit
-    }
-  ])
-}
-
-async function getTopRegions(startDate, endDate, limit = 10) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        'location.region': { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: {
-          country: '$location.country',
-          region: '$location.region'
-        },
-        count: { $sum: 1 },
-        uniqueUsers: { $addToSet: '$userId' }
-      }
-    },
-    {
-      $addFields: {
-        uniqueUserCount: { $size: '$uniqueUsers' }
-      }
-    },
-    {
-      $project: {
-        uniqueUsers: 0
-      }
-    },
-    {
-      $sort: { count: -1 }
-    },
-    {
-      $limit: limit
-    }
-  ])
-}
-
-async function getGeographicEngagement(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        'location.country': { $exists: true },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
-      }
-    },
-    {
-      $group: {
-        _id: '$location.country',
-        engagementCount: { $sum: 1 },
-        uniqueUsers: { $addToSet: '$userId' }
-      }
-    },
-    {
-      $addFields: {
-        uniqueUserCount: { $size: '$uniqueUsers' },
-        avgEngagementPerUser: {
-          $divide: ['$engagementCount', { $size: '$uniqueUsers' }]
-        }
-      }
-    },
-    {
-      $project: {
-        uniqueUsers: 0
-      }
-    },
-    {
-      $sort: { engagementCount: -1 }
-    }
-  ])
-}
-
-async function getPlatformTrends(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        platform: { $exists: true }
-      }
-    },
-    {
-      $group: {
-        _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          platform: '$platform'
-        },
-        count: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { '_id.date': 1 }
-    }
-  ])
-}
-
-async function getPlatformEngagement(startDate, endDate) {
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        platform: { $exists: true },
-        eventType: { $in: ['post_like', 'post_comment', 'reel_like', 'reel_comment', 'story_view'] }
-      }
-    },
-    {
-      $group: {
-        _id: '$platform',
-        engagementCount: { $sum: 1 },
-        uniqueUsers: { $addToSet: '$userId' }
-      }
-    },
-    {
-      $addFields: {
-        uniqueUserCount: { $size: '$uniqueUsers' },
-        avgEngagementPerUser: {
-          $divide: ['$engagementCount', { $size: '$uniqueUsers' }]
-        }
-      }
-    },
-    {
-      $project: {
-        uniqueUsers: 0
-      }
-    },
-    {
-      $sort: { engagementCount: -1 }
-    }
-  ])
-}
-
-async function getPlatformRetention(startDate, endDate) {
-  // Implementación simplificada de retención por plataforma
-  return await AnalyticsEvent.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate, $lte: endDate },
-        platform: { $exists: true },
-        eventType: 'user_login'
-      }
-    },
-    {
-      $group: {
-        _id: '$platform',
-        uniqueUsers: { $addToSet: '$userId' },
-        totalLogins: { $sum: 1 }
-      }
-    },
-    {
-      $addFields: {
-        uniqueUserCount: { $size: '$uniqueUsers' },
-        avgLoginsPerUser: {
-          $divide: ['$totalLogins', { $size: '$uniqueUsers' }]
-        }
-      }
-    },
-    {
-      $project: {
-        uniqueUsers: 0
-      }
-    },
-    {
-      $sort: { uniqueUserCount: -1 }
-    }
-  ])
-}

@@ -15,7 +15,7 @@ class CacheManager {
       feed: 180, // 3 minutos
       search: 60, // 1 minuto
       stats: 300, // 5 minutos
-      session: 3600, // 1 hora
+      session: 3600 // 1 hora
     }
     this.initializeStrategies()
   }
@@ -30,7 +30,7 @@ class CacheManager {
       fallback: 'memory',
       ttl: this.defaultTTL.user,
       serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      deserialize: JSON.parse
     })
 
     // Estrategia para posts (solo Redis para evitar duplicados)
@@ -39,7 +39,7 @@ class CacheManager {
       fallback: 'memory',
       ttl: this.defaultTTL.post,
       serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      deserialize: JSON.parse
     })
 
     // Estrategia para feeds (caché agresivo)
@@ -48,7 +48,7 @@ class CacheManager {
       fallback: 'memory',
       ttl: this.defaultTTL.feed,
       serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      deserialize: JSON.parse
     })
 
     // Estrategia para búsquedas (caché corto)
@@ -57,7 +57,7 @@ class CacheManager {
       fallback: 'redis',
       ttl: this.defaultTTL.search,
       serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      deserialize: JSON.parse
     })
 
     // Estrategia para estadísticas (caché largo)
@@ -66,7 +66,7 @@ class CacheManager {
       fallback: 'memory',
       ttl: this.defaultTTL.stats,
       serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      deserialize: JSON.parse
     })
   }
 
@@ -245,7 +245,7 @@ class CacheManager {
     const patterns = [
       `user:${userId}`,
       `feed:${userId}`,
-      `posts:${userId}`,
+      `posts:${userId}`
     ]
 
     let totalInvalidated = 0
@@ -262,7 +262,7 @@ class CacheManager {
   async invalidatePostCache(postId, authorId) {
     const patterns = [
       `post:${postId}`,
-      `feed:${authorId}`, // Invalidar feed del autor
+      `feed:${authorId}` // Invalidar feed del autor
     ]
 
     let totalInvalidated = 0

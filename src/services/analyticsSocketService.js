@@ -22,7 +22,7 @@ class AnalyticsSocketService {
       // Crear servidor Socket.IO separado para analytics
       this.io = new Server(server, {
         cors: {
-          origin: process.env.CORS_ORIGIN || "http://localhost:3001",
+          origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
           methods: ['GET', 'POST'],
           credentials: true
         },
@@ -187,10 +187,10 @@ class AnalyticsSocketService {
   async sendAnalyticsData(userId, timeRange) {
     try {
       const adminRoom = this.adminRooms.get(userId)
-      if (!adminRoom || !adminRoom.isActive) return
+      if (!adminRoom || !adminRoom.isActive) { return }
 
       const socket = this.io.sockets.sockets.get(adminRoom.socketId)
-      if (!socket) return
+      if (!socket) { return }
 
       const metrics = await AnalyticsService.getDashboardMetrics(timeRange)
 
@@ -319,7 +319,7 @@ class AnalyticsSocketService {
   startRealTimeUpdates() {
     // Actualizar cada 30 segundos
     this.updateInterval = setInterval(async () => {
-      if (this.isUpdating) return
+      if (this.isUpdating) { return }
 
       this.isUpdating = true
 
@@ -339,7 +339,7 @@ class AnalyticsSocketService {
    * Transmitir actualizaciones de analytics a todos los administradores conectados
    */
   async broadcastAnalyticsUpdates() {
-    if (this.adminRooms.size === 0) return
+    if (this.adminRooms.size === 0) { return }
 
     try {
       // Obtener métricas actuales para diferentes rangos de tiempo
@@ -356,7 +356,7 @@ class AnalyticsSocketService {
 
       // Enviar actualizaciones a cada administrador
       for (const [userId, room] of this.adminRooms.entries()) {
-        if (!room.isActive) continue
+        if (!room.isActive) { continue }
 
         const socket = this.io.sockets.sockets.get(room.socketId)
         if (!socket) {
@@ -392,7 +392,7 @@ class AnalyticsSocketService {
    * Verificar eventos importantes y enviar notificaciones
    */
   async checkForImportantEvents(metrics, socket) {
-    if (!metrics) return
+    if (!metrics) { return }
 
     const alerts = []
 

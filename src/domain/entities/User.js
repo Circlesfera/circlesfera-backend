@@ -42,9 +42,15 @@ export class User {
   }
 
   canViewProfile(targetUser) {
-    if (this.id === targetUser.id) return true
-    if (!targetUser.isActive) return false
-    if (this.isBlocked(targetUser) || targetUser.isBlocked(this)) return false
+    if (this.id === targetUser.id) {
+      return true
+    }
+    if (!targetUser.isActive) {
+      return false
+    }
+    if (this.isBlocked(targetUser) || targetUser.isBlocked(this)) {
+      return false
+    }
 
     // Verificar configuraciones de privacidad
     if (targetUser.privacySettings?.profileVisibility === 'private') {
@@ -186,7 +192,9 @@ export class User {
   }
 
   static fromMongoose(userDoc) {
-    if (!userDoc) return null
+    if (!userDoc) {
+      return null
+    }
 
     return new User({
       id: userDoc._id.toString(),

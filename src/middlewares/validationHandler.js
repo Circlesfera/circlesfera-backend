@@ -30,16 +30,14 @@ export const handleValidation = (req, res, next) => {
  * Middleware para validar ObjectId de parámetros de ruta
  * @param {string} paramName - Nombre del parámetro a validar
  */
-export const validateObjectId = (paramName = 'id') => {
-  return (req, res, next) => {
-    const id = req.params[paramName]
+export const validateObjectId = (paramName = 'id') => (req, res, next) => {
+  const id = req.params[paramName]
 
-    if (!BaseController.validateObjectId(id, res, `${paramName} inválido`)) {
-      return
-    }
-
-    next()
+  if (!BaseController.validateObjectId(id, res, `${paramName} inválido`)) {
+    return
   }
+
+  next()
 }
 
 /**
@@ -57,14 +55,12 @@ export const requireAuth = (req, res, next) => {
  * Middleware para validar roles específicos
  * @param {string|Array} roles - Rol(es) requerido(s)
  */
-export const requireRole = (roles) => {
-  return (req, res, next) => {
-    if (!BaseController.validateRole(req, res, roles)) {
-      return
-    }
-
-    next()
+export const requireRole = (roles) => (req, res, next) => {
+  if (!BaseController.validateRole(req, res, roles)) {
+    return
   }
+
+  next()
 }
 
 /**
@@ -72,24 +68,22 @@ export const requireRole = (roles) => {
  * @param {Function} getResource - Función para obtener el recurso
  * @param {string} resourceName - Nombre del recurso para mensajes de error
  */
-export const requireOwnership = (getResource, resourceName = 'Recurso') => {
-  return async (req, res, next) => {
-    try {
-      const resource = await getResource(req)
+export const requireOwnership = (getResource, resourceName = 'Recurso') => async (req, res, next) => {
+  try {
+    const resource = await getResource(req)
 
-      if (!BaseController.validateOwnership(resource, req.user.id, res, resourceName)) {
-        return
-      }
-
-      // Agregar el recurso al request para uso posterior
-      req.resource = resource
-      next()
-    } catch (error) {
-      BaseController.handleError(error, res, 'requireOwnership', {
-        userId: req.user?.id,
-        resourceName
-      })
+    if (!BaseController.validateOwnership(resource, req.user.id, res, resourceName)) {
+      return
     }
+
+    // Agregar el recurso al request para uso posterior
+    req.resource = resource
+    next()
+  } catch (error) {
+    BaseController.handleError(error, res, 'requireOwnership', {
+      userId: req.user?.id,
+      resourceName
+    })
   }
 }
 
@@ -98,15 +92,13 @@ export const requireOwnership = (getResource, resourceName = 'Recurso') => {
  * @param {number} defaultLimit - Límite por defecto
  * @param {number} maxLimit - Límite máximo
  */
-export const validatePagination = (defaultLimit = 20, maxLimit = 100) => {
-  return (req, res, next) => {
-    const { page, limit, skip } = BaseController.getPaginationOptions(req, defaultLimit, maxLimit)
+export const validatePagination = (defaultLimit = 20, maxLimit = 100) => (req, res, next) => {
+  const { page, limit, skip } = BaseController.getPaginationOptions(req, defaultLimit, maxLimit)
 
-    // Agregar opciones de paginación al request
-    req.pagination = { page, limit, skip, maxLimit }
+  // Agregar opciones de paginación al request
+  req.pagination = { page, limit, skip, maxLimit }
 
-    next()
-  }
+  next()
 }
 
 /**
@@ -114,23 +106,21 @@ export const validatePagination = (defaultLimit = 20, maxLimit = 100) => {
  * @param {Function} getResource - Función para obtener el recurso
  * @param {string} resourceName - Nombre del recurso para mensajes de error
  */
-export const requireResourceExists = (getResource, resourceName = 'Recurso') => {
-  return async (req, res, next) => {
-    try {
-      const resource = await getResource(req)
+export const requireResourceExists = (getResource, resourceName = 'Recurso') => async (req, res, next) => {
+  try {
+    const resource = await getResource(req)
 
-      if (!resource) {
-        return BaseController.sendError(res, `${resourceName} no encontrado`, 404, 'NOT_FOUND')
-      }
-
-      // Agregar el recurso al request para uso posterior
-      req.resource = resource
-      next()
-    } catch (error) {
-      BaseController.handleError(error, res, 'requireResourceExists', {
-        resourceName
-      })
+    if (!resource) {
+      return BaseController.sendError(res, `${resourceName} no encontrado`, 404, 'NOT_FOUND')
     }
+
+    // Agregar el recurso al request para uso posterior
+    req.resource = resource
+    next()
+  } catch (error) {
+    BaseController.handleError(error, res, 'requireResourceExists', {
+      resourceName
+    })
   }
 }
 
@@ -147,7 +137,7 @@ export const validateUpload = (options = {}) => {
   } = options
 
   return (req, res, next) => {
-    const files = req.files
+    const { files } = req
 
     if (required && (!files || Object.keys(files).length === 0)) {
       return BaseController.sendError(res, 'Archivo(s) requerido(s)', 400, 'MISSING_FILES')
@@ -155,9 +145,7 @@ export const validateUpload = (options = {}) => {
 
     if (files) {
       // Validar número de archivos
-      const fileCount = Object.values(files).reduce((count, file) => {
-        return count + (Array.isArray(file) ? file.length : 1)
-      }, 0)
+      const fileCount = Object.values(files).reduce((count, file) => count + (Array.isArray(file) ? file.length : 1), 0)
 
       if (fileCount > maxFiles) {
         return BaseController.sendError(

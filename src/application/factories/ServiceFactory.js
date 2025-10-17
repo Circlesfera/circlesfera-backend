@@ -4,8 +4,7 @@
  * Implementa el patrón Factory para la creación de servicios
  */
 
-import { UserRepository } from '../../domain/repositories/UserRepository.js'
-import { PostRepository } from '../../domain/repositories/PostRepository.js'
+// Importaciones de repositorios removidas temporalmente hasta implementación completa
 import { MongooseUserRepository } from '../../infrastructure/database/repositories/MongooseUserRepository.js'
 import { MongoosePostRepository } from '../../infrastructure/database/repositories/MongoosePostRepository.js'
 import { CreateUserUseCase } from '../use-cases/user/CreateUserUseCase.js'
@@ -133,14 +132,14 @@ export class ServiceFactory {
 
       // Aquí implementarías el servicio de autenticación
       return {
-        generateTokens: async (userId) => {
-          // Implementación de generación de tokens
-          return {
-            accessToken: 'mock-access-token',
-            refreshToken: 'mock-refresh-token',
-            expiresIn: 900
-          }
-        }
+        generateTokens: async (_userId) =>
+        // Implementación de generación de tokens
+        ({
+          accessToken: 'mock-access-token',
+          refreshToken: 'mock-refresh-token',
+          expiresIn: 900
+        })
+
       }
     })
   }
@@ -198,17 +197,17 @@ export class ServiceFactory {
       logger.info('Creando instancia de MediaService')
 
       return {
-        processMedia: async (file, options) => {
-          // Implementación de procesamiento de media
-          return {
-            id: 'mock-media-id',
-            url: 'mock-media-url',
-            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-            size: file.size,
-            duration: null,
-            thumbnail: null
-          }
-        }
+        processMedia: async (file, _options) =>
+        // Implementación de procesamiento de media
+        ({
+          id: 'mock-media-id',
+          url: 'mock-media-url',
+          type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+          size: file.size,
+          duration: null,
+          thumbnail: null
+        })
+
       }
     })
   }

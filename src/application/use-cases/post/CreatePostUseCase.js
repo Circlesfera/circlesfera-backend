@@ -53,7 +53,7 @@ export class CreatePostUseCase {
       // 4. Crear entidad de post
       const post = new Post({
         id: null, // Se asignará al guardar
-        userId: userId,
+        userId,
         type: postData.type,
         caption: postData.caption || '',
         content: {

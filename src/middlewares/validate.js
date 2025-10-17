@@ -12,7 +12,7 @@ const validate = (schema) => async (req, res, next) => {
       path: req.path,
       method: req.method,
       body: req.body
-    });
+    })
 
     // Validar y transformar datos
     const validated = await schema.parseAsync(req.body)
@@ -20,8 +20,8 @@ const validate = (schema) => async (req, res, next) => {
     // Log de datos validados
     logger.info('🔍 validate middleware - Datos validados:', {
       path: req.path,
-      validated: validated
-    });
+      validated
+    })
 
     // Reemplazar req.body con datos validados y transformados
     req.body = validated

@@ -47,7 +47,7 @@ export const performanceMiddleware = (options = {}) => {
         originalSize: JSON.stringify(data).length,
         optimizedSize: JSON.stringify(optimizedResponse).length,
         compressionRatio: res.locals.compressed ?
-          ((JSON.stringify(data).length - JSON.stringify(optimizedResponse).length) / JSON.stringify(data).length * 100).toFixed(2) + '%' : 'N/A'
+          `${((JSON.stringify(data).length - JSON.stringify(optimizedResponse).length) / JSON.stringify(data).length * 100).toFixed(2)}%` : 'N/A'
       })
 
       return originalJson.call(this, optimizedResponse)
@@ -205,45 +205,43 @@ export const queryOptimizationMiddleware = (options = {}) => {
 /**
  * Middleware para métricas de performance
  */
-export const metricsMiddleware = () => {
-  return (req, res, next) => {
-    const startTime = Date.now()
-    const startCpuUsage = process.cpuUsage()
+export const metricsMiddleware = () => (req, res, next) => {
+  const startTime = Date.now()
+  const startCpuUsage = process.cpuUsage()
 
-    res.on('finish', () => {
-      const endTime = Date.now()
-      const endCpuUsage = process.cpuUsage(startCpuUsage)
-      const responseTime = endTime - startTime
+  res.on('finish', () => {
+    const endTime = Date.now()
+    const endCpuUsage = process.cpuUsage(startCpuUsage)
+    const responseTime = endTime - startTime
 
-      const metrics = {
-        method: req.method,
-        url: req.url,
-        statusCode: res.statusCode,
-        responseTime,
-        cpuUsage: {
-          user: endCpuUsage.user,
-          system: endCpuUsage.system
-        },
-        memoryUsage: process.memoryUsage(),
-        timestamp: new Date().toISOString()
-      }
+    const metrics = {
+      method: req.method,
+      url: req.url,
+      statusCode: res.statusCode,
+      responseTime,
+      cpuUsage: {
+        user: endCpuUsage.user,
+        system: endCpuUsage.system
+      },
+      memoryUsage: process.memoryUsage(),
+      timestamp: new Date().toISOString()
+    }
 
-      // Log métricas para requests lentos
-      if (responseTime > 1000) {
-        logger.warn('Slow request detected:', metrics)
-      } else {
-        logger.debug('Request metrics:', metrics)
-      }
+    // Log métricas para requests lentos
+    if (responseTime > 1000) {
+      logger.warn('Slow request detected:', metrics)
+    } else {
+      logger.debug('Request metrics:', metrics)
+    }
 
-      // Agregar métricas a headers de respuesta (opcional)
-      if (process.env.NODE_ENV === 'development') {
-        res.setHeader('X-Response-Time', `${responseTime}ms`)
-        res.setHeader('X-Memory-Usage', `${Math.round(metrics.memoryUsage.heapUsed / 1024 / 1024)}MB`)
-      }
-    })
+    // Agregar métricas a headers de respuesta (opcional)
+    if (process.env.NODE_ENV === 'development') {
+      res.setHeader('X-Response-Time', `${responseTime}ms`)
+      res.setHeader('X-Memory-Usage', `${Math.round(metrics.memoryUsage.heapUsed / 1024 / 1024)}MB`)
+    }
+  })
 
-    next()
-  }
+  next()
 }
 
 /**

@@ -3,12 +3,12 @@ const router = express.Router()
 import { auth } from '../middlewares/auth.js'
 import { uploadFields } from '../middlewares/upload.js'
 
-// Importar controladores
-import reelController from '../controllers/reelController.js'
-import postController from '../controllers/postController.js'
-import storyController from '../controllers/storyController.js'
+// Importar controladores refactorizados
+import { reelController } from '../controllers/refactoredReelController.js'
+import { postController } from '../controllers/refactoredPostController.js'
+import { storyController } from '../controllers/refactoredStoryController.js'
 import cstvController from '../controllers/cstvController.js'
-import liveStreamController from '../controllers/liveStreamController.js'
+import { liveStreamController } from '../controllers/refactoredLiveStreamController.js'
 
 // Middleware para validar que el usuario existe (se puede agregar después)
 // import { validateUser } from '../middlewares/validateUser.js'

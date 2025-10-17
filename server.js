@@ -37,26 +37,36 @@ import requestId from './src/middlewares/requestId.js'
 // Sanitización - Compatible con Express 5
 import { sanitizeBody, sanitizeMongo } from './src/middlewares/sanitize.js'
 
+// Manejo de errores centralizado
+import {
+  errorHandler,
+  handleUncaughtException,
+  handleUnhandledRejection,
+  notFoundHandler
+} from './src/middlewares/errorHandler.js'
+
+// Middlewares de performance
+import {
+  cacheMonitoring,
+  compressionMiddleware,
+  intelligentRateLimit,
+  mongooseMonitoring,
+  performanceMiddleware
+} from './src/middlewares/performanceMiddleware.js'
+
 // Health check endpoints
 import healthRoutes from './src/routes/health.js'
 
-// Rutas
-import authRoutes from './src/routes/auth.js'
+// Performance monitoring routes
+import performanceRoutes from './src/routes/performance.js'
+
+// Rutas refactorizadas unificadas
+import routes from './src/routes/routes.js'
 import userContentRoutes from './src/routes/userContent.js'
-import postRoutes from './src/routes/post.js'
-import userRoutes from './src/routes/user.js'
-import commentRoutes from './src/routes/comment.js'
-import storyRoutes from './src/routes/story.js'
-import reelRoutes from './src/routes/reel.js'
-import notificationRoutes from './src/routes/notification.js'
-import conversationRoutes from './src/routes/conversation.js'
-import messageRoutes from './src/routes/message.js'
-import analyticsRoutes from './src/routes/analytics.js'
-import liveStreamRoutes from './src/routes/liveStream.js'
 import cstvRoutes from './src/routes/cstv.js'
 import reportRoutes from './src/routes/report.js'
 import adminRoutes from './src/routes/admin.js'
-import advancedAnalyticsRoutes from './src/routes/advancedAnalytics.js' // Nueva importación
+import advancedAnalyticsRoutes from './src/routes/advancedAnalytics.js'
 
 // Compresión HTTP
 app.use(compression())
@@ -130,6 +140,13 @@ app.use('/api/:username', limiter)
 
 // Request ID tracking
 app.use(requestId)
+
+// Middlewares de performance
+app.use(performanceMiddleware)
+app.use(mongooseMonitoring)
+app.use(cacheMonitoring)
+app.use(compressionMiddleware)
+app.use(intelligentRateLimit)
 
 // Sanitización - Compatible con Express 5
 app.use(sanitizeMongo)
@@ -207,25 +224,18 @@ if (config.isDevelopment) {
 // Health check endpoints (sin rate limiting ni autenticación)
 app.use('/api/health', healthRoutes)
 
+// Performance monitoring endpoints
+app.use('/api/performance', performanceRoutes)
+
 // Servir imágenes de uploads
 app.use('/uploads', express.static('uploads'))
 
 // Rutas de la aplicación (orden importante: específicas primero)
-app.use('/api/auth', authRoutes)
-app.use('/api/posts', postRoutes)
-app.use('/api/users', userRoutes)
-app.use('/api/comments', commentRoutes)
-app.use('/api/stories', storyRoutes)
-app.use('/api/reels', reelRoutes)
-app.use('/api/notifications', notificationRoutes)
-app.use('/api/conversations', conversationRoutes)
-app.use('/api/messages', messageRoutes)
-app.use('/api/analytics', analyticsRoutes)
-app.use('/api/live-streams', liveStreamRoutes)
+app.use('/api', routes) // Rutas refactorizadas principales (incluye reels, live, analytics)
 app.use('/api/cstv', cstvRoutes)
 app.use('/api/reports', reportRoutes)
 app.use('/api/admin', adminRoutes)
-app.use('/api/admin/analytics', advancedAnalyticsRoutes) // Nueva ruta de analytics avanzados
+app.use('/api/admin/analytics', advancedAnalyticsRoutes)
 
 // User content routes al final (captura /:username/*)
 app.use('/api', userContentRoutes)
@@ -233,80 +243,10 @@ app.use('/api', userContentRoutes)
 // Sentry error handler eliminado
 
 // Middleware de manejo de errores global
-// next no se usa pero es requerido por Express para error handlers (4 parámetros)
-app.use((err, req, res, _next) => {
-  // Loguear el error con formato correcto
-  const errorInfo = {
-    error: err.message,
-    method: req.method,
-    path: req.path,
-    ip: req.ip
-  }
+app.use(errorHandler)
 
-  if (config.isDevelopment && err.stack) {
-    errorInfo.stack = err.stack
-  }
-
-  logger.error('Error en request:', errorInfo)
-
-  // Errores de validación de Mongoose
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      success: false,
-      message: 'Error de validación',
-      errors: Object.values(err.errors).map(e => e.message)
-    })
-  }
-
-  // Errores de casting de Mongoose (IDs inválidos)
-  if (err.name === 'CastError') {
-    return res.status(400).json({
-      success: false,
-      message: 'ID inválido proporcionado'
-    })
-  }
-
-  // Errores de duplicados de MongoDB
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0]
-    return res.status(400).json({
-      success: false,
-      message: `El valor proporcionado para ${field} ya existe`
-    })
-  }
-
-  // Error JWT
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido'
-    })
-  }
-
-  // Error JWT expirado
-  if (err.name === 'TokenExpiredError') {
-    return res.status(401).json({
-      success: false,
-      message: 'Token expirado'
-    })
-  }
-
-  // Error genérico del servidor
-  res.status(err.status || 500).json({
-    success: false,
-    message: config.isDevelopment ? err.message : 'Error interno del servidor',
-    ...(config.isDevelopment && { stack: err.stack })
-  })
-})
-
-// Manejo de rutas no encontradas (compatible con Express 5)
-app.use((req, res) => {
-  logger.warn(`Ruta no encontrada: ${req.method} ${req.path}`)
-  res.status(404).json({
-    success: false,
-    message: 'Ruta no encontrada'
-  })
-})
+// Manejo de rutas no encontradas
+app.use(notFoundHandler)
 
 // Crear servidor HTTP
 const server = http.createServer(app)
@@ -337,33 +277,9 @@ setInterval(() => {
   }
 }, 24 * 60 * 60 * 1000) // Ejecutar cada 24 horas
 
-// Manejo de errores no capturados
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection:', {
-    reason: reason,
-    promise: promise,
-    stack: reason?.stack,
-    message: reason?.message
-  })
-  // Cerrar servidor gracefully
-  server.close(() => {
-    process.exit(1)
-  })
-})
-
-process.on('uncaughtException', error => {
-  logger.error('Uncaught Exception:', {
-    message: error.message,
-    stack: error.stack,
-    name: error.name,
-    cause: error.cause,
-    error: error
-  })
-  // Cerrar servidor gracefully
-  server.close(() => {
-    process.exit(1)
-  })
-})
+// Manejo de errores no capturados usando el middleware centralizado
+handleUnhandledRejection()
+handleUncaughtException()
 
 // Manejo de señales de terminación
 process.on('SIGTERM', () => {

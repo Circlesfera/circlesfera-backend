@@ -1,26 +1,34 @@
 import express from 'express'
 import { auth as protect } from '../middlewares/auth.js'
-import { requireAdmin, requireSuperAdmin, requireAdminPermission } from '../middlewares/adminAuth.js'
-import { validate } from '../middlewares/validate.js'
+import { requireAdmin, requireAdminPermission, requireSuperAdmin } from '../middlewares/adminAuth.js'
 import {
-  getAdminUsers,
-  getAdminUserDetails,
-  updateUserRole,
+  handleValidationErrors,
+  validate,
+  validateAdminUsersQuery,
+  validateBanUser,
+  validateObjectId,
+  validateStatsQuery,
+  validateSuspendUser,
+  validateUpdateUserRole
+} from '../middlewares/validationMiddleware.js'
+import {
   banUser,
-  unbanUser,
-  verifyUser,
-  unverifyUser,
-  suspendUser,
-  unsuspendUser,
+  getAdminUserDetails,
+  getAdminUsers,
+  getSystemStats,
   getUserActivity,
-  getSystemStats
+  suspendUser,
+  unbanUser,
+  unsuspendUser,
+  unverifyUser,
+  updateUserRole,
+  verifyUser
 } from '../controllers/adminController.js'
 import {
   getDashboardStats,
   getReportStats,
   getUserStats
 } from '../controllers/adminStatsController.js'
-import { adminUserSchema, banUserSchema, suspendUserSchema } from '../schemas/adminSchema.js'
 
 const router = express.Router()
 
@@ -90,7 +98,12 @@ router.use(protect)
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/users', requireAdminPermission('manage_users'), getAdminUsers)
+router.get('/users',
+  requireAdminPermission('manage_users'),
+  validateAdminUsersQuery,
+  handleValidationErrors,
+  getAdminUsers
+)
 
 /**
  * @swagger
@@ -117,7 +130,12 @@ router.get('/users', requireAdminPermission('manage_users'), getAdminUsers)
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/users/:userId', requireAdminPermission('manage_users'), getAdminUserDetails)
+router.get('/users/:userId',
+  requireAdminPermission('manage_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  getAdminUserDetails
+)
 
 /**
  * @swagger
@@ -161,7 +179,9 @@ router.get('/users/:userId', requireAdminPermission('manage_users'), getAdminUse
  */
 router.put('/users/:userId/role',
   requireAdminPermission('manage_roles'),
-  validate(adminUserSchema),
+  validateObjectId('userId'),
+  validateUpdateUserRole,
+  handleValidationErrors,
   updateUserRole
 )
 
@@ -209,7 +229,9 @@ router.put('/users/:userId/role',
  */
 router.post('/users/:userId/ban',
   requireAdminPermission('ban_users'),
-  validate(banUserSchema),
+  validateObjectId('userId'),
+  validateBanUser,
+  handleValidationErrors,
   banUser
 )
 
@@ -240,7 +262,12 @@ router.post('/users/:userId/ban',
  *       403:
  *         description: Sin permisos de administrador
  */
-router.delete('/users/:userId/ban', requireAdminPermission('ban_users'), unbanUser)
+router.delete('/users/:userId/ban',
+  requireAdminPermission('ban_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  unbanUser
+)
 
 /**
  * @swagger
@@ -269,7 +296,12 @@ router.delete('/users/:userId/ban', requireAdminPermission('ban_users'), unbanUs
  *       403:
  *         description: Sin permisos de administrador
  */
-router.post('/users/:userId/verify', requireAdminPermission('verify_users'), verifyUser)
+router.post('/users/:userId/verify',
+  requireAdminPermission('verify_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  verifyUser
+)
 
 /**
  * @swagger
@@ -298,7 +330,12 @@ router.post('/users/:userId/verify', requireAdminPermission('verify_users'), ver
  *       403:
  *         description: Sin permisos de administrador
  */
-router.delete('/users/:userId/verify', requireAdminPermission('verify_users'), unverifyUser)
+router.delete('/users/:userId/verify',
+  requireAdminPermission('verify_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  unverifyUser
+)
 
 /**
  * @swagger
@@ -345,7 +382,9 @@ router.delete('/users/:userId/verify', requireAdminPermission('verify_users'), u
  */
 router.post('/users/:userId/suspend',
   requireAdminPermission('ban_users'),
-  validate(suspendUserSchema),
+  validateObjectId('userId'),
+  validateSuspendUser,
+  handleValidationErrors,
   suspendUser
 )
 
@@ -376,7 +415,12 @@ router.post('/users/:userId/suspend',
  *       403:
  *         description: Sin permisos de administrador
  */
-router.delete('/users/:userId/suspend', requireAdminPermission('ban_users'), unsuspendUser)
+router.delete('/users/:userId/suspend',
+  requireAdminPermission('ban_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  unsuspendUser
+)
 
 /**
  * @swagger
@@ -403,7 +447,12 @@ router.delete('/users/:userId/suspend', requireAdminPermission('ban_users'), uns
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/users/:userId/activity', requireAdminPermission('manage_users'), getUserActivity)
+router.get('/users/:userId/activity',
+  requireAdminPermission('manage_users'),
+  validateObjectId('userId'),
+  handleValidationErrors,
+  getUserActivity
+)
 
 // ========================================
 // RUTAS DE ESTADÍSTICAS DEL SISTEMA
@@ -425,7 +474,12 @@ router.get('/users/:userId/activity', requireAdminPermission('manage_users'), ge
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/stats', requireAdminPermission('view_analytics'), getSystemStats)
+router.get('/stats',
+  requireAdminPermission('view_analytics'),
+  validateStatsQuery,
+  handleValidationErrors,
+  getSystemStats
+)
 
 /**
  * @swagger
@@ -443,7 +497,12 @@ router.get('/stats', requireAdminPermission('view_analytics'), getSystemStats)
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/dashboard/stats', requireAdminPermission('view_analytics'), getDashboardStats)
+router.get('/dashboard/stats',
+  requireAdminPermission('view_analytics'),
+  validateStatsQuery,
+  handleValidationErrors,
+  getDashboardStats
+)
 
 /**
  * @swagger
@@ -461,7 +520,12 @@ router.get('/dashboard/stats', requireAdminPermission('view_analytics'), getDash
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/stats/reports', requireAdminPermission('view_analytics'), getReportStats)
+router.get('/stats/reports',
+  requireAdminPermission('view_analytics'),
+  validateStatsQuery,
+  handleValidationErrors,
+  getReportStats
+)
 
 /**
  * @swagger
@@ -479,6 +543,11 @@ router.get('/stats/reports', requireAdminPermission('view_analytics'), getReport
  *       403:
  *         description: Sin permisos de administrador
  */
-router.get('/stats/users', requireAdminPermission('view_analytics'), getUserStats)
+router.get('/stats/users',
+  requireAdminPermission('view_analytics'),
+  validateStatsQuery,
+  handleValidationErrors,
+  getUserStats
+)
 
 export default router

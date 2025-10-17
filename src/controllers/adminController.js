@@ -715,7 +715,7 @@ export const getSystemStats = asyncHandler(async (req, res) => {
         comments: totalComments
       },
       moderation: {
-        totalReports: totalReports,
+        totalReports,
         recentReports
       },
       growth: {

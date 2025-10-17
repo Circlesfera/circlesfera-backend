@@ -175,29 +175,15 @@ export class GetUserProfileUseCase {
    * @returns {Promise<Object>} Información de relación
    */
   async getRelationshipInfo(viewerId, targetId) {
-    try {
-      // Aquí implementarías la lógica para obtener:
-      // - Si se siguen mutuamente
-      // - Si están bloqueados
-      // - Estado de la relación
-      return {
-        isFollowing: false,
-        isFollowedBy: false,
-        isBlocked: false,
-        isBlockedBy: false
-      }
-    } catch (error) {
-      logger.warn('Error obteniendo información de relación', {
-        error: error.message,
-        viewerId,
-        targetId
-      })
-      return {
-        isFollowing: false,
-        isFollowedBy: false,
-        isBlocked: false,
-        isBlockedBy: false
-      }
+    // Aquí implementarías la lógica para obtener:
+    // - Si se siguen mutuamente
+    // - Si están bloqueados
+    // - Estado de la relación
+    return {
+      isFollowing: false,
+      isFollowedBy: false,
+      isBlocked: false,
+      isBlockedBy: false
     }
   }
 
@@ -208,17 +194,9 @@ export class GetUserProfileUseCase {
    * @returns {Promise<Array>} Posts recientes
    */
   async getRecentPosts(userId, options = {}) {
-    try {
-      // Aquí implementarías la consulta a PostRepository
-      // Por ahora retornamos un array vacío
-      return []
-    } catch (error) {
-      logger.warn('Error obteniendo posts recientes', {
-        error: error.message,
-        userId
-      })
-      return []
-    }
+    // Aquí implementarías la consulta a PostRepository
+    // Por ahora retornamos un array vacío
+    return []
   }
 
   /**
@@ -246,18 +224,9 @@ export class GetUserProfileUseCase {
    * @returns {Promise<boolean>} True si están conectados
    */
   async areConnected(userId1, userId2) {
-    try {
-      // Implementar lógica para verificar si son amigos o se siguen
-      // Por ahora retornamos false
-      return false
-    } catch (error) {
-      logger.warn('Error verificando conexión entre usuarios', {
-        error: error.message,
-        userId1,
-        userId2
-      })
-      return false
-    }
+    // Implementar lógica para verificar si son amigos o se siguen
+    // Por ahora retornamos false
+    return false
   }
 
   /**

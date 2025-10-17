@@ -92,7 +92,7 @@ class ResponseOptimizer {
    * Filtrar campos de un objeto
    */
   filterObjectFields(obj, fields) {
-    if (!obj || typeof obj !== 'object') return obj
+    if (!obj || typeof obj !== 'object') { return obj }
 
     const filtered = {}
     for (const field of fields) {
@@ -183,25 +183,23 @@ class ResponseOptimizer {
       return items
     }
 
-    return items.filter(item => {
-      return Object.entries(filters).every(([key, value]) => {
-        if (value === null || value === undefined) return true
+    return items.filter(item => Object.entries(filters).every(([key, value]) => {
+      if (value === null || value === undefined) { return true }
 
-        if (typeof value === 'string') {
-          return item[key] && item[key].toString().toLowerCase().includes(value.toLowerCase())
-        }
+      if (typeof value === 'string') {
+        return item[key] && item[key].toString().toLowerCase().includes(value.toLowerCase())
+      }
 
-        if (typeof value === 'object' && value.$gte !== undefined) {
-          return item[key] >= value.$gte
-        }
+      if (typeof value === 'object' && value.$gte !== undefined) {
+        return item[key] >= value.$gte
+      }
 
-        if (typeof value === 'object' && value.$lte !== undefined) {
-          return item[key] <= value.$lte
-        }
+      if (typeof value === 'object' && value.$lte !== undefined) {
+        return item[key] <= value.$lte
+      }
 
-        return item[key] === value
-      })
-    })
+      return item[key] === value
+    }))
   }
 
   /**
@@ -212,7 +210,7 @@ class ResponseOptimizer {
       const aVal = a[sortBy]
       const bVal = b[sortBy]
 
-      if (aVal === bVal) return 0
+      if (aVal === bVal) { return 0 }
 
       const comparison = aVal < bVal ? -1 : 1
       return sortOrder === 'desc' ? -comparison : comparison
@@ -297,14 +295,14 @@ class ResponseOptimizer {
    */
   getTextContext(text, term, contextLength = 50) {
     const index = text.toLowerCase().indexOf(term.toLowerCase())
-    if (index === -1) return text
+    if (index === -1) { return text }
 
     const start = Math.max(0, index - contextLength)
     const end = Math.min(text.length, index + term.length + contextLength)
 
     let context = text.substring(start, end)
-    if (start > 0) context = '...' + context
-    if (end < text.length) context = context + '...'
+    if (start > 0) { context = `...${context}` }
+    if (end < text.length) { context = `${context}...` }
 
     return context
   }

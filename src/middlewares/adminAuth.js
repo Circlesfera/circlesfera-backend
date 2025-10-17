@@ -95,68 +95,66 @@ export const requireSuperAdmin = asyncHandler(async (req, res, next) => {
 /**
  * Middleware para verificar permisos específicos de administración
  */
-export const requireAdminPermission = (permission) => {
-  return asyncHandler(async (req, res, next) => {
-    // Verificar que el usuario esté autenticado
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Acceso denegado. Token requerido.'
-      })
-    }
+export const requireAdminPermission = (permission) => asyncHandler(async (req, res, next) => {
+  // Verificar que el usuario esté autenticado
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Acceso denegado. Token requerido.'
+    })
+  }
 
-    // Obtener el usuario actualizado de la base de datos
-    const user = await User.findById(req.user.id).select('role isActive isBanned')
+  // Obtener el usuario actualizado de la base de datos
+  const user = await User.findById(req.user.id).select('role isActive isBanned')
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Usuario no encontrado.'
-      })
-    }
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Usuario no encontrado.'
+    })
+  }
 
-    // Verificar que el usuario esté activo y no baneado
-    if (!user.isActive || user.isBanned) {
-      return res.status(403).json({
-        success: false,
-        message: 'Cuenta desactivada o baneada.'
-      })
-    }
+  // Verificar que el usuario esté activo y no baneado
+  if (!user.isActive || user.isBanned) {
+    return res.status(403).json({
+      success: false,
+      message: 'Cuenta desactivada o baneada.'
+    })
+  }
 
-    // Definir permisos por rol
-    const permissions = {
-      admin: [
-        'manage_users',
-        'manage_roles',
-        'ban_users',
-        'verify_users',
-        'view_reports',
-        'manage_reports',
-        'view_analytics',
-        'manage_system',
-        'manage_content'
-      ],
-      moderator: [
-        'view_reports',
-        'manage_reports',
-        'ban_users',
-        'view_analytics'
-      ]
-    }
+  // Definir permisos por rol
+  const permissions = {
+    admin: [
+      'manage_users',
+      'manage_roles',
+      'ban_users',
+      'verify_users',
+      'view_reports',
+      'manage_reports',
+      'view_analytics',
+      'manage_system',
+      'manage_content'
+    ],
+    moderator: [
+      'view_reports',
+      'manage_reports',
+      'ban_users',
+      'view_analytics'
+    ]
+  }
 
-    // Verificar que el usuario tenga el permiso requerido
-    if (!permissions[user.role] || !permissions[user.role].includes(permission)) {
-      return res.status(403).json({
-        success: false,
-        message: `Acceso denegado. Se requiere permiso: ${permission}`
-      })
-    }
+  // Verificar que el usuario tenga el permiso requerido
+  if (!permissions[user.role] || !permissions[user.role].includes(permission)) {
+    return res.status(403).json({
+      success: false,
+      message: `Acceso denegado. Se requiere permiso: ${permission}`
+    })
+  }
 
-    // Agregar información del rol al request
-    req.userRole = user.role
-    req.isAdmin = user.role === 'admin'
-    req.isModerator = user.role === 'moderator'
+  // Agregar información del rol al request
+  req.userRole = user.role
+  req.isAdmin = user.role === 'admin'
+  req.isModerator = user.role === 'moderator'
 
-    next()
-  })
-}
+  next()
+})

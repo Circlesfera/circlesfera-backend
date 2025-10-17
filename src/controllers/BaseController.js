@@ -132,7 +132,9 @@ export class BaseController {
    * @returns {Object} - Usuario sanitizado
    */
   static sanitizeUser(user) {
-    if (!user) return null
+    if (!user) {
+      return null
+    }
 
     const userObj = user.toObject ? user.toObject() : { ...user }
 

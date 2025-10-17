@@ -26,8 +26,12 @@ export class Post {
 
   // Métodos de negocio
   canBeViewedBy(viewer) {
-    if (!this.isActive) return false
-    if (!this.isPublic && this.userId !== viewer.id) return false
+    if (!this.isActive) {
+      return false
+    }
+    if (!this.isPublic && this.userId !== viewer.id) {
+      return false
+    }
 
     return true
   }
@@ -112,7 +116,9 @@ export class Post {
   }
 
   getEngagementRate(totalViews = 0) {
-    if (totalViews === 0) return 0
+    if (totalViews === 0) {
+      return 0
+    }
     return (this.getEngagementScore() / totalViews) * 100
   }
 
@@ -166,7 +172,7 @@ export class Post {
 
   toFeedPost() {
     return {
-      ...this.toPublicPost(),
+      ...this.toPublicPost()
       // Para el feed, podríamos incluir información adicional del usuario
     }
   }
@@ -235,7 +241,9 @@ export class Post {
   }
 
   static fromMongoose(postDoc) {
-    if (!postDoc) return null
+    if (!postDoc) {
+      return null
+    }
 
     return new Post({
       id: postDoc._id.toString(),
