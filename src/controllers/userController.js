@@ -12,25 +12,39 @@ export const getUserProfile = async (req, res) => {
     const { username } = req.params
     logger.debug('getUserProfile - Buscando usuario:', { username, params: req.params })
 
-    // OPTIMIZACIÓN 1: Intentar obtener del caché
-    const cachedProfile = await cacheService.getUserProfile(username)
-    if (cachedProfile) {
-      logger.debug('getUserProfile - Cache HIT:', { username })
+    // Si el usuario está consultando su propio perfil, siempre obtener datos frescos de la BD
+    // para evitar problemas de caché con datos recién actualizados
+    const isOwnProfile = req.userId && req.user?.username?.toLowerCase() === username.toLowerCase()
 
-      // Actualizar isFollowing si hay usuario autenticado
-      if (req.userId && req.userId !== cachedProfile._id.toString()) {
-        const followCheck = await User.findById(req.userId).select('following').lean()
-        if (followCheck) {
-          cachedProfile.isFollowing = followCheck.following.some(
-            followingId => followingId.toString() === cachedProfile._id.toString()
-          )
+    if (isOwnProfile) {
+      logger.info('🔍 getUserProfile - Consulta del propio perfil, saltando caché para datos frescos')
+    } else {
+      // OPTIMIZACIÓN 1: Intentar obtener del caché solo para otros usuarios
+      const cachedProfile = await cacheService.getUserProfile(username)
+      if (cachedProfile) {
+        logger.info('🔍 getUserProfile - Cache HIT con datos:', {
+          username,
+          location: cachedProfile.location,
+          phone: cachedProfile.phone,
+          gender: cachedProfile.gender,
+          birthDate: cachedProfile.birthDate
+        })
+
+        // Actualizar isFollowing si hay usuario autenticado
+        if (req.userId && req.userId !== cachedProfile._id.toString()) {
+          const followCheck = await User.findById(req.userId).select('following').lean()
+          if (followCheck) {
+            cachedProfile.isFollowing = followCheck.following.some(
+              followingId => followingId.toString() === cachedProfile._id.toString()
+            )
+          }
         }
-      }
 
-      return res.json({
-        success: true,
-        user: cachedProfile
-      })
+        return res.json({
+          success: true,
+          user: cachedProfile
+        })
+      }
     }
 
     logger.debug('getUserProfile - Cache MISS, consultando DB:', { username })
@@ -152,6 +166,10 @@ export const getUserProfile = async (req, res) => {
           avatar: 1,
           bio: 1,
           website: 1,
+          location: 1,
+          phone: 1,
+          gender: 1,
+          birthDate: 1,
           isVerified: 1,
           isPrivate: 1,
           createdAt: 1,
@@ -179,6 +197,20 @@ export const getUserProfile = async (req, res) => {
     }
 
     const user = userAggregation[0]
+
+    // Log detallado de los datos obtenidos de la agregación
+    logger.info('🔍 getUserProfile - Datos de agregación:', {
+      username: user?.username,
+      fullName: user?.fullName,
+      bio: user?.bio,
+      location: user?.location,
+      phone: user?.phone,
+      gender: user?.gender,
+      birthDate: user?.birthDate,
+      website: user?.website,
+      avatar: user?.avatar,
+      isPrivate: user?.isPrivate
+    });
 
     // Verificar si el usuario actual está siguiendo (query paralela si es necesario)
     let isFollowing = false
@@ -208,6 +240,20 @@ export const getUserProfile = async (req, res) => {
       isFollowing
     }
 
+    // Log detallado de los datos que se envían al frontend
+    logger.info('🔍 getUserProfile - Datos de respuesta:', {
+      username: responseData?.username,
+      fullName: responseData?.fullName,
+      bio: responseData?.bio,
+      location: responseData?.location,
+      phone: responseData?.phone,
+      gender: responseData?.gender,
+      birthDate: responseData?.birthDate,
+      website: responseData?.website,
+      avatar: responseData?.avatar,
+      isPrivate: responseData?.isPrivate
+    });
+
     logger.debug('getUserProfile optimizado:', {
       username: user.username,
       stats: {
@@ -219,11 +265,22 @@ export const getUserProfile = async (req, res) => {
       }
     })
 
-    // OPTIMIZACIÓN 3: Guardar en caché (sin isFollowing para reutilización)
-    const cacheData = { ...responseData }
-    delete cacheData.isFollowing
-    await cacheService.setUserProfile(username, cacheData)
-    logger.debug('getUserProfile - Guardado en caché:', { username })
+    // OPTIMIZACIÓN 3: Guardar en caché solo si no es el propio perfil del usuario
+    // para evitar problemas de sincronización con datos recién actualizados
+    if (!isOwnProfile) {
+      const cacheData = { ...responseData }
+      delete cacheData.isFollowing
+      await cacheService.setUserProfile(username, cacheData)
+      logger.info('🔍 getUserProfile - Datos frescos guardados en caché:', {
+        username,
+        location: cacheData.location,
+        phone: cacheData.phone,
+        gender: cacheData.gender,
+        birthDate: cacheData.birthDate
+      })
+    } else {
+      logger.info('🔍 getUserProfile - Saltando caché para propio perfil (datos frescos siempre)')
+    }
 
     res.json({
       success: true,

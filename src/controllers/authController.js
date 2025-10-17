@@ -5,6 +5,7 @@ import { config } from '../utils/config.js'
 import logger from '../utils/logger.js'
 import tokenService from '../services/tokenService.js'
 import emailService from '../services/emailService.js'
+import cacheService from '../services/cacheService.js'
 
 // Respuesta de usuario sin información sensible
 const sanitizeUser = (user) => {
@@ -166,9 +167,19 @@ export const getProfile = async (req, res) => {
       })
     }
 
+    // Calcular contadores usando los virtuals del modelo
+    const userWithCounts = {
+      ...sanitizeUser(user),
+      followersCount: user.followersCount,
+      followingCount: user.followingCount,
+      postsCount: user.postsCount,
+      reelsCount: user.reelsCount,
+      storiesCount: user.storiesCount
+    }
+
     res.json({
       success: true,
-      user: sanitizeUser(user)
+      user: userWithCounts
     })
 
   } catch (error) {
@@ -207,6 +218,7 @@ export const updateProfile = async (req, res) => {
       birthDate,
       isPrivate
     } = req.body
+
 
     const user = await User.findById(req.user.id)
 
@@ -251,6 +263,18 @@ export const updateProfile = async (req, res) => {
       user.username = username.toLowerCase()
     }
 
+    // Log de datos recibidos
+    logger.info('🔍 Datos recibidos para actualizar perfil:', {
+      fullName,
+      bio,
+      website,
+      location,
+      phone,
+      gender,
+      birthDate,
+      isPrivate
+    });
+
     // Actualizar otros campos permitidos
     if (fullName !== undefined) { user.fullName = fullName }
     if (bio !== undefined) { user.bio = bio }
@@ -263,14 +287,72 @@ export const updateProfile = async (req, res) => {
 
     await user.save()
 
+    // Log de datos guardados
+    logger.info('🔍 Datos guardados en BD:', {
+      fullName: user.fullName,
+      bio: user.bio,
+      website: user.website,
+      location: user.location,
+      phone: user.phone,
+      gender: user.gender,
+      birthDate: user.birthDate,
+      isPrivate: user.isPrivate
+    });
+
+    // Invalidar caché del perfil de usuario
+    logger.info('🔍 Invalidando caché del perfil:', {
+      username: user.username,
+      key: `user:profile:${user.username.toLowerCase()}`
+    });
+    await cacheService.invalidateUserProfile(user.username);
+    logger.info('🔍 Caché invalidado exitosamente');
+
+    // Forzar recarga desde BD para asegurar datos frescos
+    const freshUser = await User.findById(user._id).lean();
+
+    if (!freshUser) {
+      logger.error('🔍 Error: No se pudo obtener usuario fresco de la BD:', { userId: user._id });
+      return res.status(500).json({
+        success: false,
+        message: 'Error al obtener datos actualizados del usuario'
+      });
+    }
+
+    logger.info('🔍 Usuario fresco desde BD:', {
+      fullName: freshUser.fullName,
+      bio: freshUser.bio,
+      location: freshUser.location,
+      phone: freshUser.phone,
+      gender: freshUser.gender,
+      birthDate: freshUser.birthDate
+    });
+
+    // Limpiar datos sensibles del usuario fresco
+    const cleanUser = { ...freshUser }
+    delete cleanUser.password
+    delete cleanUser.blockedUsers
+    delete cleanUser.preferences
+
+    logger.info('🔍 Usuario limpio para respuesta:', {
+      hasPassword: 'password' in cleanUser,
+      hasBlockedUsers: 'blockedUsers' in cleanUser,
+      hasPreferences: 'preferences' in cleanUser
+    });
+
     res.json({
       success: true,
       message: 'Perfil actualizado exitosamente',
-      user: sanitizeUser(user)
+      user: cleanUser
     })
 
   } catch (error) {
-    logger.error('Error actualizando perfil:', error)
+    logger.error('🔍 Error detallado actualizando perfil:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      userId: req.user?.id,
+      username: req.body?.username
+    });
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor'

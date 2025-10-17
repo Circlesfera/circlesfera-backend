@@ -101,6 +101,13 @@ const updateProfileSchema = z.object({
     .transform(val => val || null),
 
   isPrivate: z.boolean()
+    .optional(),
+
+  avatar: z.union([
+    z.string().url('URL de avatar inválida'),
+    z.literal(''),
+    z.null()
+  ])
     .optional()
 })
 

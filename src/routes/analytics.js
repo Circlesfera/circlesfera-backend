@@ -27,4 +27,7 @@ router.get('/recent-activity', auth, checkRole(['admin', 'moderator']), getRecen
 router.get('/engagement', auth, checkRole(['admin', 'moderator']), getEngagementMetrics)
 router.get('/realtime-activity', auth, checkRole(['admin', 'moderator']), getRealtimeActivity)
 
+// Ruta temporal de debug (solo auth, sin roles)
+router.get('/realtime-activity-debug', auth, getRealtimeActivity)
+
 export default router

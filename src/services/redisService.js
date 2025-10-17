@@ -86,10 +86,12 @@ class RedisService {
         } else {
           await this.client.set(key, value)
         }
+        logger.debug(`🔍 Redis.set: ${key} -> stored`)
       } else {
         // Fallback a memoria
         const expiresAt = ttl ? Date.now() + ttl * 1000 : null
         this.memoryStore.set(key, { value, expiresAt })
+        logger.debug(`🔍 Memory.set: ${key} -> stored (expires: ${expiresAt ? new Date(expiresAt).toISOString() : 'never'})`)
       }
     } catch (error) {
       logger.error(`Error al guardar en Redis/Memoria (${key}):`, error)
@@ -104,18 +106,25 @@ class RedisService {
   async get(key) {
     try {
       if (this.client) {
-        return await this.client.get(key)
+        const result = await this.client.get(key)
+        logger.debug(`🔍 Redis.get: ${key} -> ${result ? 'found' : 'not found'}`)
+        return result
       }
       // Fallback a memoria
       const item = this.memoryStore.get(key)
-      if (!item) { return null }
+      if (!item) {
+        logger.debug(`🔍 Memory.get: ${key} -> not found`)
+        return null
+      }
 
       // Verificar expiración
       if (item.expiresAt && Date.now() > item.expiresAt) {
         this.memoryStore.delete(key)
+        logger.debug(`🔍 Memory.get: ${key} -> expired and deleted`)
         return null
       }
 
+      logger.debug(`🔍 Memory.get: ${key} -> found`)
       return item.value
 
     } catch (error) {
@@ -132,12 +141,16 @@ class RedisService {
     try {
       if (this.client) {
         const result = await this.client.del(key)
+        logger.debug(`🔍 Redis.del: ${key} -> ${result}`)
         return result // Número de keys eliminadas (1 si existe, 0 si no)
       }
       // Fallback a memoria
       const existed = this.memoryStore.has(key)
       if (existed) {
         this.memoryStore.delete(key)
+        logger.debug(`🔍 Memory.del: ${key} -> deleted`)
+      } else {
+        logger.debug(`🔍 Memory.del: ${key} -> not found`)
       }
       return existed ? 1 : 0
 

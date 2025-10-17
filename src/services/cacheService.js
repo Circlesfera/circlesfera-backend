@@ -197,6 +197,7 @@ class CacheService {
    */
   getUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    logger.debug('🔍 CacheService.getUserProfile:', { username, key })
     return this.get(key)
   }
 
@@ -208,6 +209,7 @@ class CacheService {
    */
   setUserProfile(username, profile) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    logger.debug('🔍 CacheService.setUserProfile:', { username, key })
     return this.set(key, profile, this.TTL.USER_PROFILE)
   }
 
@@ -218,6 +220,7 @@ class CacheService {
    */
   invalidateUserProfile(username) {
     const key = `${this.KEYS.USER_PROFILE}${username.toLowerCase()}`
+    logger.debug('🔍 CacheService.invalidateUserProfile:', { username, key })
     return this.del(key)
   }
 
