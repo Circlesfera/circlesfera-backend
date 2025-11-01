@@ -61,6 +61,10 @@ const toDomainPost = (doc: DocumentType<Post>): PostEntity => {
 export interface PostRepository {
   create(data: CreatePostInput): Promise<PostEntity>;
   findFeed(options: FeedQueryOptions): Promise<FeedQueryResult>;
+  incrementLikes(postId: string): Promise<void>;
+  decrementLikes(postId: string): Promise<void>;
+  incrementComments(postId: string): Promise<void>;
+  findById(postId: string): Promise<PostEntity | null>;
 }
 
 export class MongoPostRepository implements PostRepository {
@@ -99,6 +103,23 @@ export class MongoPostRepository implements PostRepository {
       items: hasMore ? items.slice(0, limit) : items,
       hasMore
     };
+  }
+
+  public async incrementLikes(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $inc: { likes: 1 } }).exec();
+  }
+
+  public async decrementLikes(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $inc: { likes: -1 } }).exec();
+  }
+
+  public async incrementComments(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $inc: { comments: 1 } }).exec();
+  }
+
+  public async findById(postId: string): Promise<PostEntity | null> {
+    const post = await PostModel.findById(postId).exec();
+    return post ? toDomainPost(post) : null;
   }
 }
 
