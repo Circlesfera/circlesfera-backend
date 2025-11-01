@@ -17,6 +17,8 @@ export interface FollowRepository {
   exists(followerId: string, followingId: string): Promise<boolean>;
   findFollowingIds(followerId: string): Promise<string[]>;
   findFollowerIds(followingId: string): Promise<string[]>;
+  countFollowers(userId: string): Promise<number>;
+  countFollowing(userId: string): Promise<number>;
 }
 
 const toDomainFollow = (doc: DocumentType<Follow>): FollowEntity => {
@@ -88,6 +90,18 @@ export class MongoFollowRepository implements FollowRepository {
       .exec();
 
     return follows.map((follow) => follow.followerId.toString());
+  }
+
+  public async countFollowers(userId: string): Promise<number> {
+    return await FollowModel.countDocuments({
+      followingId: new mongoose.Types.ObjectId(userId)
+    }).exec();
+  }
+
+  public async countFollowing(userId: string): Promise<number> {
+    return await FollowModel.countDocuments({
+      followerId: new mongoose.Types.ObjectId(userId)
+    }).exec();
   }
 }
 

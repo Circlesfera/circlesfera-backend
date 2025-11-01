@@ -58,9 +58,17 @@ const toDomainPost = (doc: DocumentType<Post>): PostEntity => {
   };
 };
 
+export interface UserPostsOptions {
+  authorId: string;
+  limit?: number;
+  cursor?: Date;
+}
+
 export interface PostRepository {
   create(data: CreatePostInput): Promise<PostEntity>;
   findFeed(options: FeedQueryOptions): Promise<FeedQueryResult>;
+  findByAuthorId(options: UserPostsOptions): Promise<FeedQueryResult>;
+  countByAuthorId(authorId: string): Promise<number>;
   incrementLikes(postId: string): Promise<void>;
   decrementLikes(postId: string): Promise<void>;
   incrementComments(postId: string): Promise<void>;
@@ -115,6 +123,38 @@ export class MongoPostRepository implements PostRepository {
 
   public async incrementComments(postId: string): Promise<void> {
     await PostModel.findByIdAndUpdate(postId, { $inc: { comments: 1 } }).exec();
+  }
+
+  public async findByAuthorId({ authorId, limit = 20, cursor }: UserPostsOptions): Promise<FeedQueryResult> {
+    const query: mongoose.FilterQuery<Post> = {
+      authorId: new mongoose.Types.ObjectId(authorId),
+      isDeleted: false
+    };
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await PostModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainPost(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
+  public async countByAuthorId(authorId: string): Promise<number> {
+    return await PostModel.countDocuments({
+      authorId: new mongoose.Types.ObjectId(authorId),
+      isDeleted: false
+    }).exec();
   }
 
   public async findById(postId: string): Promise<PostEntity | null> {
