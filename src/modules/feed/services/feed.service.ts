@@ -4,6 +4,8 @@ import type { CreatePostPayload } from '../dtos/create-post.dto.js';
 import type { HomeFeedQuery } from '../dtos/home-feed.dto.js';
 import type { PostEntity, PostRepository } from '../repositories/post.repository.js';
 import { MongoPostRepository } from '../repositories/post.repository.js';
+import type { FollowRepository } from '@modules/interactions/repositories/follow.repository.js';
+import { MongoFollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
@@ -56,7 +58,8 @@ export interface FeedCursorResult {
 export class FeedService {
   public constructor(
     private readonly posts: PostRepository = new MongoPostRepository(),
-    private readonly users: UserRepository = new MongoUserRepository()
+    private readonly users: UserRepository = new MongoUserRepository(),
+    private readonly follows: FollowRepository = new MongoFollowRepository()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -115,8 +118,7 @@ export class FeedService {
   }
 
   private async resolveRelevantAuthorIds(userId: string): Promise<string[]> {
-    // TODO: integrar cuando exista el módulo de followers.
-    return [userId];
+    return await this.follows.findFollowingIds(userId);
   }
 
   private async fetchAuthors(posts: PostEntity[]): Promise<Map<string, User>> {
