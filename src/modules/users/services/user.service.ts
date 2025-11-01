@@ -48,6 +48,11 @@ export class UserService {
     return this.toPublicProfile(updated);
   }
 
+  public async searchUsers(query: string, limit = 20): Promise<PublicProfile[]> {
+    const users = await userRepository.searchUsers({ query, limit });
+    return users.map((user) => this.toPublicProfile(user));
+  }
+
   private toPublicProfile(user: User): PublicProfile {
     return {
       id: user.id,

@@ -10,12 +10,18 @@ export interface CreateUserInput {
   passwordHash: string;
 }
 
+export interface SearchUsersOptions {
+  query: string;
+  limit?: number;
+}
+
 export interface UserRepository {
   create(data: CreateUserInput): Promise<User>;
   findByEmail(email: string): Promise<User | null>;
   findByHandle(handle: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   findManyByIds(ids: readonly string[]): Promise<User[]>;
+  searchUsers(options: SearchUsersOptions): Promise<User[]>;
   updateById(
     id: string,
     updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>
@@ -68,6 +74,21 @@ export class MongoUserRepository implements UserRepository {
 
     const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
     const users = await UserModel.find({ _id: { $in: objectIds } }).exec();
+    return users.map((user) => toDomainUser(user));
+  }
+
+  public async searchUsers({ query, limit = 20 }: SearchUsersOptions): Promise<User[]> {
+    if (query.trim().length === 0) {
+      return [];
+    }
+
+    const searchRegex = new RegExp(query.trim(), 'i');
+    const users = await UserModel.find({
+      $or: [{ handle: searchRegex }, { displayName: searchRegex }]
+    })
+      .limit(limit)
+      .exec();
+
     return users.map((user) => toDomainUser(user));
   }
 
