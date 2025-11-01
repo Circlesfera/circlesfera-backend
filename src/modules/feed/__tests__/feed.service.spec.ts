@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { FeedService } from '../services/feed.service';
-import type { FeedCursorResult } from '../services/feed.service';
+import { FeedService } from '../services/feed.service.js';
+import type { FeedCursorResult } from '../services/feed.service.js';
 import type {
   CreatePostInput,
   FeedQueryResult,
   PostEntity,
   PostRepository
-} from '../repositories/post.repository';
-import type { UserRepository } from '../../users/repositories/user.repository';
+} from '../repositories/post.repository.js';
+import type { UserRepository } from '../../users/repositories/user.repository.js';
 
 interface UserEntity {
   id: string;
