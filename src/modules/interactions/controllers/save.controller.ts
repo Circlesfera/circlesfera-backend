@@ -22,7 +22,12 @@ export const saveRouter = Router();
 
 const savedPostsQuerySchema = z.object({
   cursor: z.string().optional(),
-  limit: z.coerce.number().int().positive().max(50).optional().default(20)
+  limit: z.coerce.number().int().positive().max(50).optional().default(20),
+  collectionId: z.string().optional()
+});
+
+const savePostSchema = z.object({
+  collectionId: z.string().optional()
 });
 
 saveRouter.post('/posts/:postId/save', authenticate, async (req: Request, res: Response, next: NextFunction) => {
@@ -33,6 +38,7 @@ saveRouter.post('/posts/:postId/save', authenticate, async (req: Request, res: R
 
     const postId = req.params.postId;
     const userId = req.auth.userId;
+    const payload = savePostSchema.parse(req.body);
 
     const post = await postRepository.findById(postId);
     if (!post) {
@@ -44,13 +50,24 @@ saveRouter.post('/posts/:postId/save', authenticate, async (req: Request, res: R
 
     const alreadySaved = await saveRepository.exists(postId, userId);
     if (alreadySaved) {
-      return res.status(200).json({ message: 'Ya has guardado esta publicación', saved: true });
+      // Si ya está guardado, actualizar la colección
+      await saveRepository.updateCollection(postId, userId, payload.collectionId);
+      return res.status(200).json({ message: 'Publicación actualizada en colección', saved: true });
     }
 
-    await saveRepository.create(postId, userId);
+    await saveRepository.create(postId, userId, payload.collectionId);
 
     res.status(201).json({ message: 'Publicación guardada', saved: true });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new ApplicationError('Datos inválidos', {
+          statusCode: 400,
+          code: 'INVALID_INPUT',
+          metadata: { errors: error.errors }
+        })
+      );
+    }
     next(error);
   }
 });
@@ -90,7 +107,10 @@ saveRouter.get('/saved', authenticate, async (req: Request, res: Response, next:
     const query = savedPostsQuerySchema.parse(req.query);
     const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
 
-    const { items, hasMore } = await saveRepository.findByUserId(userId, query.limit, cursorDate);
+    // Si se especifica collectionId, usar findByCollectionId, sino usar findByUserId
+    const { items, hasMore } = query.collectionId && query.collectionId !== 'default'
+      ? await saveRepository.findByCollectionId(query.collectionId, query.limit, cursorDate)
+      : await saveRepository.findByUserId(userId, query.limit, cursorDate, query.collectionId === 'default' ? undefined : query.collectionId);
 
     if (items.length === 0) {
       return res.status(200).json({ data: [], nextCursor: null });

@@ -7,16 +7,19 @@ export interface SaveEntity {
   id: string;
   postId: string;
   userId: string;
+  collectionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface SaveRepository {
-  create(postId: string, userId: string): Promise<SaveEntity>;
+  create(postId: string, userId: string, collectionId?: string): Promise<SaveEntity>;
   delete(postId: string, userId: string): Promise<void>;
   exists(postId: string, userId: string): Promise<boolean>;
   findSavedPostIds(userId: string, postIds: string[]): Promise<string[]>;
-  findByUserId(userId: string, limit?: number, cursor?: Date): Promise<{ items: SaveEntity[]; hasMore: boolean }>;
+  findByUserId(userId: string, limit?: number, cursor?: Date, collectionId?: string): Promise<{ items: SaveEntity[]; hasMore: boolean }>;
+  findByCollectionId(collectionId: string, limit?: number, cursor?: Date): Promise<{ items: SaveEntity[]; hasMore: boolean }>;
+  updateCollection(postId: string, userId: string, collectionId?: string): Promise<void>;
 }
 
 const toDomainSave = (doc: DocumentType<Save>): SaveEntity => {
@@ -26,16 +29,18 @@ const toDomainSave = (doc: DocumentType<Save>): SaveEntity => {
     id: plain._id.toString(),
     postId: plain.postId.toString(),
     userId: plain.userId.toString(),
+    collectionId: plain.collectionId?.toString(),
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
 };
 
 export class MongoSaveRepository implements SaveRepository {
-  public async create(postId: string, userId: string): Promise<SaveEntity> {
+  public async create(postId: string, userId: string, collectionId?: string): Promise<SaveEntity> {
     const save = await SaveModel.create({
       postId: new mongoose.Types.ObjectId(postId),
-      userId: new mongoose.Types.ObjectId(userId)
+      userId: new mongoose.Types.ObjectId(userId),
+      collectionId: collectionId ? new mongoose.Types.ObjectId(collectionId) : undefined
     });
 
     return toDomainSave(save);
@@ -73,9 +78,40 @@ export class MongoSaveRepository implements SaveRepository {
     return saves.map((save) => save.postId.toString());
   }
 
-  public async findByUserId(userId: string, limit = 20, cursor?: Date): Promise<{ items: SaveEntity[]; hasMore: boolean }> {
+  public async findByUserId(userId: string, limit = 20, cursor?: Date, collectionId?: string): Promise<{ items: SaveEntity[]; hasMore: boolean }> {
     const query: mongoose.FilterQuery<Save> = {
       userId: new mongoose.Types.ObjectId(userId)
+    };
+
+    if (collectionId) {
+      query.collectionId = new mongoose.Types.ObjectId(collectionId);
+    } else {
+      // Si no se especifica collectionId, obtener solo los que no tienen colección (colección por defecto)
+      query.collectionId = { $exists: false };
+    }
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await SaveModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainSave(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
+  public async findByCollectionId(collectionId: string, limit = 20, cursor?: Date): Promise<{ items: SaveEntity[]; hasMore: boolean }> {
+    const query: mongoose.FilterQuery<Save> = {
+      collectionId: new mongoose.Types.ObjectId(collectionId)
     };
 
     if (cursor) {
@@ -95,6 +131,20 @@ export class MongoSaveRepository implements SaveRepository {
       items: hasMore ? items.slice(0, limit) : items,
       hasMore
     };
+  }
+
+  public async updateCollection(postId: string, userId: string, collectionId?: string): Promise<void> {
+    const updateQuery = collectionId
+      ? { $set: { collectionId: new mongoose.Types.ObjectId(collectionId) } }
+      : { $unset: { collectionId: '' } };
+
+    await SaveModel.updateOne(
+      {
+        postId: new mongoose.Types.ObjectId(postId),
+        userId: new mongoose.Types.ObjectId(userId)
+      },
+      updateQuery
+    ).exec();
   }
 }
 

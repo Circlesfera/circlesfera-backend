@@ -19,6 +19,9 @@ export class Save {
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId, index: true })
   public userId!: mongoose.Types.ObjectId;
 
+  @prop({ ref: () => 'Collection', type: () => mongoose.Types.ObjectId, index: true })
+  public collectionId?: mongoose.Types.ObjectId;
+
   public createdAt!: Date;
 
   public updatedAt!: Date;
