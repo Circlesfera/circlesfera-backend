@@ -88,6 +88,12 @@ export interface SearchPostsOptions {
   cursor?: Date;
 }
 
+export interface ReelsQueryOptions {
+  limit?: number;
+  cursor?: Date;
+  excludeAuthorIds?: string[];
+}
+
 export interface PostRepository {
   create(data: CreatePostInput): Promise<PostEntity>;
   findFeed(options: FeedQueryOptions): Promise<FeedQueryResult>;
@@ -101,6 +107,7 @@ export interface PostRepository {
   findExplore(options: ExploreQueryOptions): Promise<FeedQueryResult>;
   findByHashtag(options: HashtagQueryOptions): Promise<FeedQueryResult>;
   searchPosts(options: SearchPostsOptions): Promise<FeedQueryResult>;
+  findReels(options: ReelsQueryOptions): Promise<FeedQueryResult>;
   updateCaption(postId: string, caption: string, hashtags: string[]): Promise<PostEntity>;
   deleteById(postId: string): Promise<void>;
 }
@@ -379,6 +386,45 @@ export class MongoPostRepository implements PostRepository {
 
     if (cursor) {
       query.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await PostModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainPost(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
+  public async findReels({ limit = 20, cursor, excludeAuthorIds = [] }: ReelsQueryOptions): Promise<FeedQueryResult> {
+    // Un reel es un post que:
+    // 1. Tiene exactamente un media de tipo video
+    // 2. La duración del video es <= 60 segundos (60000 ms)
+    // 3. No está eliminado
+    const query: mongoose.FilterQuery<Post> = {
+      isDeleted: false,
+      'media.kind': 'video',
+      'media.durationMs': { $lte: 60000 }, // 60 segundos máximo
+      $expr: {
+        // Asegurar que solo hay un media (reels son videos únicos)
+        $eq: [{ $size: '$media' }, 1]
+      }
+    };
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
+
+    if (excludeAuthorIds.length > 0) {
+      const normalizedIds = excludeAuthorIds.map((id) => new mongoose.Types.ObjectId(id));
+      query.authorId = { $nin: normalizedIds };
     }
 
     const fetchLimit = limit + 1;

@@ -578,6 +578,46 @@ export class FeedService {
     return new Map(users.map((user) => [user.id, user]));
   }
 
+  public async getReelsFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
+    // Obtener reels excluyendo usuarios bloqueados
+    const excludeAuthorIds = Array.from(blockedUserIdsSet);
+    const result = await this.posts.findReels({
+      limit,
+      cursor,
+      excludeAuthorIds
+    });
+
+    if (result.items.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(result.items);
+    const postIds = result.items.map((post) => post.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const data = result.items.map((post) =>
+      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    );
+
+    const lastItem = result.items[result.items.length - 1];
+    const nextCursor = result.hasMore ? lastItem.createdAt.toISOString() : null;
+
+    return { data, nextCursor };
+  }
+
   private mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false, isSaved = false): FeedItem {
     const author = authors.get(post.authorId);
 

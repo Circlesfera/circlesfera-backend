@@ -62,6 +62,22 @@ feedRouter.get('/explore', authenticate, async (req: Request, res: Response, nex
   }
 });
 
+feedRouter.get('/reels', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const query = homeFeedQuerySchema.parse(req.query);
+    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
+    const feed = await feedService.getReelsFeed(req.auth.userId, query.limit, cursorDate);
+
+    res.status(200).json(feed);
+  } catch (error) {
+    next(error);
+  }
+});
+
 feedRouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
