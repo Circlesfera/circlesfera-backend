@@ -5,7 +5,8 @@ export const homeFeedQuerySchema = z.object({
     .string()
     .min(1)
     .optional(),
-  limit: z.coerce.number().int().positive().max(50).default(20)
+  limit: z.coerce.number().int().positive().max(50).default(20),
+  sortBy: z.enum(['recent', 'relevance']).optional().default('recent')
 });
 
 export type HomeFeedQuery = z.infer<typeof homeFeedQuerySchema>;

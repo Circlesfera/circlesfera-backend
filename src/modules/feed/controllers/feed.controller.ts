@@ -96,6 +96,45 @@ feedRouter.get('/:id/related', authenticate, async (req: Request, res: Response,
   }
 });
 
+feedRouter.get('/mentions', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const query = homeFeedQuerySchema.parse(req.query);
+    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
+    const feed = await feedService.getMentionsFeed(req.auth.userId, query.limit, cursorDate);
+
+    res.status(200).json(feed);
+  } catch (error) {
+    next(error);
+  }
+});
+
+feedRouter.get('/search', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+    if (query.trim().length < 2) {
+      return res.status(400).json({ code: 'INVALID_QUERY', message: 'La búsqueda debe tener al menos 2 caracteres' });
+    }
+
+    const limitParam = req.query.limit ? Number(req.query.limit) : 20;
+    const limit = Math.min(Math.max(1, limitParam), 50);
+    const cursor = req.query.cursor ? new Date(req.query.cursor as string) : undefined;
+
+    const result = await feedService.searchPosts(query, req.auth.userId, limit, cursor);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {

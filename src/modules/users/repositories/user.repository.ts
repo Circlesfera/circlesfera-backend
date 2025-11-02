@@ -21,11 +21,14 @@ export interface UserRepository {
   findByHandle(handle: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   findManyByIds(ids: readonly string[]): Promise<User[]>;
+  findManyByHandles(handles: readonly string[]): Promise<User[]>;
   searchUsers(options: SearchUsersOptions): Promise<User[]>;
   updateById(
     id: string,
     updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>
   ): Promise<User | null>;
+  updatePassword(id: string, passwordHash: string): Promise<void>;
+  deleteById(id: string): Promise<void>;
 }
 
 const toDomainUser = (doc: DocumentType<User>): User => {
@@ -77,6 +80,17 @@ export class MongoUserRepository implements UserRepository {
     return users.map((user) => toDomainUser(user));
   }
 
+  public async findManyByHandles(handles: readonly string[]): Promise<User[]> {
+    if (handles.length === 0) {
+      return [];
+    }
+
+    // Normalizar handles a lowercase para búsqueda
+    const normalizedHandles = handles.map((handle) => handle.toLowerCase());
+    const users = await UserModel.find({ handle: { $in: normalizedHandles } }).exec();
+    return users.map((user) => toDomainUser(user));
+  }
+
   public async searchUsers({ query, limit = 20 }: SearchUsersOptions): Promise<User[]> {
     if (query.trim().length === 0) {
       return [];
@@ -101,6 +115,16 @@ export class MongoUserRepository implements UserRepository {
       { new: true }
     ).exec();
     return user ? toDomainUser(user) : null;
+  }
+
+  public async updatePassword(id: string, passwordHash: string): Promise<void> {
+    await UserModel.findByIdAndUpdate(id, {
+      $set: { passwordHash }
+    }).exec();
+  }
+
+  public async deleteById(id: string): Promise<void> {
+    await UserModel.findByIdAndDelete(id).exec();
   }
 }
 

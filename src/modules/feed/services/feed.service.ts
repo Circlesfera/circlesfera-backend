@@ -16,6 +16,9 @@ import { MongoUserRepository } from '@modules/users/repositories/user.repository
 import type { HashtagRepository } from '../repositories/hashtag.repository.js';
 import { MongoHashtagRepository } from '../repositories/hashtag.repository.js';
 import { extractHashtags } from '../utils/hashtag-extractor.js';
+import { extractMentions } from '../utils/mentions.js';
+import type { MentionRepository } from '../repositories/mention.repository.js';
+import { MongoMentionRepository } from '../repositories/mention.repository.js';
 
 export interface FeedUser {
   id: string;
@@ -69,7 +72,8 @@ export class FeedService {
     private readonly follows: FollowRepository = new MongoFollowRepository(),
     private readonly likes: LikeRepository = new MongoLikeRepository(),
     private readonly saves: SaveRepository = new MongoSaveRepository(),
-    private readonly hashtags: HashtagRepository = new MongoHashtagRepository()
+    private readonly hashtags: HashtagRepository = new MongoHashtagRepository(),
+    private readonly mentions: MentionRepository = new MongoMentionRepository()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -83,8 +87,9 @@ export class FeedService {
       height: item.height
     }));
 
-    // Extraer hashtags del caption
+    // Extraer hashtags y menciones del caption
     const extractedHashtags = extractHashtags(payload.caption);
+    const mentionedHandles = extractMentions(payload.caption);
 
     const post = await this.posts.create({
       authorId: userId,
@@ -92,6 +97,21 @@ export class FeedService {
       media,
       hashtags: extractedHashtags
     });
+
+    // Procesar menciones: buscar usuarios por handle y crear menciones
+    if (mentionedHandles.length > 0) {
+      const mentionedUsers = await this.users.findManyByHandles(mentionedHandles);
+      const mentionInputs = mentionedUsers
+        .filter((user) => user.id !== userId) // No mencionarse a uno mismo
+        .map((user) => ({
+          postId: post.id,
+          mentionedUserId: user.id
+        }));
+
+      if (mentionInputs.length > 0) {
+        await this.mentions.createMany(mentionInputs);
+      }
+    }
 
     // Actualizar contadores de hashtags (no bloqueante)
     if (extractedHashtags.length > 0) {
@@ -116,6 +136,7 @@ export class FeedService {
   public async getHomeFeed(userId: string, params: HomeFeedQuery): Promise<FeedCursorResult> {
     const limit = params.limit ?? 20;
     const cursorDate = params.cursor ? new Date(params.cursor) : undefined;
+    const sortBy = params.sortBy ?? 'recent';
 
     const authorIds = await this.resolveRelevantAuthorIds(userId);
     if (!authorIds.includes(userId)) {
@@ -125,7 +146,8 @@ export class FeedService {
     const { items, hasMore } = await this.posts.findFeed({
       authorIds,
       limit,
-      cursor: cursorDate
+      cursor: cursorDate,
+      sortBy
     });
 
     if (items.length === 0) {
@@ -215,6 +237,75 @@ export class FeedService {
   /**
    * Obtiene posts relacionados basados en hashtags compartidos y mismo autor.
    */
+  /**
+   * Obtiene los posts donde el usuario fue mencionado.
+   */
+  public async getMentionsFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
+    const { mentions, hasMore } = await this.mentions.findByUserId(userId, limit, cursor);
+
+    if (mentions.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const postIds = mentions.map((mention) => mention.postId);
+    const posts = await this.posts.findManyByIds(postIds);
+
+    // Mantener el orden de las menciones (más reciente primero)
+    const postsMap = new Map(posts.map((post) => [post.id, post]));
+    const orderedPosts = mentions
+      .map((mention) => postsMap.get(mention.postId))
+      .filter((post): post is PostEntity => post !== undefined);
+
+    if (orderedPosts.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(orderedPosts);
+    const likedPostIds = await this.likes.findLikedPostIds(userId, postIds);
+    const savedPostIds = await this.saves.findSavedPostIds(userId, postIds);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const data = orderedPosts.map((post) =>
+      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    );
+
+    const lastMention = mentions[mentions.length - 1];
+    const nextCursor = hasMore ? lastMention.createdAt.toISOString() : null;
+
+    return { data, nextCursor };
+  }
+
+  public async searchPosts(query: string, userId: string, limit = 20, cursor?: Date): Promise<{
+    data: FeedItem[];
+    nextCursor: string | null;
+  }> {
+    const result = await this.posts.searchPosts({ query, limit, cursor });
+
+    if (result.items.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(result.items);
+    const postIds = result.items.map((post) => post.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const items = result.items.map((post) =>
+      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    );
+
+    const lastPost = result.items[result.items.length - 1];
+    const nextCursor = result.hasMore ? lastPost.createdAt.toISOString() : null;
+
+    return { data: items, nextCursor };
+  }
+
   public async getRelatedPosts(postId: string, userId: string, limit = 6): Promise<FeedItem[]> {
     const post = await this.posts.findById(postId);
 

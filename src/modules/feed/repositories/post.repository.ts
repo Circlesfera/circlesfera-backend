@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 
 import { PostModel, Post, PostMedia } from '../models/post.model.js';
 
+type PostDocument = DocumentType<Post>;
+
 export interface PostStats {
   likes: number;
   comments: number;
@@ -33,6 +35,7 @@ export interface FeedQueryOptions {
   authorIds: string[];
   limit: number;
   cursor?: Date;
+  sortBy?: 'recent' | 'relevance';
 }
 
 export interface FeedQueryResult {
@@ -79,6 +82,12 @@ export interface UserPostsOptions {
   cursor?: Date;
 }
 
+export interface SearchPostsOptions {
+  query: string;
+  limit?: number;
+  cursor?: Date;
+}
+
 export interface PostRepository {
   create(data: CreatePostInput): Promise<PostEntity>;
   findFeed(options: FeedQueryOptions): Promise<FeedQueryResult>;
@@ -88,8 +97,10 @@ export interface PostRepository {
   decrementLikes(postId: string): Promise<void>;
   incrementComments(postId: string): Promise<void>;
   findById(postId: string): Promise<PostEntity | null>;
+  findManyByIds(postIds: string[]): Promise<PostEntity[]>;
   findExplore(options: ExploreQueryOptions): Promise<FeedQueryResult>;
   findByHashtag(options: HashtagQueryOptions): Promise<FeedQueryResult>;
+  searchPosts(options: SearchPostsOptions): Promise<FeedQueryResult>;
 }
 
 export class MongoPostRepository implements PostRepository {
@@ -104,7 +115,7 @@ export class MongoPostRepository implements PostRepository {
     return toDomainPost(post);
   }
 
-  public async findFeed({ authorIds, limit, cursor }: FeedQueryOptions): Promise<FeedQueryResult> {
+  public async findFeed({ authorIds, limit, cursor, sortBy = 'recent' }: FeedQueryOptions): Promise<FeedQueryResult> {
     const normalizedIds = authorIds.map((id) => new mongoose.Types.ObjectId(id));
 
     const query: mongoose.FilterQuery<Post> = {
@@ -117,10 +128,60 @@ export class MongoPostRepository implements PostRepository {
     }
 
     const fetchLimit = limit + 1;
-    const documents = await PostModel.find(query)
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit)
-      .exec();
+    let documents;
+
+    if (sortBy === 'relevance') {
+      // Para ranking de relevancia, necesitamos calcular un score
+      // Usamos agregación para calcular score y ordenar
+      const now = new Date();
+      documents = await PostModel.aggregate([
+        { $match: query },
+        {
+          $addFields: {
+            // Score de engagement: likes (1x), comments (2x), saves (1.5x), views (0.1x)
+            engagementScore: {
+              $add: [
+                { $multiply: ['$likes', 1] },
+                { $multiply: ['$comments', 2] },
+                { $multiply: ['$saves', 1.5] },
+                { $multiply: ['$views', 0.1] }
+              ]
+            },
+            // Decaimiento temporal: posts más recientes tienen mayor peso
+            hoursSinceCreation: {
+              $divide: [{ $subtract: [now, '$createdAt'] }, 3600000] // Milisegundos a horas
+            }
+          }
+        },
+        {
+          $addFields: {
+            // Score final = engagementScore / (1 + hoursSinceCreation/24)
+            // Esto hace que posts más recientes tengan ventaja, pero posts con mucho engagement aún destacan
+            relevanceScore: {
+              $divide: ['$engagementScore', { $add: [1, { $divide: ['$hoursSinceCreation', 24] }] }]
+            }
+          }
+        },
+        { $sort: { relevanceScore: -1 } },
+        { $limit: fetchLimit }
+      ]).exec();
+
+      // Convertir los documentos agregados a formato Post
+      const postIds = documents.map((doc: { _id: mongoose.Types.ObjectId }) => doc._id);
+      const posts = await PostModel.find({ _id: { $in: postIds } }).exec();
+      
+      // Mantener el orden del agregado
+      const postsMap = new Map(posts.map((post) => [post._id.toString(), post]));
+      documents = postIds
+        .map((id: mongoose.Types.ObjectId) => postsMap.get(id.toString()))
+        .filter((post): post is PostDocument => post !== undefined);
+    } else {
+      // Orden cronológico (por defecto)
+      documents = await PostModel.find(query)
+        .sort({ createdAt: -1 })
+        .limit(fetchLimit)
+        .exec();
+    }
 
     const items = documents.map((doc) => toDomainPost(doc));
     const hasMore = items.length > limit;
@@ -178,6 +239,16 @@ export class MongoPostRepository implements PostRepository {
   public async findById(postId: string): Promise<PostEntity | null> {
     const post = await PostModel.findById(postId).exec();
     return post ? toDomainPost(post) : null;
+  }
+
+  public async findManyByIds(postIds: string[]): Promise<PostEntity[]> {
+    if (postIds.length === 0) {
+      return [];
+    }
+
+    const objectIds = postIds.map((id) => new mongoose.Types.ObjectId(id));
+    const posts = await PostModel.find({ _id: { $in: objectIds }, isDeleted: false }).exec();
+    return posts.map((post) => toDomainPost(post));
   }
 
   /**
@@ -246,6 +317,39 @@ export class MongoPostRepository implements PostRepository {
   /**
    * Busca posts por un hashtag específico.
    */
+  public async searchPosts({ query, limit = 20, cursor }: SearchPostsOptions): Promise<FeedQueryResult> {
+    if (query.trim().length === 0) {
+      return { items: [], hasMore: false };
+    }
+
+    const searchRegex = new RegExp(query.trim(), 'i');
+    const queryFilter: mongoose.FilterQuery<Post> = {
+      isDeleted: false,
+      $or: [
+        { caption: searchRegex },
+        { hashtags: { $in: [new RegExp(query.trim(), 'i')] } }
+      ]
+    };
+
+    if (cursor) {
+      queryFilter.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await PostModel.find(queryFilter)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainPost(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
   public async findByHashtag({ hashtag, limit = 20, cursor }: HashtagQueryOptions): Promise<FeedQueryResult> {
     const normalizedHashtag = hashtag.toLowerCase().trim();
     const query: mongoose.FilterQuery<Post> = {
