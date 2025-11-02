@@ -196,6 +196,22 @@ export class FeedService {
     return { data, nextCursor };
   }
 
+  public async getPostById(postId: string, userId: string): Promise<FeedItem | null> {
+    const post = await this.posts.findById(postId);
+
+    if (!post || post.stats === undefined) {
+      return null;
+    }
+
+    const authors = await this.fetchAuthors([post]);
+    const [isLiked, isSaved] = await Promise.all([
+      this.likes.exists(post.id, userId),
+      this.saves.exists(post.id, userId)
+    ]);
+
+    return this.mapPostToFeedItem(post, authors, userId, isLiked, isSaved);
+  }
+
   public async getHashtagFeed(userId: string, hashtag: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
     const { items, hasMore } = await this.posts.findByHashtag({
       hashtag,

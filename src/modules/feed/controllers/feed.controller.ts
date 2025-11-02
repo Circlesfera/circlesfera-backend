@@ -60,6 +60,25 @@ feedRouter.get('/explore', authenticate, async (req: Request, res: Response, nex
   }
 });
 
+feedRouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    const post = await feedService.getPostById(postId, req.auth.userId);
+
+    if (!post) {
+      return res.status(404).json({ code: 'POST_NOT_FOUND', message: 'Publicación no encontrada' });
+    }
+
+    res.status(200).json({ post });
+  } catch (error) {
+    next(error);
+  }
+});
+
 feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
