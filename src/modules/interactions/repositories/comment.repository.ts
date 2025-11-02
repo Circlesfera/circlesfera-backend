@@ -7,6 +7,7 @@ export interface CommentEntity {
   id: string;
   postId: string;
   authorId: string;
+  parentId?: string;
   content: string;
   likes: number;
   createdAt: Date;
@@ -17,6 +18,7 @@ export interface CreateCommentInput {
   postId: string;
   authorId: string;
   content: string;
+  parentId?: string;
 }
 
 export interface CommentQueryOptions {
@@ -35,6 +37,7 @@ export interface CommentRepository {
   findByPostId(options: CommentQueryOptions): Promise<CommentQueryResult>;
   countByPostId(postId: string): Promise<number>;
   findById(commentId: string): Promise<CommentEntity | null>;
+  findRepliesByCommentId(commentId: string): Promise<CommentEntity[]>;
 }
 
 const toDomainComment = (doc: DocumentType<Comment>): CommentEntity => {
@@ -44,6 +47,7 @@ const toDomainComment = (doc: DocumentType<Comment>): CommentEntity => {
     id: plain._id.toString(),
     postId: plain.postId.toString(),
     authorId: plain.authorId.toString(),
+    parentId: plain.parentId?.toString(),
     content: plain.content,
     likes: plain.likes,
     createdAt: plain.createdAt,
@@ -56,15 +60,18 @@ export class MongoCommentRepository implements CommentRepository {
     const comment = await CommentModel.create({
       postId: new mongoose.Types.ObjectId(data.postId),
       authorId: new mongoose.Types.ObjectId(data.authorId),
-      content: data.content
+      content: data.content,
+      parentId: data.parentId ? new mongoose.Types.ObjectId(data.parentId) : undefined
     });
 
     return toDomainComment(comment);
   }
 
   public async findByPostId({ postId, limit, cursor }: CommentQueryOptions): Promise<CommentQueryResult> {
+    // Solo obtener comentarios de primer nivel (sin parentId)
     const query: mongoose.FilterQuery<Comment> = {
-      postId: new mongoose.Types.ObjectId(postId)
+      postId: new mongoose.Types.ObjectId(postId),
+      parentId: { $exists: false }
     };
 
     if (cursor) {
@@ -84,6 +91,19 @@ export class MongoCommentRepository implements CommentRepository {
       items: hasMore ? items.slice(0, limit) : items,
       hasMore
     };
+  }
+
+  /**
+   * Obtiene todos los replies de un comentario específico.
+   */
+  public async findRepliesByCommentId(commentId: string): Promise<CommentEntity[]> {
+    const documents = await CommentModel.find({
+      parentId: new mongoose.Types.ObjectId(commentId)
+    })
+      .sort({ createdAt: 1 }) // Orden cronológico para replies
+      .exec();
+
+    return documents.map((doc) => toDomainComment(doc));
   }
 
   public async countByPostId(postId: string): Promise<number> {

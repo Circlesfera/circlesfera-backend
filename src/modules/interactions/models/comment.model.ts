@@ -19,6 +19,9 @@ export class Comment {
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId })
   public authorId!: mongoose.Types.ObjectId;
 
+  @prop({ ref: () => Comment, type: () => mongoose.Types.ObjectId, index: true })
+  public parentId?: mongoose.Types.ObjectId; // Para replies
+
   @prop({ required: true, trim: true, type: () => String, maxlength: 2200 })
   public content!: string;
 

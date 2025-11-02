@@ -212,6 +212,69 @@ export class FeedService {
     return this.mapPostToFeedItem(post, authors, userId, isLiked, isSaved);
   }
 
+  /**
+   * Obtiene posts relacionados basados en hashtags compartidos y mismo autor.
+   */
+  public async getRelatedPosts(postId: string, userId: string, limit = 6): Promise<FeedItem[]> {
+    const post = await this.posts.findById(postId);
+
+    if (!post) {
+      return [];
+    }
+
+    // Buscar posts con hashtags similares o del mismo autor
+    const authorPosts = await this.posts.findByAuthorId({
+      authorId: post.authorId,
+      limit: Math.ceil(limit / 2),
+      cursor: new Date() // Posts recientes del mismo autor
+    });
+
+    // Filtrar el post actual
+    const relatedByAuthor = authorPosts.items.filter((p) => p.id !== postId).slice(0, 3);
+
+    // Si tenemos hashtags, buscar posts con hashtags compartidos
+    let relatedByHashtag: PostEntity[] = [];
+    if (post.hashtags && post.hashtags.length > 0) {
+      // Buscar posts que compartan al menos un hashtag
+      const hashtagPosts = await Promise.all(
+        post.hashtags.slice(0, 2).map((tag) =>
+          this.posts.findByHashtag({
+            hashtag: tag,
+            limit: 5,
+            cursor: new Date()
+          })
+        )
+      );
+
+      relatedByHashtag = hashtagPosts
+        .flatMap((result) => result.items)
+        .filter((p) => p.id !== postId && p.authorId !== post.authorId)
+        .slice(0, 3);
+    }
+
+    // Combinar y limitar
+    const allRelated = [...relatedByAuthor, ...relatedByHashtag]
+      .filter((p, index, self) => self.findIndex((other) => other.id === p.id) === index) // Eliminar duplicados
+      .slice(0, limit);
+
+    if (allRelated.length === 0) {
+      return [];
+    }
+
+    const authors = await this.fetchAuthors(allRelated);
+    const postIds = allRelated.map((p) => p.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    return allRelated.map((p) =>
+      this.mapPostToFeedItem(p, authors, userId, likedPostIdsSet.has(p.id), savedPostIdsSet.has(p.id))
+    );
+  }
+
   public async getHashtagFeed(userId: string, hashtag: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
     const { items, hasMore } = await this.posts.findByHashtag({
       hashtag,

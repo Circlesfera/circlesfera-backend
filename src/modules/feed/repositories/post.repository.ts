@@ -16,6 +16,7 @@ export interface PostEntity {
   authorId: string;
   caption: string;
   media: PostMedia[];
+  hashtags: string[];
   stats: PostStats;
   createdAt: Date;
   updatedAt: Date;
@@ -59,6 +60,7 @@ const toDomainPost = (doc: DocumentType<Post> | (Post & { _id: mongoose.Types.Ob
     authorId: plain.authorId.toString(),
     caption: plain.caption,
     media: plain.media,
+    hashtags: plain.hashtags ?? [],
     stats: {
       likes: plain.likes,
       comments: plain.comments,

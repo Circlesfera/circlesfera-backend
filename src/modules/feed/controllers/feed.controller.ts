@@ -79,6 +79,23 @@ feedRouter.get('/:id', authenticate, async (req: Request, res: Response, next: N
   }
 });
 
+feedRouter.get('/:id/related', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    const limitParam = req.query.limit ? Number(req.query.limit) : 6;
+    const limit = Math.min(Math.max(1, limitParam), 12); // Entre 1 y 12
+    const relatedPosts = await feedService.getRelatedPosts(postId, req.auth.userId, limit);
+
+    res.status(200).json({ posts: relatedPosts });
+  } catch (error) {
+    next(error);
+  }
+});
+
 feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
