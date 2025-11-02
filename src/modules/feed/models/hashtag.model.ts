@@ -12,7 +12,7 @@ import { Post } from './post.model.js';
 export class Hashtag {
   public id!: string;
 
-  @prop({ required: true, unique: true, lowercase: true, trim: true, type: () => String, index: true })
+  @prop({ required: true, unique: true, lowercase: true, trim: true, type: () => String })
   public tag!: string;
 
   @prop({ type: () => Number, default: 0 })
@@ -28,7 +28,7 @@ export class Hashtag {
 
 export const HashtagModel: ReturnModelType<typeof Hashtag> = getModelForClass(Hashtag);
 
-// Índice para búsqueda rápida
-HashtagModel.schema.index({ tag: 1 }, { unique: true });
+// Índice compuesto para trending (el índice único de 'tag' se crea automáticamente con unique: true)
+// Eliminamos el índice explícito duplicado de 'tag' que causaba el warning
 HashtagModel.schema.index({ postCount: -1, lastUsedAt: -1 }); // Para trending
 
