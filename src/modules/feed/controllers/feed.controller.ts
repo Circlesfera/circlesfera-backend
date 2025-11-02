@@ -62,7 +62,10 @@ feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Reques
           id: randomUUID(),
           kind,
           url: uploadResult.url,
-          thumbnailUrl: uploadResult.thumbnailUrl
+          thumbnailUrl: uploadResult.thumbnailUrl,
+          durationMs: uploadResult.durationMs,
+          width: uploadResult.width,
+          height: uploadResult.height
         };
       })
     );
