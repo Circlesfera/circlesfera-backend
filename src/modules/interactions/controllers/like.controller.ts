@@ -5,11 +5,13 @@ import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
 import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
+import { NotificationService } from '@modules/notifications/services/notification.service.js';
 import type { LikeRepository } from '../repositories/like.repository.js';
 import { MongoLikeRepository } from '../repositories/like.repository.js';
 
 const likeRepository: LikeRepository = new MongoLikeRepository();
 const postRepository: PostRepository = new MongoPostRepository();
+const notificationService = new NotificationService();
 
 export const likeRouter = Router();
 
@@ -37,6 +39,17 @@ likeRouter.post('/posts/:postId/like', authenticate, async (req: Request, res: R
 
     await likeRepository.create(postId, userId);
     await postRepository.incrementLikes(postId);
+
+    // Generar notificación para el autor del post
+    await notificationService.createNotification({
+      type: 'like',
+      actorId: userId,
+      userId: post.authorId.toString(),
+      postId: post.id
+    }).catch((err) => {
+      // No fallar si la notificación no se puede crear
+      console.error('Error al crear notificación de like:', err);
+    });
 
     res.status(201).json({ message: 'Like añadido', liked: true });
   } catch (error) {

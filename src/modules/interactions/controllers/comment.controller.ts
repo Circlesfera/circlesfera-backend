@@ -6,6 +6,7 @@ import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
 import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
+import { NotificationService } from '@modules/notifications/services/notification.service.js';
 import type { CommentRepository } from '../repositories/comment.repository.js';
 import { MongoCommentRepository } from '../repositories/comment.repository.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
@@ -14,6 +15,7 @@ import { MongoUserRepository } from '@modules/users/repositories/user.repository
 const commentRepository: CommentRepository = new MongoCommentRepository();
 const postRepository: PostRepository = new MongoPostRepository();
 const userRepository: UserRepository = new MongoUserRepository();
+const notificationService = new NotificationService();
 
 export const commentRouter = Router();
 
@@ -51,6 +53,18 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
     });
 
     await postRepository.incrementComments(postId);
+
+    // Generar notificación para el autor del post
+    await notificationService.createNotification({
+      type: 'comment',
+      actorId: userId,
+      userId: post.authorId.toString(),
+      postId: post.id,
+      commentId: comment.id
+    }).catch((err) => {
+      // No fallar si la notificación no se puede crear
+      console.error('Error al crear notificación de comentario:', err);
+    });
 
     const author = await userRepository.findById(userId);
 

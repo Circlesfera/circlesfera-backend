@@ -3,6 +3,7 @@ import { Router } from 'express';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { ApplicationError } from '@core/errors/application-error.js';
+import { NotificationService } from '@modules/notifications/services/notification.service.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
 import type { FollowRepository } from '../repositories/follow.repository.js';
@@ -10,6 +11,7 @@ import { MongoFollowRepository } from '../repositories/follow.repository.js';
 
 const followRepository: FollowRepository = new MongoFollowRepository();
 const userRepository: UserRepository = new MongoUserRepository();
+const notificationService = new NotificationService();
 
 export const followRouter = Router();
 
@@ -43,6 +45,16 @@ followRouter.post('/:handle/follow', authenticate, async (req: Request, res: Res
     }
 
     await followRepository.create(followerId, targetUser.id);
+
+    // Generar notificación para el usuario seguido
+    await notificationService.createNotification({
+      type: 'follow',
+      actorId: followerId,
+      userId: targetUser.id
+    }).catch((err) => {
+      // No fallar si la notificación no se puede crear
+      console.error('Error al crear notificación de follow:', err);
+    });
 
     res.status(201).json({ message: 'Ahora sigues a este usuario', following: true });
   } catch (error) {
