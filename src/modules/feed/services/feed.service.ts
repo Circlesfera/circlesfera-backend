@@ -13,6 +13,9 @@ import { MongoSaveRepository } from '@modules/interactions/repositories/save.rep
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
+import type { HashtagRepository } from '../repositories/hashtag.repository.js';
+import { MongoHashtagRepository } from '../repositories/hashtag.repository.js';
+import { extractHashtags } from '../utils/hashtag-extractor.js';
 
 export interface FeedUser {
   id: string;
@@ -65,7 +68,8 @@ export class FeedService {
     private readonly users: UserRepository = new MongoUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
     private readonly likes: LikeRepository = new MongoLikeRepository(),
-    private readonly saves: SaveRepository = new MongoSaveRepository()
+    private readonly saves: SaveRepository = new MongoSaveRepository(),
+    private readonly hashtags: HashtagRepository = new MongoHashtagRepository()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -79,11 +83,22 @@ export class FeedService {
       height: item.height
     }));
 
+    // Extraer hashtags del caption
+    const extractedHashtags = extractHashtags(payload.caption);
+
     const post = await this.posts.create({
       authorId: userId,
       caption: payload.caption,
-      media
+      media,
+      hashtags: extractedHashtags
     });
+
+    // Actualizar contadores de hashtags (no bloqueante)
+    if (extractedHashtags.length > 0) {
+      this.hashtags.createOrUpdate(extractedHashtags).catch((error) => {
+        console.error('Error al actualizar hashtags:', error);
+      });
+    }
 
     const author = await this.users.findById(userId);
     const authorsMap = new Map<string, User>();
@@ -132,6 +147,80 @@ export class FeedService {
         post,
         authors,
         viewerId,
+        likedPostIdsSet.has(post.id),
+        savedPostIdsSet.has(post.id)
+      )
+    );
+
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
+
+    return { data, nextCursor };
+  }
+
+  public async getExploreFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
+    const followingIds = await this.resolveRelevantAuthorIds(userId);
+
+    const { items, hasMore } = await this.posts.findExplore({
+      limit,
+      cursor,
+      excludeAuthorIds: followingIds // Excluir posts de usuarios seguidos
+    });
+
+    if (items.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(items);
+    const postIds = items.map((post) => post.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const data = items.map((post) =>
+      this.mapPostToFeedItem(
+        post,
+        authors,
+        userId,
+        likedPostIdsSet.has(post.id),
+        savedPostIdsSet.has(post.id)
+      )
+    );
+
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
+
+    return { data, nextCursor };
+  }
+
+  public async getHashtagFeed(userId: string, hashtag: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
+    const { items, hasMore } = await this.posts.findByHashtag({
+      hashtag,
+      limit,
+      cursor
+    });
+
+    if (items.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(items);
+    const postIds = items.map((post) => post.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const data = items.map((post) =>
+      this.mapPostToFeedItem(
+        post,
+        authors,
+        userId,
         likedPostIdsSet.has(post.id),
         savedPostIdsSet.has(post.id)
       )

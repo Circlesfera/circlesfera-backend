@@ -44,6 +44,9 @@ export class Post {
   @prop({ type: () => [PostMedia] as never, default: [] })
   public media!: PostMedia[];
 
+  @prop({ type: () => [String] as never, default: [], index: true })
+  public hashtags!: string[];
+
   @prop({ type: () => Number, default: 0 })
   public likes!: number;
 
