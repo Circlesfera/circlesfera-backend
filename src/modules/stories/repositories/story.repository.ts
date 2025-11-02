@@ -27,6 +27,7 @@ export interface StoryEntity {
 export interface StoryRepository {
   create(authorId: string, media: StoryMediaEntity): Promise<StoryEntity>;
   findById(storyId: string): Promise<StoryEntity | null>;
+  findByIds(storyIds: string[]): Promise<StoryEntity[]>; // Para highlights
   findByAuthorId(authorId: string): Promise<StoryEntity[]>;
   findByAuthorIds(authorIds: string[]): Promise<StoryEntity[]>;
   addViewer(storyId: string, viewerId: string): Promise<void>;
@@ -89,13 +90,30 @@ export class MongoStoryRepository implements StoryRepository {
       return null;
     }
 
-    // Verificar si ha expirado
+    // Verificar si ha expirado (solo para stories normales, no para highlights)
+    // Las stories en highlights pueden estar expiradas pero aún ser accesibles
     if (story.expiresAt < new Date()) {
       await StoryModel.deleteOne({ _id: story._id }).exec();
       return null;
     }
 
     return toDomainStory(story);
+  }
+
+  public async findByIds(storyIds: string[]): Promise<StoryEntity[]> {
+    if (storyIds.length === 0) {
+      return [];
+    }
+
+    const objectIds = storyIds.map((id) => new mongoose.Types.ObjectId(id));
+    const stories = await StoryModel.find({
+      _id: { $in: objectIds }
+    })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // Para highlights, no verificamos expiración - las stories expiradas aún pueden estar en highlights
+    return stories.map((story) => toDomainStory(story));
   }
 
   public async findByAuthorId(authorId: string): Promise<StoryEntity[]> {
