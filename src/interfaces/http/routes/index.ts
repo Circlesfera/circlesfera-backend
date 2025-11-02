@@ -5,6 +5,7 @@ import { feedRouter } from '@modules/feed/controllers/feed.controller.js';
 import { commentRouter } from '@modules/interactions/controllers/comment.controller.js';
 import { followRouter } from '@modules/interactions/controllers/follow.controller.js';
 import { likeRouter } from '@modules/interactions/controllers/like.controller.js';
+import { saveRouter } from '@modules/interactions/controllers/save.controller.js';
 import { userRouter } from '@modules/users/controllers/user.controller.js';
 
 /**
@@ -18,6 +19,7 @@ export const registerHttpRoutes = (app: Express): void => {
   app.use('/users', followRouter);
   app.use('/', likeRouter);
   app.use('/', commentRouter);
+  app.use('/', saveRouter);
 
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({

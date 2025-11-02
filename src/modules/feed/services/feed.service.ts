@@ -8,6 +8,8 @@ import type { FollowRepository } from '@modules/interactions/repositories/follow
 import { MongoFollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import type { LikeRepository } from '@modules/interactions/repositories/like.repository.js';
 import { MongoLikeRepository } from '@modules/interactions/repositories/like.repository.js';
+import type { SaveRepository } from '@modules/interactions/repositories/save.repository.js';
+import { MongoSaveRepository } from '@modules/interactions/repositories/save.repository.js';
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
@@ -62,7 +64,8 @@ export class FeedService {
     private readonly posts: PostRepository = new MongoPostRepository(),
     private readonly users: UserRepository = new MongoUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
-    private readonly likes: LikeRepository = new MongoLikeRepository()
+    private readonly likes: LikeRepository = new MongoLikeRepository(),
+    private readonly saves: SaveRepository = new MongoSaveRepository()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -88,8 +91,11 @@ export class FeedService {
       authorsMap.set(author.id, author);
     }
 
-    const isLiked = await this.likes.exists(post.id, userId);
-    return this.mapPostToFeedItem(post, authorsMap, userId, isLiked);
+    const [isLiked, isSaved] = await Promise.all([
+      this.likes.exists(post.id, userId),
+      this.saves.exists(post.id, userId)
+    ]);
+    return this.mapPostToFeedItem(post, authorsMap, userId, isLiked, isSaved);
   }
 
   public async getHomeFeed(userId: string, params: HomeFeedQuery): Promise<FeedCursorResult> {
@@ -113,12 +119,22 @@ export class FeedService {
 
     const authors = await this.fetchAuthors(items);
     const postIds = items.map((post) => post.id);
-    const likedPostIds = await this.likes.findLikedPostIds(userId, postIds);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
     const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
 
     const viewerId = userId;
     const data = items.map((post) =>
-      this.mapPostToFeedItem(post, authors, viewerId, likedPostIdsSet.has(post.id))
+      this.mapPostToFeedItem(
+        post,
+        authors,
+        viewerId,
+        likedPostIdsSet.has(post.id),
+        savedPostIdsSet.has(post.id)
+      )
     );
 
     const lastItem = items[items.length - 1];
@@ -137,7 +153,7 @@ export class FeedService {
     return new Map(users.map((user) => [user.id, user]));
   }
 
-  private mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false): FeedItem {
+  private mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false, isSaved = false): FeedItem {
     const author = authors.get(post.authorId);
 
     return {
@@ -154,7 +170,7 @@ export class FeedService {
         isVerified: Boolean((author as { isVerified?: boolean } | undefined)?.isVerified)
       },
       isLikedByViewer: isLiked,
-      isSavedByViewer: false,
+      isSavedByViewer: isSaved,
       soundTrackUrl: undefined
     };
   }
