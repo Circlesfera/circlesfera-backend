@@ -11,6 +11,7 @@ import { saveRouter } from '@modules/interactions/controllers/save.controller.js
 import { notificationRouter } from '@modules/notifications/controllers/notification.controller.js';
 import { messagingRouter } from '@modules/messaging/controllers/messaging.controller.js';
 import { moderationRouter } from '@modules/moderation/controllers/moderation.controller.js';
+import { storyRouter } from '@modules/stories/controllers/story.controller.js';
 import { userRouter } from '@modules/users/controllers/user.controller.js';
 
 /**
@@ -30,6 +31,7 @@ export const registerHttpRoutes = (app: Express): void => {
   app.use('/notifications', notificationRouter);
   app.use('/messages', messagingRouter);
   app.use('/', moderationRouter);
+  app.use('/stories', storyRouter);
 
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({
