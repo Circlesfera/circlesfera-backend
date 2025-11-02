@@ -1,3 +1,5 @@
+import { hash, verify } from 'argon2';
+
 import { ApplicationError } from '@core/errors/application-error.js';
 
 import { MongoUserRepository, type UserRepository } from '../repositories/user.repository.js';
@@ -75,6 +77,47 @@ export class UserService {
 
   public async getUserPosts(userId: string, limit = 20, cursor?: Date) {
     return await postRepository.findByAuthorId({ authorId: userId, limit, cursor });
+  }
+
+  public async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApplicationError('Usuario no encontrado', {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    const userWithPassword = await userRepository.findByEmail(user.email);
+    if (!userWithPassword || !userWithPassword.passwordHash) {
+      throw new ApplicationError('Error al verificar la contraseña', {
+        statusCode: 500,
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    const isValidPassword = await verify(userWithPassword.passwordHash, currentPassword);
+    if (!isValidPassword) {
+      throw new ApplicationError('Contraseña actual incorrecta', {
+        statusCode: 401,
+        code: 'INVALID_PASSWORD'
+      });
+    }
+
+    const newPasswordHash = await hash(newPassword);
+    await userRepository.updatePassword(userId, newPasswordHash);
+  }
+
+  public async deleteAccount(userId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApplicationError('Usuario no encontrado', {
+        statusCode: 404,
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    await userRepository.deleteById(userId);
   }
 
   private toPublicProfile(user: User): PublicProfile {

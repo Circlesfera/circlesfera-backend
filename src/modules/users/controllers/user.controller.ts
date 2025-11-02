@@ -76,3 +76,35 @@ userRouter.patch('/me', authenticate, async (req: Request, res: Response, next: 
   }
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8)
+});
+
+userRouter.patch('/me/password', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const payload = changePasswordSchema.parse(req.body);
+    await userService.changePassword(req.auth.userId, payload.currentPassword, payload.newPassword);
+    res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+userRouter.delete('/me', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    await userService.deleteAccount(req.auth.userId);
+    res.status(200).json({ message: 'Cuenta eliminada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
