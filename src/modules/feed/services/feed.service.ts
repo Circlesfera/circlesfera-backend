@@ -17,6 +17,8 @@ import type { UserRepository } from '@modules/users/repositories/user.repository
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
 import type { HashtagRepository } from '../repositories/hashtag.repository.js';
 import { MongoHashtagRepository } from '../repositories/hashtag.repository.js';
+import type { FollowHashtagRepository } from '../repositories/follow-hashtag.repository.js';
+import { MongoFollowHashtagRepository } from '../repositories/follow-hashtag.repository.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 import { extractHashtags } from '../utils/hashtag-extractor.js';
 import { extractMentions } from '../utils/mentions.js';
@@ -78,7 +80,8 @@ export class FeedService {
     private readonly likes: LikeRepository = new MongoLikeRepository(),
     private readonly saves: SaveRepository = new MongoSaveRepository(),
     private readonly hashtags: HashtagRepository = new MongoHashtagRepository(),
-    private readonly mentions: MentionRepository = new MongoMentionRepository()
+    private readonly mentions: MentionRepository = new MongoMentionRepository(),
+    private readonly followHashtags: FollowHashtagRepository = new MongoFollowHashtagRepository()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -237,20 +240,59 @@ export class FeedService {
     ]);
     const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
 
-    const authorIds = await this.resolveRelevantAuthorIds(userId);
+    // Obtener autores seguidos y hashtags seguidos
+    const [authorIds, followedTags] = await Promise.all([
+      this.resolveRelevantAuthorIds(userId),
+      this.followHashtags.findFollowedTags(userId)
+    ]);
+
     if (!authorIds.includes(userId)) {
       authorIds.push(userId);
     }
 
-    const { items, hasMore } = await this.posts.findFeed({
+    // Buscar posts de usuarios seguidos
+    const { items: feedItems, hasMore: feedHasMore } = await this.posts.findFeed({
       authorIds,
-      limit,
+      limit: limit * 2, // Pedir más para combinar con posts de hashtags
       cursor: cursorDate,
       sortBy
     });
 
+    // Buscar posts de hashtags seguidos (excluyendo posts de usuarios ya seguidos para evitar duplicados)
+    let hashtagItems: PostEntity[] = [];
+    let hashtagHasMore = false;
+
+    if (followedTags.length > 0) {
+      const { items: hashtagPosts, hasMore } = await this.posts.findByHashtags({
+        hashtags: followedTags,
+        limit: limit,
+        cursor: cursorDate,
+        excludeAuthorIds: authorIds // Excluir posts de usuarios ya seguidos
+      });
+
+      hashtagItems = hashtagPosts;
+      hashtagHasMore = hasMore;
+    }
+
+    // Combinar y eliminar duplicados (por ID de post)
+    const allItems = [...feedItems, ...hashtagItems];
+    const uniqueItemsMap = new Map<string, PostEntity>();
+    for (const item of allItems) {
+      if (!uniqueItemsMap.has(item.id)) {
+        uniqueItemsMap.set(item.id, item);
+      }
+    }
+
+    // Ordenar por fecha de creación (más reciente primero)
+    const combinedItems = Array.from(uniqueItemsMap.values()).sort((a, b) => {
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
+    // Aplicar límite después de combinar
+    const limitedItems = combinedItems.slice(0, limit);
+
     // Filtrar posts de usuarios bloqueados
-    const filteredItems = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+    const filteredItems = limitedItems.filter((post) => !blockedUserIdsSet.has(post.authorId));
 
     if (filteredItems.length === 0) {
       return { data: [], nextCursor: null };
@@ -277,7 +319,8 @@ export class FeedService {
     );
 
     const lastItem = filteredItems[filteredItems.length - 1];
-    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
+    const hasMoreResults = feedHasMore || hashtagHasMore || combinedItems.length > limit;
+    const nextCursor = hasMoreResults ? lastItem.createdAt.toISOString() : null;
 
     return { data, nextCursor };
   }

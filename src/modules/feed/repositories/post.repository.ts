@@ -55,6 +55,13 @@ export interface HashtagQueryOptions {
   cursor?: Date;
 }
 
+export interface HashtagsQueryOptions {
+  hashtags: string[]; // Array de hashtags normalizados
+  limit?: number;
+  cursor?: Date;
+  excludeAuthorIds?: string[]; // Excluir posts de estos autores
+}
+
 const toDomainPost = (doc: DocumentType<Post> | (Post & { _id: mongoose.Types.ObjectId })): PostEntity => {
   const plain = 'toObject' in doc ? doc.toObject<Post & { _id: mongoose.Types.ObjectId }>() : doc;
 
@@ -106,6 +113,7 @@ export interface PostRepository {
   findManyByIds(postIds: string[]): Promise<PostEntity[]>;
   findExplore(options: ExploreQueryOptions): Promise<FeedQueryResult>;
   findByHashtag(options: HashtagQueryOptions): Promise<FeedQueryResult>;
+  findByHashtags(options: HashtagsQueryOptions): Promise<FeedQueryResult>;
   searchPosts(options: SearchPostsOptions): Promise<FeedQueryResult>;
   findReels(options: ReelsQueryOptions): Promise<FeedQueryResult>;
   updateCaption(postId: string, caption: string, hashtags: string[]): Promise<PostEntity>;
@@ -383,6 +391,46 @@ export class MongoPostRepository implements PostRepository {
       hashtags: normalizedHashtag,
       isDeleted: false
     };
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await PostModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainPost(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
+  public async findByHashtags({
+    hashtags,
+    limit = 20,
+    cursor,
+    excludeAuthorIds = []
+  }: HashtagsQueryOptions): Promise<FeedQueryResult> {
+    if (hashtags.length === 0) {
+      return { items: [], hasMore: false };
+    }
+
+    const normalizedHashtags = hashtags.map((tag) => tag.toLowerCase().trim());
+    const query: mongoose.FilterQuery<Post> = {
+      hashtags: { $in: normalizedHashtags },
+      isDeleted: false
+    };
+
+    if (excludeAuthorIds.length > 0) {
+      const normalizedIds = excludeAuthorIds.map((id) => new mongoose.Types.ObjectId(id));
+      query.authorId = { $nin: normalizedIds };
+    }
 
     if (cursor) {
       query.createdAt = { $lt: cursor };
