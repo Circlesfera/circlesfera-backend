@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 
 import { ApplicationError } from '@core/errors/application-error.js';
@@ -14,7 +15,7 @@ const createReportSchema = z.object({
   details: z.string().max(500).optional()
 });
 
-export const moderationRouter = require('express').Router();
+export const moderationRouter = Router();
 
 /**
  * POST /reports

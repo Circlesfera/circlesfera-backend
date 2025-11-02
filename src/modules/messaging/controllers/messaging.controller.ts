@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 
 import { ApplicationError } from '@core/errors/application-error.js';
@@ -15,7 +16,7 @@ const createConversationSchema = z.object({
   userId: z.string().min(1)
 });
 
-export const messagingRouter = require('express').Router();
+export const messagingRouter = Router();
 
 /**
  * GET /conversations
