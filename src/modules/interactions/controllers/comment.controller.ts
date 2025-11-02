@@ -98,7 +98,8 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
               id: author.id,
               handle: author.handle,
               displayName: author.displayName,
-              avatarUrl: author.avatarUrl ?? ''
+              avatarUrl: author.avatarUrl ?? '',
+              isVerified: (author as { isVerified?: boolean }).isVerified ?? false
             }
           : null,
         content: comment.content,
@@ -149,7 +150,8 @@ commentRouter.get('/posts/:postId/comments', authenticate, async (req: Request, 
               id: author.id,
               handle: author.handle,
               displayName: author.displayName,
-              avatarUrl: author.avatarUrl ?? ''
+              avatarUrl: author.avatarUrl ?? '',
+              isVerified: (author as { isVerified?: boolean }).isVerified ?? false
             }
           : null,
         content: comment.content,
@@ -197,7 +199,8 @@ commentRouter.get('/comments/:commentId/replies', authenticate, async (req: Requ
               id: author.id,
               handle: author.handle,
               displayName: author.displayName,
-              avatarUrl: author.avatarUrl ?? ''
+              avatarUrl: author.avatarUrl ?? '',
+              isVerified: (author as { isVerified?: boolean }).isVerified ?? false
             }
           : null,
         content: reply.content,
