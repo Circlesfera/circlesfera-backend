@@ -6,6 +6,8 @@ import type { PostEntity, PostRepository } from '../repositories/post.repository
 import { MongoPostRepository } from '../repositories/post.repository.js';
 import type { FollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import { MongoFollowRepository } from '@modules/interactions/repositories/follow.repository.js';
+import type { BlockRepository } from '@modules/interactions/repositories/block.repository.js';
+import { MongoBlockRepository } from '@modules/interactions/repositories/block.repository.js';
 import type { LikeRepository } from '@modules/interactions/repositories/like.repository.js';
 import { MongoLikeRepository } from '@modules/interactions/repositories/like.repository.js';
 import type { SaveRepository } from '@modules/interactions/repositories/save.repository.js';
@@ -72,6 +74,7 @@ export class FeedService {
     private readonly posts: PostRepository = new MongoPostRepository(),
     private readonly users: UserRepository = new MongoUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
+    private readonly blocks: BlockRepository = new MongoBlockRepository(),
     private readonly likes: LikeRepository = new MongoLikeRepository(),
     private readonly saves: SaveRepository = new MongoSaveRepository(),
     private readonly hashtags: HashtagRepository = new MongoHashtagRepository(),
@@ -227,6 +230,13 @@ export class FeedService {
     const cursorDate = params.cursor ? new Date(params.cursor) : undefined;
     const sortBy = params.sortBy ?? 'recent';
 
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId), // Usuarios que yo bloqueé
+      this.blocks.findBlockerIds(userId) // Usuarios que me bloquearon
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
     const authorIds = await this.resolveRelevantAuthorIds(userId);
     if (!authorIds.includes(userId)) {
       authorIds.push(userId);
@@ -239,12 +249,15 @@ export class FeedService {
       sortBy
     });
 
-    if (items.length === 0) {
+    // Filtrar posts de usuarios bloqueados
+    const filteredItems = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+
+    if (filteredItems.length === 0) {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(items);
-    const postIds = items.map((post) => post.id);
+    const authors = await this.fetchAuthors(filteredItems);
+    const postIds = filteredItems.map((post) => post.id);
     const [likedPostIds, savedPostIds] = await Promise.all([
       this.likes.findLikedPostIds(userId, postIds),
       this.saves.findSavedPostIds(userId, postIds)
@@ -253,7 +266,7 @@ export class FeedService {
     const savedPostIdsSet = new Set(savedPostIds);
 
     const viewerId = userId;
-    const data = items.map((post) =>
+    const data = filteredItems.map((post) =>
       this.mapPostToFeedItem(
         post,
         authors,
@@ -263,7 +276,7 @@ export class FeedService {
       )
     );
 
-    const lastItem = items[items.length - 1];
+    const lastItem = filteredItems[filteredItems.length - 1];
     const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
 
     return { data, nextCursor };
@@ -272,18 +285,28 @@ export class FeedService {
   public async getExploreFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
     const followingIds = await this.resolveRelevantAuthorIds(userId);
 
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
     const { items, hasMore } = await this.posts.findExplore({
       limit,
       cursor,
       excludeAuthorIds: followingIds // Excluir posts de usuarios seguidos
     });
 
-    if (items.length === 0) {
+    // Filtrar posts de usuarios bloqueados
+    const filteredItems = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+
+    if (filteredItems.length === 0) {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(items);
-    const postIds = items.map((post) => post.id);
+    const authors = await this.fetchAuthors(filteredItems);
+    const postIds = filteredItems.map((post) => post.id);
     const [likedPostIds, savedPostIds] = await Promise.all([
       this.likes.findLikedPostIds(userId, postIds),
       this.saves.findSavedPostIds(userId, postIds)
@@ -291,7 +314,7 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = items.map((post) =>
+    const data = filteredItems.map((post) =>
       this.mapPostToFeedItem(
         post,
         authors,
@@ -301,7 +324,7 @@ export class FeedService {
       )
     );
 
-    const lastItem = items[items.length - 1];
+    const lastItem = filteredItems[filteredItems.length - 1];
     const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
 
     return { data, nextCursor };
@@ -312,6 +335,12 @@ export class FeedService {
 
     if (!post || post.stats === undefined) {
       return null;
+    }
+
+    // Verificar si hay bloqueo bidireccional
+    const { user1BlocksUser2, user2BlocksUser1 } = await this.blocks.findMutualBlocks(userId, post.authorId);
+    if (user1BlocksUser2 || user2BlocksUser1) {
+      return null; // No mostrar post si hay bloqueo
     }
 
     const authors = await this.fetchAuthors([post]);
@@ -336,6 +365,13 @@ export class FeedService {
       return { data: [], nextCursor: null };
     }
 
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
     const postIds = mentions.map((mention) => mention.postId);
     const posts = await this.posts.findManyByIds(postIds);
 
@@ -343,15 +379,19 @@ export class FeedService {
     const postsMap = new Map(posts.map((post) => [post.id, post]));
     const orderedPosts = mentions
       .map((mention) => postsMap.get(mention.postId))
-      .filter((post): post is PostEntity => post !== undefined);
+      .filter((post): post is PostEntity => post !== undefined)
+      .filter((post) => !blockedUserIdsSet.has(post.authorId)); // Filtrar usuarios bloqueados
 
     if (orderedPosts.length === 0) {
       return { data: [], nextCursor: null };
     }
 
     const authors = await this.fetchAuthors(orderedPosts);
-    const likedPostIds = await this.likes.findLikedPostIds(userId, postIds);
-    const savedPostIds = await this.saves.findSavedPostIds(userId, postIds);
+    const filteredPostIds = orderedPosts.map((p) => p.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, filteredPostIds),
+      this.saves.findSavedPostIds(userId, filteredPostIds)
+    ]);
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
@@ -375,8 +415,22 @@ export class FeedService {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(result.items);
-    const postIds = result.items.map((post) => post.id);
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
+    // Filtrar posts de usuarios bloqueados
+    const filteredItems = result.items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+
+    if (filteredItems.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(filteredItems);
+    const postIds = filteredItems.map((post) => post.id);
     const [likedPostIds, savedPostIds] = await Promise.all([
       this.likes.findLikedPostIds(userId, postIds),
       this.saves.findSavedPostIds(userId, postIds)
@@ -385,11 +439,11 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const items = result.items.map((post) =>
+    const items = filteredItems.map((post) =>
       this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
     );
 
-    const lastPost = result.items[result.items.length - 1];
+    const lastPost = filteredItems[filteredItems.length - 1];
     const nextCursor = result.hasMore ? lastPost.createdAt.toISOString() : null;
 
     return { data: items, nextCursor };
@@ -402,6 +456,13 @@ export class FeedService {
       return [];
     }
 
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
     // Buscar posts con hashtags similares o del mismo autor
     const authorPosts = await this.posts.findByAuthorId({
       authorId: post.authorId,
@@ -409,8 +470,10 @@ export class FeedService {
       cursor: new Date() // Posts recientes del mismo autor
     });
 
-    // Filtrar el post actual
-    const relatedByAuthor = authorPosts.items.filter((p) => p.id !== postId).slice(0, 3);
+    // Filtrar el post actual y usuarios bloqueados
+    const relatedByAuthor = authorPosts.items
+      .filter((p) => p.id !== postId && !blockedUserIdsSet.has(p.authorId))
+      .slice(0, 3);
 
     // Si tenemos hashtags, buscar posts con hashtags compartidos
     let relatedByHashtag: PostEntity[] = [];
@@ -428,7 +491,7 @@ export class FeedService {
 
       relatedByHashtag = hashtagPosts
         .flatMap((result) => result.items)
-        .filter((p) => p.id !== postId && p.authorId !== post.authorId)
+        .filter((p) => p.id !== postId && p.authorId !== post.authorId && !blockedUserIdsSet.has(p.authorId))
         .slice(0, 3);
     }
 
@@ -466,8 +529,22 @@ export class FeedService {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(items);
-    const postIds = items.map((post) => post.id);
+    // Obtener IDs de usuarios bloqueados (bidireccional)
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(userId),
+      this.blocks.findBlockerIds(userId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
+    // Filtrar posts de usuarios bloqueados
+    const filteredItems = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+
+    if (filteredItems.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(filteredItems);
+    const postIds = filteredItems.map((post) => post.id);
     const [likedPostIds, savedPostIds] = await Promise.all([
       this.likes.findLikedPostIds(userId, postIds),
       this.saves.findSavedPostIds(userId, postIds)
@@ -475,7 +552,7 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = items.map((post) =>
+    const data = filteredItems.map((post) =>
       this.mapPostToFeedItem(
         post,
         authors,
@@ -485,7 +562,7 @@ export class FeedService {
       )
     );
 
-    const lastItem = items[items.length - 1];
+    const lastItem = filteredItems[filteredItems.length - 1];
     const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
 
     return { data, nextCursor };
