@@ -27,6 +27,7 @@ export interface UserRepository {
     id: string,
     updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>
   ): Promise<User | null>;
+  update(id: string, updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
   deleteById(id: string): Promise<void>;
 }
@@ -115,6 +116,12 @@ export class MongoUserRepository implements UserRepository {
       { new: true }
     ).exec();
     return user ? toDomainUser(user) : null;
+  }
+
+  public async update(id: string, updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void> {
+    await UserModel.findByIdAndUpdate(id, {
+      $set: updates
+    }).exec();
   }
 
   public async updatePassword(id: string, passwordHash: string): Promise<void> {

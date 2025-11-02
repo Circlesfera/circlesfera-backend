@@ -23,6 +23,8 @@ interface PublicUser {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  isVerified: boolean;
+  isAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -179,6 +181,8 @@ export class AuthService {
       displayName: user.displayName,
       bio: user.bio ?? null,
       avatarUrl: user.avatarUrl ?? null,
+      isVerified: (user as { isVerified?: boolean }).isVerified ?? false,
+      isAdmin: (user as { isAdmin?: boolean }).isAdmin ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

@@ -50,6 +50,12 @@ export class User {
   @prop({ default: null, type: () => String })
   public avatarUrl?: string | null;
 
+  @prop({ type: () => Boolean, default: false, index: true })
+  public isVerified!: boolean;
+
+  @prop({ type: () => Boolean, default: false })
+  public isAdmin!: boolean; // Para gestión de verificación
+
   public createdAt!: Date;
 
   public updatedAt!: Date;

@@ -19,6 +19,7 @@ export type PublicProfile = {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  isVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -128,6 +129,7 @@ export class UserService {
       displayName: user.displayName,
       bio: user.bio ?? null,
       avatarUrl: user.avatarUrl ?? null,
+      isVerified: (user as { isVerified?: boolean }).isVerified ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

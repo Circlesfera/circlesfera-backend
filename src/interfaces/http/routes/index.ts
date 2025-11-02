@@ -7,11 +7,15 @@ import { blockRouter } from '@modules/interactions/controllers/block.controller.
 import { commentRouter } from '@modules/interactions/controllers/comment.controller.js';
 import { followRouter } from '@modules/interactions/controllers/follow.controller.js';
 import { likeRouter } from '@modules/interactions/controllers/like.controller.js';
+import { collectionRouter } from '@modules/interactions/controllers/collection.controller.js';
 import { saveRouter } from '@modules/interactions/controllers/save.controller.js';
 import { notificationRouter } from '@modules/notifications/controllers/notification.controller.js';
 import { messagingRouter } from '@modules/messaging/controllers/messaging.controller.js';
 import { moderationRouter } from '@modules/moderation/controllers/moderation.controller.js';
+import { analyticsRouter } from '@modules/analytics/controllers/analytics.controller.js';
+import { highlightRouter } from '@modules/stories/controllers/highlight.controller.js';
 import { storyRouter } from '@modules/stories/controllers/story.controller.js';
+import { verificationRouter } from '@modules/verification/controllers/verification.controller.js';
 import { userRouter } from '@modules/users/controllers/user.controller.js';
 
 /**
@@ -28,10 +32,14 @@ export const registerHttpRoutes = (app: Express): void => {
   app.use('/', likeRouter);
   app.use('/', commentRouter);
   app.use('/', saveRouter);
+  app.use('/collections', collectionRouter);
   app.use('/notifications', notificationRouter);
   app.use('/messages', messagingRouter);
   app.use('/', moderationRouter);
   app.use('/stories', storyRouter);
+  app.use('/highlights', highlightRouter);
+  app.use('/analytics', analyticsRouter);
+  app.use('/verification', verificationRouter);
 
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({
