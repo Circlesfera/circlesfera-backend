@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { StoryRepository, StoryEntity, StoryMediaEntity } from '../repositories/story.repository.js';
 import { MongoStoryRepository } from '../repositories/story.repository.js';
+import type { StoryViewRepository } from '../repositories/story-view.repository.js';
+import { MongoStoryViewRepository } from '../repositories/story-view.repository.js';
 import type { FollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import { MongoFollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import type { BlockRepository } from '@modules/interactions/repositories/block.repository.js';
@@ -37,6 +39,7 @@ export interface StoryGroup {
 export class StoryService {
   public constructor(
     private readonly stories: StoryRepository = new MongoStoryRepository(),
+    private readonly storyViews: StoryViewRepository = new MongoStoryViewRepository(),
     private readonly users: UserRepository = new MongoUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
     private readonly blocks: BlockRepository = new MongoBlockRepository()
@@ -187,7 +190,13 @@ export class StoryService {
       return;
     }
 
-    await this.stories.addViewer(storyId, viewerId);
+    // Registrar la vista en StoryView (para lista detallada)
+    const alreadyViewed = await this.storyViews.exists(storyId, viewerId);
+    if (!alreadyViewed) {
+      await this.storyViews.create(storyId, viewerId);
+      // Actualizar también el viewCount y viewerIds en Story (para compatibilidad)
+      await this.stories.addViewer(storyId, viewerId);
+    }
   }
 
   public async getStoryById(storyId: string, viewerId: string): Promise<StoryItem | null> {
@@ -202,6 +211,53 @@ export class StoryService {
     }
 
     return this.mapStoryToItem(story, author, viewerId, story.viewerIds.includes(viewerId));
+  }
+
+  public async getStoryViewers(storyId: string, authorId: string, limit = 50): Promise<StoryUser[]> {
+    // Verificar que la story existe y pertenece al autor
+    const story = await this.stories.findById(storyId);
+    if (!story) {
+      throw new ApplicationError('Story no encontrada', {
+        statusCode: 404,
+        code: 'STORY_NOT_FOUND'
+      });
+    }
+
+    if (story.authorId !== authorId) {
+      throw new ApplicationError('No tienes permiso para ver los viewers de esta story', {
+        statusCode: 403,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    // Obtener viewers
+    const viewersInfo = await this.storyViews.findViewersByStoryId(storyId, limit);
+
+    if (viewersInfo.length === 0) {
+      return [];
+    }
+
+    // Obtener información de usuarios
+    const viewerIds = viewersInfo.map((info) => info.viewerId);
+    const users = await this.users.findManyByIds(viewerIds);
+    const usersMap = new Map(users.map((user) => [user.id, user]));
+
+    // Mapear a StoryUser, manteniendo el orden de visualización (más recientes primero)
+    return viewersInfo
+      .map((info) => {
+        const user = usersMap.get(info.viewerId);
+        if (!user) {
+          return null;
+        }
+        return {
+          id: user.id,
+          handle: user.handle,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl ?? '',
+          isVerified: Boolean((user as { isVerified?: boolean } | undefined)?.isVerified)
+        };
+      })
+      .filter((user): user is StoryUser => user !== null);
   }
 
   private mapStoryToItem(

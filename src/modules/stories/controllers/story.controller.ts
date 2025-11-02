@@ -101,3 +101,23 @@ storyRouter.post('/:storyId/view', authenticate, async (req: Request, res: Respo
   }
 });
 
+storyRouter.get('/:storyId/viewers', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const storyId = req.params.storyId;
+    const limit = z.coerce.number().int().positive().max(100).optional().parse(req.query.limit) ?? 50;
+
+    const viewers = await storyService.getStoryViewers(storyId, req.auth.userId, limit);
+
+    res.status(200).json({
+      viewers,
+      count: viewers.length
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
