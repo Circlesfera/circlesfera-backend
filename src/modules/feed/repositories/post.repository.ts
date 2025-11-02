@@ -101,6 +101,8 @@ export interface PostRepository {
   findExplore(options: ExploreQueryOptions): Promise<FeedQueryResult>;
   findByHashtag(options: HashtagQueryOptions): Promise<FeedQueryResult>;
   searchPosts(options: SearchPostsOptions): Promise<FeedQueryResult>;
+  updateCaption(postId: string, caption: string, hashtags: string[]): Promise<PostEntity>;
+  deleteById(postId: string): Promise<void>;
 }
 
 export class MongoPostRepository implements PostRepository {
@@ -317,6 +319,24 @@ export class MongoPostRepository implements PostRepository {
   /**
    * Busca posts por un hashtag específico.
    */
+  public async updateCaption(postId: string, caption: string, hashtags: string[]): Promise<PostEntity> {
+    const post = await PostModel.findByIdAndUpdate(
+      postId,
+      { $set: { caption, hashtags } },
+      { new: true }
+    ).exec();
+
+    if (!post) {
+      throw new Error('Post not found');
+    }
+
+    return toDomainPost(post);
+  }
+
+  public async deleteById(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $set: { isDeleted: true } }).exec();
+  }
+
   public async searchPosts({ query, limit = 20, cursor }: SearchPostsOptions): Promise<FeedQueryResult> {
     if (query.trim().length === 0) {
       return { items: [], hasMore: false };

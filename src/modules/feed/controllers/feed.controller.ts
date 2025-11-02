@@ -2,11 +2,13 @@ import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'node:crypto';
+import { z } from 'zod';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 
 import { createPostSchema } from '../dtos/create-post.dto.js';
+import { updatePostSchema } from '../dtos/update-post.dto.js';
 import { homeFeedQuerySchema } from '../dtos/home-feed.dto.js';
 import { FeedService } from '../services/feed.service.js';
 import { MediaService } from '@modules/media/services/media.service.js';
@@ -165,6 +167,54 @@ feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Reques
     const item = await feedService.createPost(req.auth.userId, payload);
 
     res.status(201).json({ post: item });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /feed/:id
+ * Edita el caption de un post (solo el autor).
+ */
+feedRouter.patch('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    const payload = updatePostSchema.parse(req.body);
+    const updatedPost = await feedService.updatePost(postId, req.auth.userId, payload);
+
+    res.status(200).json({ post: updatedPost });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new ApplicationError('Datos inválidos', {
+          statusCode: 400,
+          code: 'INVALID_INPUT',
+          metadata: { errors: error.errors }
+        })
+      );
+    }
+    next(error);
+  }
+});
+
+/**
+ * DELETE /feed/:id
+ * Elimina un post (soft delete, solo el autor).
+ */
+feedRouter.delete('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    await feedService.deletePost(postId, req.auth.userId);
+
+    res.status(200).json({ message: 'Publicación eliminada exitosamente' });
   } catch (error) {
     next(error);
   }

@@ -15,10 +15,12 @@ import type { UserRepository } from '@modules/users/repositories/user.repository
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
 import type { HashtagRepository } from '../repositories/hashtag.repository.js';
 import { MongoHashtagRepository } from '../repositories/hashtag.repository.js';
+import { ApplicationError } from '@core/errors/application-error.js';
 import { extractHashtags } from '../utils/hashtag-extractor.js';
 import { extractMentions } from '../utils/mentions.js';
 import type { MentionRepository } from '../repositories/mention.repository.js';
 import { MongoMentionRepository } from '../repositories/mention.repository.js';
+import type { UpdatePostPayload } from '../dtos/update-post.dto.js';
 
 export interface FeedUser {
   id: string;
@@ -131,6 +133,93 @@ export class FeedService {
       this.saves.exists(post.id, userId)
     ]);
     return this.mapPostToFeedItem(post, authorsMap, userId, isLiked, isSaved);
+  }
+
+  public async updatePost(postId: string, userId: string, payload: UpdatePostPayload): Promise<FeedItem> {
+    // Verificar que el post existe y el usuario es el autor
+    const post = await this.posts.findById(postId);
+    if (!post) {
+      throw new ApplicationError('Publicación no encontrada', {
+        statusCode: 404,
+        code: 'POST_NOT_FOUND'
+      });
+    }
+
+    if (post.authorId !== userId) {
+      throw new ApplicationError('No tienes permiso para editar esta publicación', {
+        statusCode: 403,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    // Extraer hashtags y menciones del nuevo caption
+    const extractedHashtags = extractHashtags(payload.caption);
+    const mentionedHandles = extractMentions(payload.caption);
+
+    // Actualizar el post
+    const updatedPost = await this.posts.updateCaption(postId, payload.caption, extractedHashtags);
+
+    // Eliminar menciones antiguas y crear nuevas
+    await this.mentions.deleteByPostId(postId);
+
+    if (mentionedHandles.length > 0) {
+      const mentionedUsers = await this.users.findManyByHandles(mentionedHandles);
+      const mentionInputs = mentionedUsers
+        .filter((user) => user.id !== userId)
+        .map((user) => ({
+          postId: updatedPost.id,
+          mentionedUserId: user.id
+        }));
+
+      if (mentionInputs.length > 0) {
+        await this.mentions.createMany(mentionInputs);
+      }
+    }
+
+    // Actualizar contadores de hashtags (no bloqueante)
+    if (extractedHashtags.length > 0) {
+      this.hashtags.createOrUpdate(extractedHashtags).catch((error) => {
+        console.error('Error al actualizar hashtags:', error);
+      });
+    }
+
+    // Obtener datos completos para la respuesta
+    const author = await this.users.findById(userId);
+    const authorsMap = new Map<string, User>();
+    if (author) {
+      authorsMap.set(author.id, author);
+    }
+
+    const [isLiked, isSaved] = await Promise.all([
+      this.likes.exists(updatedPost.id, userId),
+      this.saves.exists(updatedPost.id, userId)
+    ]);
+
+    return this.mapPostToFeedItem(updatedPost, authorsMap, userId, isLiked, isSaved);
+  }
+
+  public async deletePost(postId: string, userId: string): Promise<void> {
+    // Verificar que el post existe y el usuario es el autor
+    const post = await this.posts.findById(postId);
+    if (!post) {
+      throw new ApplicationError('Publicación no encontrada', {
+        statusCode: 404,
+        code: 'POST_NOT_FOUND'
+      });
+    }
+
+    if (post.authorId !== userId) {
+      throw new ApplicationError('No tienes permiso para eliminar esta publicación', {
+        statusCode: 403,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    // Soft delete (marcar como eliminado)
+    await this.posts.deleteById(postId);
+
+    // Eliminar menciones asociadas
+    await this.mentions.deleteByPostId(postId);
   }
 
   public async getHomeFeed(userId: string, params: HomeFeedQuery): Promise<FeedCursorResult> {
