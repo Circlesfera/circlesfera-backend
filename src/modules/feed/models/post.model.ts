@@ -65,6 +65,9 @@ export class Post {
   @prop({ type: () => Boolean, default: false })
   public isDeleted!: boolean;
 
+  @prop({ type: () => Boolean, default: false, index: true })
+  public isArchived!: boolean;
+
   public createdAt!: Date;
 
   public updatedAt!: Date;

@@ -228,6 +228,82 @@ export class FeedService {
     await this.mentions.deleteByPostId(postId);
   }
 
+  public async archivePost(postId: string, userId: string): Promise<void> {
+    // Verificar que el post existe y el usuario es el autor
+    const post = await this.posts.findById(postId);
+    if (!post) {
+      throw new ApplicationError('Publicación no encontrada', {
+        statusCode: 404,
+        code: 'POST_NOT_FOUND'
+      });
+    }
+
+    if (post.authorId !== userId) {
+      throw new ApplicationError('No tienes permiso para archivar esta publicación', {
+        statusCode: 403,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    await this.posts.archiveById(postId);
+  }
+
+  public async unarchivePost(postId: string, userId: string): Promise<void> {
+    // Verificar que el post existe y el usuario es el autor
+    const post = await this.posts.findById(postId);
+    if (!post) {
+      throw new ApplicationError('Publicación no encontrada', {
+        statusCode: 404,
+        code: 'POST_NOT_FOUND'
+      });
+    }
+
+    if (post.authorId !== userId) {
+      throw new ApplicationError('No tienes permiso para desarchivar esta publicación', {
+        statusCode: 403,
+        code: 'FORBIDDEN'
+      });
+    }
+
+    await this.posts.unarchiveById(postId);
+  }
+
+  public async getArchivedPosts(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
+    const result = await this.posts.findArchivedByAuthorId(userId, limit, cursor);
+
+    if (result.items.length === 0) {
+      return {
+        data: [],
+        nextCursor: null
+      };
+    }
+
+    const feedItems = await this.mapPostsToFeedItems(result.items, userId);
+
+    const lastItem = result.items[result.items.length - 1];
+    const nextCursor = result.hasMore ? lastItem.createdAt.toISOString() : null;
+
+    return {
+      data: feedItems,
+      nextCursor
+    };
+  }
+
+  private async mapPostsToFeedItems(posts: PostEntity[], userId: string): Promise<FeedItem[]> {
+    const authors = await this.fetchAuthors(posts);
+    const postIds = posts.map((post) => post.id);
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(userId, postIds),
+      this.saves.findSavedPostIds(userId, postIds)
+    ]);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    return posts.map((post) =>
+      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    );
+  }
+
   public async getHomeFeed(userId: string, params: HomeFeedQuery): Promise<FeedCursorResult> {
     const limit = params.limit ?? 20;
     const cursorDate = params.cursor ? new Date(params.cursor) : undefined;

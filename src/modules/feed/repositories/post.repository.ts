@@ -20,6 +20,7 @@ export interface PostEntity {
   media: PostMedia[];
   hashtags: string[];
   stats: PostStats;
+  isArchived: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +79,7 @@ const toDomainPost = (doc: DocumentType<Post> | (Post & { _id: mongoose.Types.Ob
       shares: plain.shares,
       views: plain.views
     },
+    isArchived: plain.isArchived ?? false,
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
@@ -87,6 +89,7 @@ export interface UserPostsOptions {
   authorId: string;
   limit?: number;
   cursor?: Date;
+  includeArchived?: boolean; // Para que el autor pueda ver sus posts archivados
 }
 
 export interface SearchPostsOptions {
@@ -118,6 +121,9 @@ export interface PostRepository {
   findReels(options: ReelsQueryOptions): Promise<FeedQueryResult>;
   updateCaption(postId: string, caption: string, hashtags: string[]): Promise<PostEntity>;
   deleteById(postId: string): Promise<void>;
+  archiveById(postId: string): Promise<void>;
+  unarchiveById(postId: string): Promise<void>;
+  findArchivedByAuthorId(authorId: string, limit?: number, cursor?: Date): Promise<FeedQueryResult>;
 }
 
 export class MongoPostRepository implements PostRepository {
@@ -137,7 +143,8 @@ export class MongoPostRepository implements PostRepository {
 
     const query: mongoose.FilterQuery<Post> = {
       authorId: { $in: normalizedIds },
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // Excluir posts archivados del feed
     };
 
     if (cursor) {
@@ -221,11 +228,17 @@ export class MongoPostRepository implements PostRepository {
     await PostModel.findByIdAndUpdate(postId, { $inc: { comments: 1 } }).exec();
   }
 
-  public async findByAuthorId({ authorId, limit = 20, cursor }: UserPostsOptions): Promise<FeedQueryResult> {
+  public async findByAuthorId({ authorId, limit = 20, cursor, includeArchived = false }: UserPostsOptions): Promise<FeedQueryResult> {
     const query: mongoose.FilterQuery<Post> = {
       authorId: new mongoose.Types.ObjectId(authorId),
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // Excluir posts archivados
     };
+
+    // Excluir posts archivados a menos que se solicite explícitamente
+    if (!includeArchived) {
+      query.isArchived = false;
+    }
 
     if (cursor) {
       query.createdAt = { $lt: cursor };
@@ -249,7 +262,8 @@ export class MongoPostRepository implements PostRepository {
   public async countByAuthorId(authorId: string): Promise<number> {
     return await PostModel.countDocuments({
       authorId: new mongoose.Types.ObjectId(authorId),
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // No contar posts archivados en el perfil público
     }).exec();
   }
 
@@ -276,7 +290,8 @@ export class MongoPostRepository implements PostRepository {
     const excludeIds = excludeAuthorIds.map((id) => new mongoose.Types.ObjectId(id));
 
     const query: mongoose.FilterQuery<Post> = {
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // Excluir posts archivados del explore
     };
 
     if (excludeIds.length > 0) {
@@ -352,6 +367,40 @@ export class MongoPostRepository implements PostRepository {
     await PostModel.findByIdAndUpdate(postId, { $set: { isDeleted: true } }).exec();
   }
 
+  public async archiveById(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $set: { isArchived: true } }).exec();
+  }
+
+  public async unarchiveById(postId: string): Promise<void> {
+    await PostModel.findByIdAndUpdate(postId, { $set: { isArchived: false } }).exec();
+  }
+
+  public async findArchivedByAuthorId(authorId: string, limit = 20, cursor?: Date): Promise<FeedQueryResult> {
+    const query: mongoose.FilterQuery<Post> = {
+      authorId: new mongoose.Types.ObjectId(authorId),
+      isDeleted: false,
+      isArchived: true
+    };
+
+    if (cursor) {
+      query.createdAt = { $lt: cursor };
+    }
+
+    const fetchLimit = limit + 1;
+    const documents = await PostModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit)
+      .exec();
+
+    const items = documents.map((doc) => toDomainPost(doc));
+    const hasMore = items.length > limit;
+
+    return {
+      items: hasMore ? items.slice(0, limit) : items,
+      hasMore
+    };
+  }
+
   public async searchPosts({ query, limit = 20, cursor }: SearchPostsOptions): Promise<FeedQueryResult> {
     if (query.trim().length === 0) {
       return { items: [], hasMore: false };
@@ -389,7 +438,8 @@ export class MongoPostRepository implements PostRepository {
     const normalizedHashtag = hashtag.toLowerCase().trim();
     const query: mongoose.FilterQuery<Post> = {
       hashtags: normalizedHashtag,
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // Excluir posts archivados
     };
 
     if (cursor) {
@@ -424,7 +474,8 @@ export class MongoPostRepository implements PostRepository {
     const normalizedHashtags = hashtags.map((tag) => tag.toLowerCase().trim());
     const query: mongoose.FilterQuery<Post> = {
       hashtags: { $in: normalizedHashtags },
-      isDeleted: false
+      isDeleted: false,
+      isArchived: false // Excluir posts archivados
     };
 
     if (excludeAuthorIds.length > 0) {

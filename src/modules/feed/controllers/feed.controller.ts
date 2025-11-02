@@ -236,4 +236,62 @@ feedRouter.delete('/:id', authenticate, async (req: Request, res: Response, next
   }
 });
 
+/**
+ * POST /feed/:id/archive
+ * Archiva un post (oculta del perfil, solo el autor).
+ */
+feedRouter.post('/:id/archive', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    await feedService.archivePost(postId, req.auth.userId);
+
+    res.status(200).json({ message: 'Publicación archivada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /feed/:id/archive
+ * Desarchiva un post (solo el autor).
+ */
+feedRouter.delete('/:id/archive', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const postId = req.params.id;
+    await feedService.unarchivePost(postId, req.auth.userId);
+
+    res.status(200).json({ message: 'Publicación desarchivada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /feed/archived
+ * Obtiene los posts archivados del usuario autenticado.
+ */
+feedRouter.get('/archived', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const query = homeFeedQuerySchema.parse(req.query);
+    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
+    const result = await feedService.getArchivedPosts(req.auth.userId, query.limit, cursorDate);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 
