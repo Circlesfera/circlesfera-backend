@@ -10,8 +10,13 @@ import type { BlockRepository } from '@modules/interactions/repositories/block.r
 import { MongoBlockRepository } from '@modules/interactions/repositories/block.repository.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
+import type { StoryReactionRepository } from '../repositories/story-reaction.repository.js';
+import { MongoStoryReactionRepository } from '../repositories/story-reaction.repository.js';
 import type { CreateStoryPayload } from '../dtos/create-story.dto.js';
 import { ApplicationError } from '@core/errors/application-error.js';
+import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
+import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
+import { NotificationService } from '@modules/notifications/services/notification.service.js';
 
 export interface StoryUser {
   id: string;
@@ -21,12 +26,27 @@ export interface StoryUser {
   isVerified: boolean;
 }
 
+export interface SharedPostInfo {
+  id: string;
+  author: {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+  caption: string;
+  mediaThumbnail: string;
+}
+
 export interface StoryItem {
   id: string;
   author: StoryUser;
   media: StoryMediaEntity;
   viewCount: number;
   hasViewed: boolean;
+  reactionCounts: { [emoji: string]: number };
+  userReaction: string | null; // Emoji de la reacción del usuario actual
+  sharedPost?: SharedPostInfo; // Información del post compartido (si existe)
   expiresAt: string;
   createdAt: string;
 }
@@ -42,10 +62,43 @@ export class StoryService {
     private readonly storyViews: StoryViewRepository = new MongoStoryViewRepository(),
     private readonly users: UserRepository = new MongoUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
-    private readonly blocks: BlockRepository = new MongoBlockRepository()
+    private readonly blocks: BlockRepository = new MongoBlockRepository(),
+    private readonly reactions: StoryReactionRepository = new MongoStoryReactionRepository(),
+    private readonly posts: PostRepository = new MongoPostRepository(),
+    private readonly notifications: NotificationService = new NotificationService()
   ) {}
 
   public async createStory(userId: string, payload: CreateStoryPayload): Promise<StoryItem> {
+    // Si se está compartiendo un post, validar que existe
+    if (payload.sharedPostId) {
+      const post = await this.posts.findById(payload.sharedPostId);
+      if (!post) {
+        throw new ApplicationError('Post no encontrado', {
+          statusCode: 404,
+          code: 'POST_NOT_FOUND'
+        });
+      }
+
+      // Los posts eliminados no deberían aparecer, pero verificamos por seguridad
+      // Si el post existe, podemos continuar
+
+      // No permitir compartir tu propio post
+      if (post.authorId === userId) {
+        throw new ApplicationError('No puedes compartir tu propio post', {
+          statusCode: 400,
+          code: 'CANNOT_SHARE_OWN_POST'
+        });
+      }
+
+      // Crear notificación al autor del post compartido
+      await this.notifications.createNotification({
+        type: 'share', // Necesitamos agregar este tipo a NotificationType
+        actorId: userId,
+        userId: post.authorId.toString(),
+        postId: post.id
+      });
+    }
+
     const media: StoryMediaEntity = {
       id: randomUUID(),
       kind: payload.media.kind,
@@ -56,7 +109,7 @@ export class StoryService {
       height: payload.media.height
     };
 
-    const story = await this.stories.create(userId, media);
+    const story = await this.stories.create(userId, media, payload.sharedPostId);
 
     const author = await this.users.findById(userId);
     if (!author) {
@@ -66,7 +119,7 @@ export class StoryService {
       });
     }
 
-    return this.mapStoryToItem(story, author, userId, false);
+    return await this.mapStoryToItem(story, author, userId, false);
   }
 
   public async getStoryFeed(userId: string): Promise<StoryGroup[]> {
@@ -132,8 +185,10 @@ export class StoryService {
       }
       const hasViewedAny = viewerIdsSet.has(userId);
 
-      const storyItems = sortedStories.map((story) =>
-        this.mapStoryToItem(story, author, userId, story.viewerIds.includes(userId))
+      const storyItems = await Promise.all(
+        sortedStories.map((story) =>
+          this.mapStoryToItem(story, author, userId, story.viewerIds.includes(userId))
+        )
       );
 
       groups.push({
@@ -171,8 +226,10 @@ export class StoryService {
       return [];
     }
 
-    return stories.map((story) =>
-      this.mapStoryToItem(story, author, viewerId, story.viewerIds.includes(viewerId))
+    return Promise.all(
+      stories.map((story) =>
+        this.mapStoryToItem(story, author, viewerId, story.viewerIds.includes(viewerId))
+      )
     );
   }
 
@@ -210,7 +267,7 @@ export class StoryService {
       return null;
     }
 
-    return this.mapStoryToItem(story, author, viewerId, story.viewerIds.includes(viewerId));
+    return await this.mapStoryToItem(story, author, viewerId, story.viewerIds.includes(viewerId));
   }
 
   public async getStoryViewers(storyId: string, authorId: string, limit = 50): Promise<StoryUser[]> {
@@ -260,12 +317,43 @@ export class StoryService {
       .filter((user): user is StoryUser => user !== null);
   }
 
-  private mapStoryToItem(
+  private async mapStoryToItem(
     story: StoryEntity,
     author: { id: string; handle: string; displayName: string; avatarUrl?: string | null; isVerified?: boolean },
     viewerId: string,
     hasViewed: boolean
-  ): StoryItem {
+  ): Promise<StoryItem> {
+    // Obtener conteos de reacciones y reacción del usuario actual
+    const [reactionCounts, userReaction] = await Promise.all([
+      this.reactions.countByStoryId(story.id),
+      this.reactions.findByStoryIdAndUserId(story.id, viewerId)
+    ]);
+
+    // Si hay un post compartido, obtener su información
+    let sharedPost: SharedPostInfo | undefined;
+    if (story.sharedPostId) {
+      const post = await this.posts.findById(story.sharedPostId);
+      if (post) {
+        const postAuthor = await this.users.findById(post.authorId);
+        if (postAuthor) {
+          // Obtener el primer media del post como thumbnail
+          const thumbnailMedia = post.media.length > 0 ? post.media[0] : null;
+          
+          sharedPost = {
+            id: post.id,
+            author: {
+              id: postAuthor.id,
+              handle: postAuthor.handle,
+              displayName: postAuthor.displayName,
+              avatarUrl: postAuthor.avatarUrl ?? ''
+            },
+            caption: post.caption,
+            mediaThumbnail: thumbnailMedia?.thumbnailUrl ?? thumbnailMedia?.url ?? ''
+          };
+        }
+      }
+    }
+
     return {
       id: story.id,
       author: {
@@ -278,6 +366,9 @@ export class StoryService {
       media: story.media,
       viewCount: story.viewCount,
       hasViewed,
+      reactionCounts,
+      userReaction: userReaction?.emoji ?? null,
+      sharedPost,
       expiresAt: story.expiresAt.toISOString(),
       createdAt: story.createdAt.toISOString()
     };

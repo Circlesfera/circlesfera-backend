@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import { Post } from '@modules/feed/models/post.model.js';
 import { User } from '@modules/users/models/user.model.js';
 
-export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'reply';
+export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'reply' | 'tagged' | 'share';
 
 @modelOptions({
   schemaOptions: {
@@ -15,7 +15,7 @@ export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'repl
 export class Notification {
   public id!: string;
 
-  @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId, index: true })
+  @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId })
   public userId!: mongoose.Types.ObjectId;
 
   @prop({ required: true, type: () => String })

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
+import { sensitiveOperationRateLimiter, readOperationRateLimiter } from '@interfaces/http/middlewares/rate-limiter.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 
 import { createPostSchema } from '../dtos/create-post.dto.js';
@@ -31,7 +32,60 @@ const upload = multer({
 
 export const feedRouter = Router();
 
-feedRouter.get('/', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * @swagger
+ * /feed:
+ *   get:
+ *     tags: [Feed]
+ *     summary: Obtener feed principal del usuario
+ *     description: Devuelve el feed personalizado del usuario con posts de usuarios seguidos y hashtags
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *         description: Número de posts a devolver
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor para paginación
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [recent, relevance]
+ *           default: recent
+ *         description: Orden de los posts
+ *     responses:
+ *       200:
+ *         description: Feed obtenido exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   nullable: true
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+feedRouter.get('/', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -46,7 +100,7 @@ feedRouter.get('/', authenticate, async (req: Request, res: Response, next: Next
   }
 });
 
-feedRouter.get('/explore', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.get('/explore', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -62,7 +116,7 @@ feedRouter.get('/explore', authenticate, async (req: Request, res: Response, nex
   }
 });
 
-feedRouter.get('/reels', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.get('/reels', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -78,7 +132,28 @@ feedRouter.get('/reels', authenticate, async (req: Request, res: Response, next:
   }
 });
 
-feedRouter.get('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * GET /feed/archived
+ * Obtiene los posts archivados del usuario autenticado.
+ * IMPORTANTE: Debe ir antes de /:id para evitar que "archived" sea capturado como id
+ */
+feedRouter.get('/archived', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const query = homeFeedQuerySchema.parse(req.query);
+    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
+    const result = await feedService.getArchivedPosts(req.auth.userId, query.limit, cursorDate);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+feedRouter.get('/:id', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -97,7 +172,7 @@ feedRouter.get('/:id', authenticate, async (req: Request, res: Response, next: N
   }
 });
 
-feedRouter.get('/:id/related', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.get('/:id/related', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -153,7 +228,7 @@ feedRouter.get('/search', authenticate, async (req: Request, res: Response, next
   }
 });
 
-feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.post('/', authenticate, sensitiveOperationRateLimiter, upload.array('media', 10), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -192,7 +267,7 @@ feedRouter.post('/', authenticate, upload.array('media', 10), async (req: Reques
  * PATCH /feed/:id
  * Edita el caption de un post (solo el autor).
  */
-feedRouter.patch('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.patch('/:id', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -221,7 +296,7 @@ feedRouter.patch('/:id', authenticate, async (req: Request, res: Response, next:
  * DELETE /feed/:id
  * Elimina un post (soft delete, solo el autor).
  */
-feedRouter.delete('/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.delete('/:id', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -240,7 +315,7 @@ feedRouter.delete('/:id', authenticate, async (req: Request, res: Response, next
  * POST /feed/:id/archive
  * Archiva un post (oculta del perfil, solo el autor).
  */
-feedRouter.post('/:id/archive', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.post('/:id/archive', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -259,7 +334,7 @@ feedRouter.post('/:id/archive', authenticate, async (req: Request, res: Response
  * DELETE /feed/:id/archive
  * Desarchiva un post (solo el autor).
  */
-feedRouter.delete('/:id/archive', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+feedRouter.delete('/:id/archive', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -273,25 +348,4 @@ feedRouter.delete('/:id/archive', authenticate, async (req: Request, res: Respon
     next(error);
   }
 });
-
-/**
- * GET /feed/archived
- * Obtiene los posts archivados del usuario autenticado.
- */
-feedRouter.get('/archived', authenticate, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
-    }
-
-    const query = homeFeedQuerySchema.parse(req.query);
-    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
-    const result = await feedService.getArchivedPosts(req.auth.userId, query.limit, cursorDate);
-
-    res.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
 

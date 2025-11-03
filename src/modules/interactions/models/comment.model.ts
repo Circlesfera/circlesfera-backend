@@ -35,3 +35,8 @@ export class Comment {
 
 export const CommentModel: ReturnModelType<typeof Comment> = getModelForClass(Comment);
 
+// Índices para optimización de queries de comentarios
+CommentModel.schema.index({ postId: 1, createdAt: -1 }); // Listar comentarios de un post ordenados por fecha
+CommentModel.schema.index({ authorId: 1, createdAt: -1 }); // Comentarios del usuario
+CommentModel.schema.index({ parentId: 1, createdAt: -1 }); // Replies de un comentario
+

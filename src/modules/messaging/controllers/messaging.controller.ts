@@ -16,6 +16,19 @@ const createConversationSchema = z.object({
   userId: z.string().min(1)
 });
 
+const createGroupSchema = z.object({
+  participantIds: z.array(z.string().min(1)).min(1),
+  groupName: z.string().min(1).max(100)
+});
+
+const addParticipantSchema = z.object({
+  userId: z.string().min(1)
+});
+
+const updateGroupNameSchema = z.object({
+  groupName: z.string().min(1).max(100)
+});
+
 export const messagingRouter = Router();
 
 /**
@@ -129,6 +142,119 @@ messagingRouter.post('/conversations/:id/messages', authenticate, async (req: Re
         new ApplicationError('No tienes permiso para enviar mensajes a esta conversación', {
           statusCode: 403,
           code: 'FORBIDDEN'
+        })
+      );
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /conversations/group
+ * Crea un nuevo grupo.
+ */
+messagingRouter.post('/conversations/group', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const payload = createGroupSchema.parse(req.body);
+    const conversationId = await messagingService.createGroup(
+      req.auth.userId,
+      payload.participantIds,
+      payload.groupName
+    );
+
+    res.status(201).json({ id: conversationId });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new ApplicationError('Datos inválidos', {
+          statusCode: 400,
+          code: 'INVALID_INPUT',
+          metadata: { errors: error.errors }
+        })
+      );
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /conversations/:id/members
+ * Agrega un participante a un grupo.
+ */
+messagingRouter.post('/conversations/:id/members', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const conversationId = req.params.id;
+    const payload = addParticipantSchema.parse(req.body);
+
+    await messagingService.addParticipant(conversationId, req.auth.userId, payload.userId);
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new ApplicationError('Datos inválidos', {
+          statusCode: 400,
+          code: 'INVALID_INPUT',
+          metadata: { errors: error.errors }
+        })
+      );
+    }
+    next(error);
+  }
+});
+
+/**
+ * DELETE /conversations/:id/members/:userId
+ * Quita un participante de un grupo.
+ */
+messagingRouter.delete('/conversations/:id/members/:userId', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const conversationId = req.params.id;
+    const participantToRemove = req.params.userId;
+
+    await messagingService.removeParticipant(conversationId, req.auth.userId, participantToRemove);
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /conversations/:id/name
+ * Actualiza el nombre de un grupo.
+ */
+messagingRouter.patch('/conversations/:id/name', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const conversationId = req.params.id;
+    const payload = updateGroupNameSchema.parse(req.body);
+
+    await messagingService.updateGroupName(conversationId, req.auth.userId, payload.groupName);
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new ApplicationError('Datos inválidos', {
+          statusCode: 400,
+          code: 'INVALID_INPUT',
+          metadata: { errors: error.errors }
         })
       );
     }

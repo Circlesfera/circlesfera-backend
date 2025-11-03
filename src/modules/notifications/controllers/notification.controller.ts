@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
+import { logger } from '@infra/logger/logger.js';
 import { getSocketServer } from '@interfaces/ws/socket-server.js';
 import type { NotificationRepository } from '../repositories/notification.repository.js';
 import { MongoNotificationRepository } from '../repositories/notification.repository.js';
@@ -96,7 +97,7 @@ notificationRouter.patch('/:id/read', authenticate, async (req: Request, res: Re
       io.to(`user:${userId}`).emit('unread-count', { unreadCount });
     } catch (error) {
       // No fallar si Socket.IO no está disponible
-      console.error('Error al emitir actualización de contador:', error);
+      logger.warn({ err: error, userId, notificationId }, 'Error al emitir actualización de contador');
     }
 
     res.status(200).json({ message: 'Notificación marcada como leída', unreadCount });
@@ -121,7 +122,7 @@ notificationRouter.post('/mark-all-read', authenticate, async (req: Request, res
       io.to(`user:${userId}`).emit('unread-count', { unreadCount: 0 });
     } catch (error) {
       // No fallar si Socket.IO no está disponible
-      console.error('Error al emitir actualización de contador:', error);
+      logger.warn({ err: error, userId }, 'Error al emitir actualización de contador (mark-all-read)');
     }
 
     res.status(200).json({ message: 'Todas las notificaciones marcadas como leídas', unreadCount: 0 });

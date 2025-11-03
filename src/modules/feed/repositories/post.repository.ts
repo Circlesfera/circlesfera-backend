@@ -268,6 +268,10 @@ export class MongoPostRepository implements PostRepository {
   }
 
   public async findById(postId: string): Promise<PostEntity | null> {
+    // Validar que postId sea un ObjectId válido antes de buscar
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return null;
+    }
     const post = await PostModel.findById(postId).exec();
     return post ? toDomainPost(post) : null;
   }

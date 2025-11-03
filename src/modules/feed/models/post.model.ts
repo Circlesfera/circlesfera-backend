@@ -75,4 +75,10 @@ export class Post {
 
 export const PostModel: ReturnModelType<typeof Post> = getModelForClass(Post);
 
+// Índices críticos para optimización de queries
+PostModel.schema.index({ authorId: 1, isDeleted: 1, isArchived: 1, createdAt: -1 }); // Feed del usuario y queries filtradas
+PostModel.schema.index({ hashtags: 1, isDeleted: 1, isArchived: 1, createdAt: -1 }); // Búsqueda por hashtag
+PostModel.schema.index({ createdAt: -1 }); // Ordenar por fecha (feeds recientes)
+PostModel.schema.index({ views: -1, createdAt: -1 }); // Trending posts
+PostModel.schema.index({ authorId: 1, createdAt: -1 }); // Posts del usuario ordenados por fecha
 

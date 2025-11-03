@@ -7,10 +7,16 @@ import type { UpdateProfilePayload } from '../dtos/update-profile.dto.js';
 import type { User } from '../models/user.model.js';
 import { MongoFollowRepository, type FollowRepository } from '@modules/interactions/repositories/follow.repository.js';
 import { MongoPostRepository, type PostRepository } from '@modules/feed/repositories/post.repository.js';
+import {
+  MongoPreferencesRepository,
+  type PreferencesRepository,
+  type UpdatePreferencesInput
+} from '../repositories/preferences.repository.js';
 
 const userRepository: UserRepository = new MongoUserRepository();
 const followRepository: FollowRepository = new MongoFollowRepository();
 const postRepository: PostRepository = new MongoPostRepository();
+const preferencesRepository: PreferencesRepository = new MongoPreferencesRepository();
 
 export type PublicProfile = {
   id: string;
@@ -44,13 +50,42 @@ export class UserService {
   }
 
   public async updateProfile(userId: string, payload: UpdateProfilePayload): Promise<PublicProfile> {
+    // Si se está cambiando el handle, verificar que no esté en uso
+    if (payload.handle) {
+      const currentUser = await userRepository.findById(userId);
+      if (!currentUser) {
+        throw new ApplicationError('Usuario no encontrado', {
+          statusCode: 404,
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      // Solo validar si el handle es diferente al actual
+      const normalizedHandle = payload.handle.toLowerCase();
+      if (normalizedHandle !== currentUser.handle) {
+        const existingUser = await userRepository.findByHandle(normalizedHandle);
+        if (existingUser && existingUser.id !== userId) {
+          throw new ApplicationError('Este nombre de usuario ya está en uso', {
+            statusCode: 409,
+            code: 'HANDLE_ALREADY_EXISTS'
+          });
+        }
+      }
+    }
+
     const updates = {
       displayName: payload.displayName,
+      handle: payload.handle ? payload.handle.toLowerCase() : undefined,
       bio: payload.bio ?? null,
       avatarUrl: payload.avatarUrl ?? null
-    } satisfies Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>;
+    } satisfies Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl'>>;
 
-    const updated = await userRepository.updateById(userId, updates);
+    // Filtrar valores undefined
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    ) as Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl'>>;
+
+    const updated = await userRepository.updateById(userId, cleanUpdates);
     if (!updated) {
       throw new ApplicationError('Usuario no encontrado', {
         statusCode: 404,
@@ -119,6 +154,31 @@ export class UserService {
     }
 
     await userRepository.deleteById(userId);
+  }
+
+  public async getPreferences(userId: string) {
+    let preferences = await preferencesRepository.findByUserId(userId);
+    if (!preferences) {
+      preferences = await preferencesRepository.create(userId);
+    }
+    return preferences;
+  }
+
+  public async updatePreferences(userId: string, payload: UpdatePreferencesInput) {
+    let preferences = await preferencesRepository.findByUserId(userId);
+    if (!preferences) {
+      preferences = await preferencesRepository.create(userId);
+    }
+
+    const updated = await preferencesRepository.update(userId, payload);
+    if (!updated) {
+      throw new ApplicationError('Error al actualizar preferencias', {
+        statusCode: 500,
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    return updated;
   }
 
   private toPublicProfile(user: User): PublicProfile {

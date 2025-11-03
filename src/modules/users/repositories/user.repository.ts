@@ -25,9 +25,9 @@ export interface UserRepository {
   searchUsers(options: SearchUsersOptions): Promise<User[]>;
   updateById(
     id: string,
-    updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>
+    updates: Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl'>>
   ): Promise<User | null>;
-  update(id: string, updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void>;
+  update(id: string, updates: Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
   deleteById(id: string): Promise<void>;
 }
@@ -107,7 +107,12 @@ export class MongoUserRepository implements UserRepository {
     return users.map((user) => toDomainUser(user));
   }
 
-  public async updateById(id: string, updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl'>>): Promise<User | null> {
+  public async updateById(id: string, updates: Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl'>>): Promise<User | null> {
+    // Si se está actualizando el handle, normalizarlo a lowercase
+    if (updates.handle) {
+      updates.handle = updates.handle.toLowerCase();
+    }
+
     const user = await UserModel.findByIdAndUpdate(
       id,
       {
@@ -118,7 +123,12 @@ export class MongoUserRepository implements UserRepository {
     return user ? toDomainUser(user) : null;
   }
 
-  public async update(id: string, updates: Partial<Pick<User, 'displayName' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void> {
+  public async update(id: string, updates: Partial<Pick<User, 'displayName' | 'handle' | 'bio' | 'avatarUrl' | 'isVerified'>>): Promise<void> {
+    // Si se está actualizando el handle, normalizarlo a lowercase
+    if (updates.handle) {
+      updates.handle = updates.handle.toLowerCase();
+    }
+
     await UserModel.findByIdAndUpdate(id, {
       $set: updates
     }).exec();

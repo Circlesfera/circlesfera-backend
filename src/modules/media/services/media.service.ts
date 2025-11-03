@@ -5,10 +5,12 @@ import ffmpeg from 'fluent-ffmpeg';
 import { writeFile, unlink, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileTypeFromBuffer } from 'file-type';
 
 import { env } from '@config/index.js';
 import { getS3Client } from '@infra/storage/s3/client.js';
 import { logger } from '@infra/logger/logger.js';
+import { ApplicationError } from '@core/errors/application-error.js';
 
 export interface MediaUploadResult {
   url: string;
@@ -24,22 +26,74 @@ export class MediaService {
     mimeType: string,
     userId: string
   ): Promise<MediaUploadResult> {
+    // Validar tipo real del archivo usando magic bytes (más seguro que MIME type)
+    const fileType = await fileTypeFromBuffer(file);
+    if (!fileType) {
+      throw new ApplicationError('No se pudo determinar el tipo de archivo', {
+        statusCode: 400,
+        code: 'INVALID_FILE_TYPE'
+      });
+    }
+
+    // Validar que el tipo real coincida con el MIME type reportado
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+    const allowedFileTypes = [
+      { mime: 'image/jpeg', ext: 'jpg' },
+      { mime: 'image/png', ext: 'png' },
+      { mime: 'image/webp', ext: 'webp' },
+      { mime: 'image/gif', ext: 'gif' },
+      { mime: 'video/mp4', ext: 'mp4' },
+      { mime: 'video/webm', ext: 'webm' }
+    ];
+
+    const validType = allowedFileTypes.find(t => t.mime === fileType.mime);
+    if (!validType) {
+      throw new ApplicationError('Tipo de archivo no permitido', {
+        statusCode: 400,
+        code: 'INVALID_FILE_TYPE'
+      });
+    }
+
+    // Verificar que el MIME type reportado coincida con el tipo real
+    if (fileType.mime !== mimeType) {
+      logger.warn(
+        { reportedMime: mimeType, actualMime: fileType.mime },
+        'MIME type reportado no coincide con tipo real del archivo'
+      );
+      // Usar el tipo real detectado
+      mimeType = fileType.mime;
+    }
+
     const mediaId = randomUUID();
-    const extension = this.getExtensionFromMimeType(mimeType);
+    const extension = validType.ext;
     const key = `media/${userId}/${mediaId}.${extension}`;
-    const kind = this.getMediaKind(mimeType);
+    const kind = this.getMediaKind(fileType.mime);
 
     const s3Client = getS3Client();
 
     // Subir archivo original
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: env.S3_BUCKET_MEDIA,
-        Key: key,
-        Body: file,
-        ContentType: mimeType
-      })
-    );
+    try {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: env.S3_BUCKET_MEDIA,
+          Key: key,
+          Body: file,
+          ContentType: mimeType
+        })
+      );
+    } catch (error) {
+      const err = error as Error & { code?: string; syscall?: string };
+      // Detectar errores de conexión a servicios externos
+      if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.syscall === 'getaddrinfo') {
+        throw new ApplicationError('El servicio de almacenamiento no está disponible', {
+          statusCode: 503,
+          code: 'STORAGE_SERVICE_UNAVAILABLE',
+          cause: error
+        });
+      }
+      // Re-lanzar otros errores
+      throw error;
+    }
 
     const url = `${env.S3_ENDPOINT}/${env.S3_BUCKET_MEDIA}/${key}`;
 
@@ -140,14 +194,25 @@ export class MediaService {
       }
       const thumbnailKey = `media/${userId}/${mediaId}_thumb.jpg`;
 
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: env.S3_BUCKET_MEDIA,
-          Key: thumbnailKey,
-          Body: thumbnailBuffer,
-          ContentType: 'image/jpeg'
-        })
-      );
+      try {
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: env.S3_BUCKET_MEDIA,
+            Key: thumbnailKey,
+            Body: thumbnailBuffer,
+            ContentType: 'image/jpeg'
+          })
+        );
+      } catch (error) {
+        const err = error as Error & { code?: string; syscall?: string };
+        // Detectar errores de conexión a servicios externos
+        if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.syscall === 'getaddrinfo') {
+          logger.warn({ err: error }, 'Error al subir thumbnail a almacenamiento');
+          // Continuar sin thumbnail en lugar de fallar completamente
+        } else {
+          throw error;
+        }
+      }
 
       const thumbnailUrl = `${env.S3_ENDPOINT}/${env.S3_BUCKET_MEDIA}/${thumbnailKey}`;
 

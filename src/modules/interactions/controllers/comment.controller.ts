@@ -1,9 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
+import { sensitiveOperationRateLimiter, readOperationRateLimiter } from '@interfaces/http/middlewares/rate-limiter.js';
 import { ApplicationError } from '@core/errors/application-error.js';
+import { logger } from '@infra/logger/logger.js';
 import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
 import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
 import { NotificationService } from '@modules/notifications/services/notification.service.js';
@@ -29,7 +32,7 @@ const commentQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(20)
 });
 
-commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+commentRouter.post('/posts/:postId/comments', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -48,6 +51,12 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
 
     const payload = createCommentSchema.parse(req.body);
 
+    // Sanitizar contenido del comentario para prevenir XSS
+    const sanitizedContent = DOMPurify.sanitize(payload.content, {
+      ALLOWED_TAGS: [], // No permitir ningún HTML
+      ALLOWED_ATTR: []
+    });
+
     // Si es un reply, verificar que el comentario padre existe y pertenece al mismo post
     if (payload.parentId) {
       const parentComment = await commentRepository.findById(payload.parentId);
@@ -62,7 +71,7 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
     const comment = await commentRepository.create({
       postId,
       authorId: userId,
-      content: payload.content,
+      content: sanitizedContent,
       parentId: payload.parentId
     });
 
@@ -84,7 +93,7 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
       commentId: comment.id
     }).catch((err) => {
       // No fallar si la notificación no se puede crear
-      console.error('Error al crear notificación de comentario:', err);
+      logger.warn({ err, postId: post.id, commentId: comment.id, userId: notificationTargetId }, 'Error al crear notificación de comentario');
     });
 
     const author = await userRepository.findById(userId);
@@ -113,7 +122,7 @@ commentRouter.post('/posts/:postId/comments', authenticate, async (req: Request,
   }
 });
 
-commentRouter.get('/posts/:postId/comments', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+commentRouter.get('/posts/:postId/comments', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
@@ -171,7 +180,7 @@ commentRouter.get('/posts/:postId/comments', authenticate, async (req: Request, 
 });
 
 // GET /comments/:commentId/replies - Obtener replies de un comentario
-commentRouter.get('/comments/:commentId/replies', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+commentRouter.get('/comments/:commentId/replies', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.auth) {
       return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });

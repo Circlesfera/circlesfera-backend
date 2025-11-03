@@ -26,6 +26,7 @@ const config: Config = {
   coverageDirectory: 'coverage',
   clearMocks: true,
   reporters: ['default'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   transform: {
     '^.+\\.ts$': [
       'ts-jest',

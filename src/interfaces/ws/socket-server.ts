@@ -27,6 +27,14 @@ export const createSocketServer = (httpServer: HttpServer): SocketIOServer => {
   const publisher = getRedisClient().duplicate();
   const subscriber = getRedisSubscriber().duplicate();
 
+  // Agregar manejadores de error a los clientes duplicados para evitar warnings
+  publisher.on('error', (error: Error) => {
+    logger.error({ err: error }, 'Error en Redis publisher (Socket.IO)');
+  });
+  subscriber.on('error', (error: Error) => {
+    logger.error({ err: error }, 'Error en Redis subscriber (Socket.IO)');
+  });
+
   io.adapter(createAdapter(publisher, subscriber));
 
   // Middleware de autenticación para Socket.IO

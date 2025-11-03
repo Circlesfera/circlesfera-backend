@@ -3,6 +3,7 @@ import { Router } from 'express';
 
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { ApplicationError } from '@core/errors/application-error.js';
+import { logger } from '@infra/logger/logger.js';
 import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
 import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
 import { NotificationService } from '@modules/notifications/services/notification.service.js';
@@ -48,7 +49,7 @@ likeRouter.post('/posts/:postId/like', authenticate, async (req: Request, res: R
       postId: post.id
     }).catch((err) => {
       // No fallar si la notificación no se puede crear
-      console.error('Error al crear notificación de like:', err);
+      logger.warn({ err, postId: post.id, actorId: userId, targetUserId: post.authorId.toString() }, 'Error al crear notificación de like');
     });
 
     res.status(201).json({ message: 'Like añadido', liked: true });

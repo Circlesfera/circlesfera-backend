@@ -1,0 +1,4 @@
+/**
+ * Setup global para tests
+ */
+

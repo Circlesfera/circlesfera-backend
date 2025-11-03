@@ -2,6 +2,7 @@ import { ReturnModelType, getModelForClass, modelOptions, prop } from '@typegoos
 import mongoose from 'mongoose';
 
 import { User } from '@modules/users/models/user.model.js';
+import { Post } from '@modules/feed/models/post.model.js';
 
 export class StoryMedia {
   @prop({ required: true, type: () => String })
@@ -49,6 +50,9 @@ export class Story {
 
   @prop({ type: () => Date, required: true, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) })
   public expiresAt!: Date;
+
+  @prop({ ref: () => Post, type: () => mongoose.Types.ObjectId, index: true })
+  public sharedPostId?: mongoose.Types.ObjectId; // ID del post compartido (si es una story de compartir post)
 
   public createdAt!: Date;
 

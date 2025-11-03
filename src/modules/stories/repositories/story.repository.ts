@@ -20,12 +20,13 @@ export interface StoryEntity {
   viewCount: number;
   viewerIds: string[];
   expiresAt: Date;
+  sharedPostId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface StoryRepository {
-  create(authorId: string, media: StoryMediaEntity): Promise<StoryEntity>;
+  create(authorId: string, media: StoryMediaEntity, sharedPostId?: string): Promise<StoryEntity>;
   findById(storyId: string): Promise<StoryEntity | null>;
   findByIds(storyIds: string[]): Promise<StoryEntity[]>; // Para highlights
   findByAuthorId(authorId: string): Promise<StoryEntity[]>;
@@ -57,13 +58,14 @@ const toDomainStory = (doc: DocumentType<Story>): StoryEntity => {
     viewCount: plain.viewCount,
     viewerIds: plain.viewerIds.map((id) => id.toString()),
     expiresAt: plain.expiresAt,
+    sharedPostId: plain.sharedPostId?.toString(),
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
 };
 
 export class MongoStoryRepository implements StoryRepository {
-  public async create(authorId: string, media: StoryMediaEntity): Promise<StoryEntity> {
+  public async create(authorId: string, media: StoryMediaEntity, sharedPostId?: string): Promise<StoryEntity> {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas desde ahora
 
     const story = await StoryModel.create({
@@ -77,7 +79,8 @@ export class MongoStoryRepository implements StoryRepository {
         width: media.width,
         height: media.height
       },
-      expiresAt
+      expiresAt,
+      sharedPostId: sharedPostId ? new mongoose.Types.ObjectId(sharedPostId) : undefined
     });
 
     return toDomainStory(story);

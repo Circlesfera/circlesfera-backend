@@ -10,7 +10,8 @@ const storyMediaSchema = z.object({
 });
 
 export const createStorySchema = z.object({
-  media: storyMediaSchema
+  media: storyMediaSchema,
+  sharedPostId: z.string().min(1).optional() // ID del post a compartir (opcional)
 });
 
 export type CreateStoryPayload = z.infer<typeof createStorySchema>;

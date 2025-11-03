@@ -1,4 +1,5 @@
 import { getSocketServer } from '@interfaces/ws/socket-server.js';
+import { logger } from '@infra/logger/logger.js';
 
 import type { NotificationRepository } from '../repositories/notification.repository.js';
 import { MongoNotificationRepository } from '../repositories/notification.repository.js';
@@ -54,7 +55,7 @@ export class NotificationService {
       io.to(`user:${payload.userId}`).emit('unread-count', { unreadCount });
     } catch (error) {
       // No fallar si Socket.IO no está disponible
-      console.error('Error al emitir notificación vía WebSocket:', error);
+      logger.warn({ err: error, type: payload.type, userId: payload.userId, actorId: payload.actorId }, 'Error al emitir notificación vía WebSocket');
     }
   }
 

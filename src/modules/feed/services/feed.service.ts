@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import DOMPurify from 'isomorphic-dompurify';
+
+import { CacheService } from '@infra/cache/cache.service.js';
 
 import type { CreatePostPayload } from '../dtos/create-post.dto.js';
 import type { HomeFeedQuery } from '../dtos/home-feed.dto.js';
@@ -14,17 +17,20 @@ import type { SaveRepository } from '@modules/interactions/repositories/save.rep
 import { MongoSaveRepository } from '@modules/interactions/repositories/save.repository.js';
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
-import { MongoUserRepository } from '@modules/users/repositories/user.repository.js';
+import { CachedUserRepository } from '@modules/users/repositories/user.repository.cached.js';
 import type { HashtagRepository } from '../repositories/hashtag.repository.js';
 import { MongoHashtagRepository } from '../repositories/hashtag.repository.js';
 import type { FollowHashtagRepository } from '../repositories/follow-hashtag.repository.js';
 import { MongoFollowHashtagRepository } from '../repositories/follow-hashtag.repository.js';
+import type { TagRepository } from '../repositories/tag.repository.js';
+import { MongoTagRepository } from '../repositories/tag.repository.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 import { extractHashtags } from '../utils/hashtag-extractor.js';
 import { extractMentions } from '../utils/mentions.js';
 import type { MentionRepository } from '../repositories/mention.repository.js';
 import { MongoMentionRepository } from '../repositories/mention.repository.js';
 import type { UpdatePostPayload } from '../dtos/update-post.dto.js';
+import { logger } from '@infra/logger/logger.js';
 
 export interface FeedUser {
   id: string;
@@ -36,6 +42,22 @@ export interface FeedUser {
 
 export type FeedMediaKind = 'image' | 'video';
 
+export interface FeedTag {
+  id: string;
+  userId: string;
+  user: {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  isNormalized: boolean;
+}
+
 export interface FeedMedia {
   id: string;
   kind: FeedMediaKind;
@@ -44,6 +66,7 @@ export interface FeedMedia {
   durationMs?: number;
   width?: number;
   height?: number;
+  tags?: FeedTag[];
 }
 
 export interface FeedStats {
@@ -74,17 +97,22 @@ export interface FeedCursorResult {
 export class FeedService {
   public constructor(
     private readonly posts: PostRepository = new MongoPostRepository(),
-    private readonly users: UserRepository = new MongoUserRepository(),
+    private readonly users: UserRepository = new CachedUserRepository(),
     private readonly follows: FollowRepository = new MongoFollowRepository(),
     private readonly blocks: BlockRepository = new MongoBlockRepository(),
     private readonly likes: LikeRepository = new MongoLikeRepository(),
     private readonly saves: SaveRepository = new MongoSaveRepository(),
     private readonly hashtags: HashtagRepository = new MongoHashtagRepository(),
     private readonly mentions: MentionRepository = new MongoMentionRepository(),
-    private readonly followHashtags: FollowHashtagRepository = new MongoFollowHashtagRepository()
+    private readonly followHashtags: FollowHashtagRepository = new MongoFollowHashtagRepository(),
+    private readonly tags: TagRepository = new MongoTagRepository(),
+    private readonly cache: CacheService = new CacheService()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
+    // Sanitizar caption para prevenir XSS
+    const sanitizedCaption = this.sanitizeCaption(payload.caption);
+
     const media = payload.media.map((item) => ({
       id: randomUUID(),
       kind: item.kind,
@@ -95,16 +123,19 @@ export class FeedService {
       height: item.height
     }));
 
-    // Extraer hashtags y menciones del caption
-    const extractedHashtags = extractHashtags(payload.caption);
-    const mentionedHandles = extractMentions(payload.caption);
+    // Extraer hashtags y menciones del caption sanitizado
+    const extractedHashtags = extractHashtags(sanitizedCaption);
+    const mentionedHandles = extractMentions(sanitizedCaption);
 
     const post = await this.posts.create({
       authorId: userId,
-      caption: payload.caption,
+      caption: sanitizedCaption,
       media,
       hashtags: extractedHashtags
     });
+
+    // Invalidar cache de feeds del usuario
+    await this.invalidateUserFeedCache(userId);
 
     // Procesar menciones: buscar usuarios por handle y crear menciones
     if (mentionedHandles.length > 0) {
@@ -124,7 +155,7 @@ export class FeedService {
     // Actualizar contadores de hashtags (no bloqueante)
     if (extractedHashtags.length > 0) {
       this.hashtags.createOrUpdate(extractedHashtags).catch((error) => {
-        console.error('Error al actualizar hashtags:', error);
+        logger.warn({ err: error, hashtags: extractedHashtags }, 'Error al actualizar hashtags al crear post');
       });
     }
 
@@ -138,7 +169,7 @@ export class FeedService {
       this.likes.exists(post.id, userId),
       this.saves.exists(post.id, userId)
     ]);
-    return this.mapPostToFeedItem(post, authorsMap, userId, isLiked, isSaved);
+    return await this.mapPostToFeedItem(post, authorsMap, userId, isLiked, isSaved);
   }
 
   public async updatePost(postId: string, userId: string, payload: UpdatePostPayload): Promise<FeedItem> {
@@ -158,12 +189,15 @@ export class FeedService {
       });
     }
 
-    // Extraer hashtags y menciones del nuevo caption
-    const extractedHashtags = extractHashtags(payload.caption);
-    const mentionedHandles = extractMentions(payload.caption);
+    // Sanitizar caption para prevenir XSS
+    const sanitizedCaption = this.sanitizeCaption(payload.caption);
+
+    // Extraer hashtags y menciones del caption sanitizado
+    const extractedHashtags = extractHashtags(sanitizedCaption);
+    const mentionedHandles = extractMentions(sanitizedCaption);
 
     // Actualizar el post
-    const updatedPost = await this.posts.updateCaption(postId, payload.caption, extractedHashtags);
+    const updatedPost = await this.posts.updateCaption(postId, sanitizedCaption, extractedHashtags);
 
     // Eliminar menciones antiguas y crear nuevas
     await this.mentions.deleteByPostId(postId);
@@ -185,7 +219,7 @@ export class FeedService {
     // Actualizar contadores de hashtags (no bloqueante)
     if (extractedHashtags.length > 0) {
       this.hashtags.createOrUpdate(extractedHashtags).catch((error) => {
-        console.error('Error al actualizar hashtags:', error);
+        logger.warn({ err: error, hashtags: extractedHashtags, postId: post.id }, 'Error al actualizar hashtags en edición');
       });
     }
 
@@ -201,7 +235,7 @@ export class FeedService {
       this.saves.exists(updatedPost.id, userId)
     ]);
 
-    return this.mapPostToFeedItem(updatedPost, authorsMap, userId, isLiked, isSaved);
+    return await this.mapPostToFeedItem(updatedPost, authorsMap, userId, isLiked, isSaved);
   }
 
   public async deletePost(postId: string, userId: string): Promise<void> {
@@ -299,8 +333,10 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    return posts.map((post) =>
-      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    return Promise.all(
+      posts.map((post) =>
+        this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+      )
     );
   }
 
@@ -308,6 +344,15 @@ export class FeedService {
     const limit = params.limit ?? 20;
     const cursorDate = params.cursor ? new Date(params.cursor) : undefined;
     const sortBy = params.sortBy ?? 'recent';
+
+    // Intentar obtener del cache si no hay cursor (primera página)
+    if (!cursorDate) {
+      const cacheKey = this.cache.buildKey('feed', 'home', userId, sortBy, limit);
+      const cached = await this.cache.get<FeedCursorResult>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
 
     // Obtener IDs de usuarios bloqueados (bidireccional)
     const [blockedIds, blockerIds] = await Promise.all([
@@ -384,13 +429,15 @@ export class FeedService {
     const savedPostIdsSet = new Set(savedPostIds);
 
     const viewerId = userId;
-    const data = filteredItems.map((post) =>
-      this.mapPostToFeedItem(
-        post,
-        authors,
-        viewerId,
-        likedPostIdsSet.has(post.id),
-        savedPostIdsSet.has(post.id)
+    const data = await Promise.all(
+      filteredItems.map((post) =>
+        this.mapPostToFeedItem(
+          post,
+          authors,
+          viewerId,
+          likedPostIdsSet.has(post.id),
+          savedPostIdsSet.has(post.id)
+        )
       )
     );
 
@@ -398,7 +445,19 @@ export class FeedService {
     const hasMoreResults = feedHasMore || hashtagHasMore || combinedItems.length > limit;
     const nextCursor = hasMoreResults ? lastItem.createdAt.toISOString() : null;
 
-    return { data, nextCursor };
+    const result: FeedCursorResult = {
+      data,
+      nextCursor
+    };
+
+    // Guardar en cache solo la primera página (sin cursor)
+    if (!cursorDate) {
+      const cacheKey = this.cache.buildKey('feed', 'home', userId, sortBy, limit);
+      // Cache por 5 minutos
+      await this.cache.set(cacheKey, result, 300);
+    }
+
+    return result;
   }
 
   public async getExploreFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
@@ -433,13 +492,15 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = filteredItems.map((post) =>
-      this.mapPostToFeedItem(
-        post,
-        authors,
-        userId,
-        likedPostIdsSet.has(post.id),
-        savedPostIdsSet.has(post.id)
+    const data = await Promise.all(
+      filteredItems.map((post) =>
+        this.mapPostToFeedItem(
+          post,
+          authors,
+          userId,
+          likedPostIdsSet.has(post.id),
+          savedPostIdsSet.has(post.id)
+        )
       )
     );
 
@@ -468,7 +529,7 @@ export class FeedService {
       this.saves.exists(post.id, userId)
     ]);
 
-    return this.mapPostToFeedItem(post, authors, userId, isLiked, isSaved);
+    return await this.mapPostToFeedItem(post, authors, userId, isLiked, isSaved);
   }
 
   /**
@@ -514,8 +575,10 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = orderedPosts.map((post) =>
-      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    const data = await Promise.all(
+      orderedPosts.map((post) =>
+        this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+      )
     );
 
     const lastMention = mentions[mentions.length - 1];
@@ -558,8 +621,10 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const items = filteredItems.map((post) =>
-      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    const items = await Promise.all(
+      filteredItems.map((post) =>
+        this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+      )
     );
 
     const lastPost = filteredItems[filteredItems.length - 1];
@@ -632,8 +697,10 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    return allRelated.map((p) =>
-      this.mapPostToFeedItem(p, authors, userId, likedPostIdsSet.has(p.id), savedPostIdsSet.has(p.id))
+    return Promise.all(
+      allRelated.map((p) =>
+        this.mapPostToFeedItem(p, authors, userId, likedPostIdsSet.has(p.id), savedPostIdsSet.has(p.id))
+      )
     );
   }
 
@@ -671,13 +738,15 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = filteredItems.map((post) =>
-      this.mapPostToFeedItem(
-        post,
-        authors,
-        userId,
-        likedPostIdsSet.has(post.id),
-        savedPostIdsSet.has(post.id)
+    const data = await Promise.all(
+      filteredItems.map((post) =>
+        this.mapPostToFeedItem(
+          post,
+          authors,
+          userId,
+          likedPostIdsSet.has(post.id),
+          savedPostIdsSet.has(post.id)
+        )
       )
     );
 
@@ -727,8 +796,10 @@ export class FeedService {
     const likedPostIdsSet = new Set(likedPostIds);
     const savedPostIdsSet = new Set(savedPostIds);
 
-    const data = result.items.map((post) =>
-      this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+    const data = await Promise.all(
+      result.items.map((post) =>
+        this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
+      )
     );
 
     const lastItem = result.items[result.items.length - 1];
@@ -737,13 +808,58 @@ export class FeedService {
     return { data, nextCursor };
   }
 
-  private mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false, isSaved = false): FeedItem {
+  private async mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false, isSaved = false): Promise<FeedItem> {
     const author = authors.get(post.authorId);
+
+    // Obtener tags del post y agruparlos por mediaIndex
+    const postTags = await this.tags.findByPostId(post.id);
+    const tagsByMediaIndex = new Map<number, typeof postTags>();
+    
+    for (const tag of postTags) {
+      const existing = tagsByMediaIndex.get(tag.mediaIndex) || [];
+      existing.push(tag);
+      tagsByMediaIndex.set(tag.mediaIndex, existing);
+    }
+
+    // Obtener información de usuarios etiquetados
+    const taggedUserIds = Array.from(new Set(postTags.map((tag) => tag.userId)));
+    const taggedUsers = taggedUserIds.length > 0 ? await this.users.findManyByIds(taggedUserIds) : [];
+    const taggedUsersMap = new Map(taggedUsers.map((user) => [user.id, user]));
 
     return {
       id: post.id,
       caption: post.caption,
-      media: post.media.map((media) => ({ ...media })),
+      media: post.media.map((media, index) => {
+        const mediaTags = tagsByMediaIndex.get(index) || [];
+        return {
+          ...media,
+          tags: mediaTags.map((tag) => {
+            const user = taggedUsersMap.get(tag.userId);
+            return {
+              id: tag.id,
+              userId: tag.userId,
+              user: user
+                ? {
+                    id: user.id,
+                    handle: user.handle,
+                    displayName: user.displayName,
+                    avatarUrl: user.avatarUrl ?? ''
+                  }
+                : {
+                    id: tag.userId,
+                    handle: 'usuario',
+                    displayName: 'Usuario desconocido',
+                    avatarUrl: ''
+                  },
+              x: tag.x,
+              y: tag.y,
+              width: tag.width,
+              height: tag.height,
+              isNormalized: tag.isNormalized
+            };
+          })
+        };
+      }),
       stats: post.stats,
       createdAt: post.createdAt.toISOString(),
       author: {
@@ -757,6 +873,26 @@ export class FeedService {
       isSavedByViewer: isSaved,
       soundTrackUrl: undefined
     };
+  }
+
+  /**
+   * Sanitiza el caption para prevenir XSS attacks.
+   * Elimina todo HTML y JavaScript, manteniendo solo texto plano.
+   */
+  private sanitizeCaption(caption: string): string {
+    return DOMPurify.sanitize(caption, {
+      ALLOWED_TAGS: [], // No permitir ningún HTML
+      ALLOWED_ATTR: []
+    });
+  }
+
+  /**
+   * Invalida el cache de feeds del usuario.
+   * Se llama cuando el usuario crea, actualiza o elimina un post.
+   */
+  private async invalidateUserFeedCache(userId: string): Promise<void> {
+    // Invalidar todos los feeds del usuario (home, explore, etc.)
+    await this.cache.deleteByPattern(`feed:*:${userId}:*`);
   }
 }
 

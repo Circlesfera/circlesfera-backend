@@ -7,8 +7,12 @@ import { env } from '@config/index.js';
 import { connectMongo } from '@infra/db/mongo/connection.js';
 import { getRedisClient, getRedisSubscriber } from '@infra/cache/redis/connection.js';
 import { logger } from '@infra/logger/logger.js';
+import { initSentry } from '@infra/monitoring/sentry.config.js';
 import { createHttpApp } from '@interfaces/http/server.js';
 import { createSocketServer } from '@interfaces/ws/socket-server.js';
+
+// Inicializar Sentry ANTES que cualquier otra cosa
+initSentry();
 
 /**
  * Arranca la aplicación conectando dependencias críticas (MongoDB, Redis) y levantando

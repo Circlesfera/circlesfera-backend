@@ -5,11 +5,16 @@ import { Conversation, ConversationModel } from '../models/conversation.model.js
 
 export interface ConversationEntity {
   id: string;
-  participant1Id: string;
-  participant2Id: string;
+  type: 'direct' | 'group';
+  participant1Id?: string;
+  participant2Id?: string;
+  participants?: string[];
+  groupName?: string;
+  createdBy?: string;
   lastMessageAt?: Date;
   unreadCount1: number;
   unreadCount2: number;
+  unreadCounts: Record<string, number>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,14 +24,24 @@ export interface CreateConversationInput {
   participant2Id: string;
 }
 
+export interface CreateGroupInput {
+  participants: string[];
+  groupName: string;
+  createdBy: string;
+}
+
 export interface ConversationRepository {
   findOrCreate(data: CreateConversationInput): Promise<ConversationEntity>;
+  createGroup(data: CreateGroupInput): Promise<ConversationEntity>;
   findByUserId(userId: string): Promise<ConversationEntity[]>;
   findById(conversationId: string): Promise<ConversationEntity | null>;
   findByParticipants(participant1Id: string, participant2Id: string): Promise<ConversationEntity | null>;
   updateLastMessage(conversationId: string, timestamp: Date): Promise<void>;
   incrementUnread(conversationId: string, userId: string): Promise<void>;
   resetUnread(conversationId: string, userId: string): Promise<void>;
+  addParticipant(conversationId: string, userId: string): Promise<void>;
+  removeParticipant(conversationId: string, userId: string): Promise<void>;
+  updateGroupName(conversationId: string, groupName: string): Promise<void>;
 }
 
 const toDomainConversation = (doc: DocumentType<Conversation>): ConversationEntity => {
@@ -34,11 +49,16 @@ const toDomainConversation = (doc: DocumentType<Conversation>): ConversationEnti
 
   return {
     id: plain._id.toString(),
-    participant1Id: plain.participant1Id.toString(),
-    participant2Id: plain.participant2Id.toString(),
+    type: plain.type || 'direct',
+    participant1Id: plain.participant1Id?.toString(),
+    participant2Id: plain.participant2Id?.toString(),
+    participants: plain.participants?.map((p) => p.toString()),
+    groupName: plain.groupName,
+    createdBy: plain.createdBy?.toString(),
     lastMessageAt: plain.lastMessageAt,
-    unreadCount1: plain.unreadCount1,
-    unreadCount2: plain.unreadCount2,
+    unreadCount1: plain.unreadCount1 ?? 0,
+    unreadCount2: plain.unreadCount2 ?? 0,
+    unreadCounts: plain.unreadCounts ?? {},
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
   };
@@ -68,10 +88,26 @@ export class MongoConversationRepository implements ConversationRepository {
     return toDomainConversation(conversation);
   }
 
+  public async createGroup(data: CreateGroupInput): Promise<ConversationEntity> {
+    const conversation = await ConversationModel.create({
+      type: 'group',
+      participants: data.participants.map((id) => new mongoose.Types.ObjectId(id)),
+      groupName: data.groupName,
+      createdBy: new mongoose.Types.ObjectId(data.createdBy),
+      unreadCounts: {}
+    });
+
+    return toDomainConversation(conversation);
+  }
+
   public async findByUserId(userId: string): Promise<ConversationEntity[]> {
     const objectId = new mongoose.Types.ObjectId(userId);
     const conversations = await ConversationModel.find({
-      $or: [{ participant1Id: objectId }, { participant2Id: objectId }]
+      $or: [
+        { participant1Id: objectId },
+        { participant2Id: objectId },
+        { participants: objectId }
+      ]
     })
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       .exec();
@@ -111,12 +147,21 @@ export class MongoConversationRepository implements ConversationRepository {
       return;
     }
 
-    const userIdObj = new mongoose.Types.ObjectId(userId);
-    const isParticipant1 = conversation.participant1Id.equals(userIdObj);
-
-    await ConversationModel.findByIdAndUpdate(conversationId, {
-      $inc: isParticipant1 ? { unreadCount1: 1 } : { unreadCount2: 1 }
-    }).exec();
+    if (conversation.type === 'group') {
+      // Para grupos, usar unreadCounts
+      const unreadCounts = conversation.unreadCounts || {};
+      unreadCounts[userId] = (unreadCounts[userId] || 0) + 1;
+      await ConversationModel.findByIdAndUpdate(conversationId, {
+        $set: { [`unreadCounts.${userId}`]: unreadCounts[userId] }
+      }).exec();
+    } else {
+      // Para conversaciones directas, mantener compatibilidad
+      const userIdObj = new mongoose.Types.ObjectId(userId);
+      const isParticipant1 = conversation.participant1Id?.equals(userIdObj);
+      await ConversationModel.findByIdAndUpdate(conversationId, {
+        $inc: isParticipant1 ? { unreadCount1: 1 } : { unreadCount2: 1 }
+      }).exec();
+    }
   }
 
   public async resetUnread(conversationId: string, userId: string): Promise<void> {
@@ -125,11 +170,40 @@ export class MongoConversationRepository implements ConversationRepository {
       return;
     }
 
-    const userIdObj = new mongoose.Types.ObjectId(userId);
-    const isParticipant1 = conversation.participant1Id.equals(userIdObj);
+    if (conversation.type === 'group') {
+      // Para grupos, usar unreadCounts
+      await ConversationModel.findByIdAndUpdate(conversationId, {
+        $set: { [`unreadCounts.${userId}`]: 0 }
+      }).exec();
+    } else {
+      // Para conversaciones directas, mantener compatibilidad
+      const userIdObj = new mongoose.Types.ObjectId(userId);
+      const isParticipant1 = conversation.participant1Id?.equals(userIdObj);
+      await ConversationModel.findByIdAndUpdate(conversationId, {
+        $set: isParticipant1 ? { unreadCount1: 0 } : { unreadCount2: 0 }
+      }).exec();
+    }
+  }
 
+  public async addParticipant(conversationId: string, userId: string): Promise<void> {
+    const userIdObj = new mongoose.Types.ObjectId(userId);
     await ConversationModel.findByIdAndUpdate(conversationId, {
-      $set: isParticipant1 ? { unreadCount1: 0 } : { unreadCount2: 0 }
+      $addToSet: { participants: userIdObj },
+      $set: { [`unreadCounts.${userId}`]: 0 }
+    }).exec();
+  }
+
+  public async removeParticipant(conversationId: string, userId: string): Promise<void> {
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+    await ConversationModel.findByIdAndUpdate(conversationId, {
+      $pull: { participants: userIdObj },
+      $unset: { [`unreadCounts.${userId}`]: '' }
+    }).exec();
+  }
+
+  public async updateGroupName(conversationId: string, groupName: string): Promise<void> {
+    await ConversationModel.findByIdAndUpdate(conversationId, {
+      $set: { groupName }
     }).exec();
   }
 }

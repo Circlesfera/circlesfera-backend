@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
 
 import { updateProfileSchema } from '../dtos/update-profile.dto.js';
+import { updatePreferencesSchema } from '../dtos/update-preferences.dto.js';
 import { UserService } from '../services/user.service.js';
 
 const userService = new UserService();
@@ -90,6 +91,33 @@ userRouter.patch('/me/password', authenticate, async (req: Request, res: Respons
     const payload = changePasswordSchema.parse(req.body);
     await userService.changePassword(req.auth.userId, payload.currentPassword, payload.newPassword);
     res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+userRouter.get('/me/preferences', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const preferences = await userService.getPreferences(req.auth.userId);
+    res.status(200).json({ preferences });
+  } catch (error) {
+    next(error);
+  }
+});
+
+userRouter.patch('/me/preferences', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const payload = updatePreferencesSchema.parse(req.body);
+    const preferences = await userService.updatePreferences(req.auth.userId, payload);
+    res.status(200).json({ preferences });
   } catch (error) {
     next(error);
   }
