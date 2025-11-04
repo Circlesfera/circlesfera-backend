@@ -38,7 +38,7 @@ export const initSentry = (): void => {
  */
 export const captureException = (error: Error, context?: Record<string, Record<string, unknown>>): void => {
   if (context) {
-    Sentry.withScope((scope) => {
+    Sentry.withScope((scope: any) => {
       Object.entries(context).forEach(([key, value]) => {
         scope.setContext(key, value);
       });
