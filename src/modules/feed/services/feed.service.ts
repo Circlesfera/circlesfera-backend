@@ -15,6 +15,10 @@ import type { LikeRepository } from '@modules/interactions/repositories/like.rep
 import { MongoLikeRepository } from '@modules/interactions/repositories/like.repository.js';
 import type { SaveRepository } from '@modules/interactions/repositories/save.repository.js';
 import { MongoSaveRepository } from '@modules/interactions/repositories/save.repository.js';
+import type { CommentRepository } from '@modules/interactions/repositories/comment.repository.js';
+import { MongoCommentRepository } from '@modules/interactions/repositories/comment.repository.js';
+import mongoose from 'mongoose';
+import { SaveModel } from '@modules/interactions/models/save.model.js';
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { CachedUserRepository } from '@modules/users/repositories/user.repository.cached.js';
@@ -102,6 +106,7 @@ export class FeedService {
     private readonly blocks: BlockRepository = new MongoBlockRepository(),
     private readonly likes: LikeRepository = new MongoLikeRepository(),
     private readonly saves: SaveRepository = new MongoSaveRepository(),
+    private readonly comments: CommentRepository = new MongoCommentRepository(),
     private readonly hashtags: HashtagRepository = new MongoHashtagRepository(),
     private readonly mentions: MentionRepository = new MongoMentionRepository(),
     private readonly followHashtags: FollowHashtagRepository = new MongoFollowHashtagRepository(),
@@ -826,6 +831,13 @@ export class FeedService {
     const taggedUsers = taggedUserIds.length > 0 ? await this.users.findManyByIds(taggedUserIds) : [];
     const taggedUsersMap = new Map(taggedUsers.map((user) => [user.id, user]));
 
+    // Obtener contadores reales desde las colecciones
+    const [realLikes, realComments, realSaves] = await Promise.all([
+      this.likes.countByPostId(post.id),
+      this.comments.countByPostId(post.id),
+      SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec().catch(() => post.stats.saves) // Contar saves directamente
+    ]);
+
     return {
       id: post.id,
       caption: post.caption,
@@ -860,7 +872,13 @@ export class FeedService {
           })
         };
       }),
-      stats: post.stats,
+      stats: {
+        likes: realLikes,
+        comments: realComments,
+        saves: realSaves,
+        shares: post.stats.shares, // Mantener shares y views del post (aún no hay colección separada)
+        views: post.stats.views
+      },
       createdAt: post.createdAt.toISOString(),
       author: {
         id: author ? author.id : post.authorId,
@@ -890,6 +908,65 @@ export class FeedService {
    * Invalida el cache de feeds del usuario.
    * Se llama cuando el usuario crea, actualiza o elimina un post.
    */
+  public async getUserPosts(
+    authorId: string,
+    viewerId: string,
+    limit = 20,
+    cursor?: Date
+  ): Promise<FeedCursorResult> {
+    // Verificar bloqueos
+    const [blockedIds, blockerIds] = await Promise.all([
+      this.blocks.findBlockedIds(viewerId),
+      this.blocks.findBlockerIds(viewerId)
+    ]);
+    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
+
+    // Si el autor está bloqueado, retornar vacío
+    if (blockedUserIdsSet.has(authorId)) {
+      return { data: [], nextCursor: null };
+    }
+
+    // Obtener posts del autor
+    const { items, hasMore } = await this.posts.findByAuthorId({
+      authorId,
+      limit,
+      cursor,
+      includeArchived: false // No mostrar posts archivados en el perfil público
+    });
+
+    if (items.length === 0) {
+      return { data: [], nextCursor: null };
+    }
+
+    const authors = await this.fetchAuthors(items);
+    const postIds = items.map((post) => post.id);
+
+    // Buscar likes/saves del viewer
+    const [likedPostIds, savedPostIds] = await Promise.all([
+      this.likes.findLikedPostIds(viewerId, postIds),
+      this.saves.findSavedPostIds(viewerId, postIds)
+    ]);
+    const likedPostIdsSet = new Set(likedPostIds);
+    const savedPostIdsSet = new Set(savedPostIds);
+
+    const data = await Promise.all(
+      items.map((post) =>
+        this.mapPostToFeedItem(
+          post,
+          authors,
+          viewerId,
+          likedPostIdsSet.has(post.id),
+          savedPostIdsSet.has(post.id)
+        )
+      )
+    );
+
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
+
+    return { data, nextCursor };
+  }
+
   private async invalidateUserFeedCache(userId: string): Promise<void> {
     // Invalidar todos los feeds del usuario (home, explore, etc.)
     await this.cache.deleteByPattern(`feed:*:${userId}:*`);
