@@ -146,13 +146,13 @@ export class MediaService {
       // Usar promisify para convertir callbacks en promises
       const getVideoMetadata = (): Promise<{ duration?: number; width?: number; height?: number }> => {
         return new Promise((resolve, reject) => {
-          ffmpeg.ffprobe(videoPath, (err, metadata) => {
+          ffmpeg.ffprobe(videoPath, (err: Error | null, metadata: any) => {
             if (err) {
               reject(err);
               return;
             }
 
-            const videoStream = metadata.streams.find((stream) => stream.codec_type === 'video');
+            const videoStream = metadata.streams.find((stream: any) => stream.codec_type === 'video');
             resolve({
               duration: metadata.format.duration ? Math.round(metadata.format.duration * 1000) : undefined,
               width: videoStream?.width,
@@ -174,7 +174,7 @@ export class MediaService {
             .on('end', () => {
               resolve();
             })
-            .on('error', (err) => {
+            .on('error', (err: Error) => {
               reject(err);
             });
         });

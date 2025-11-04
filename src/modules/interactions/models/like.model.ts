@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import { ReturnModelType, getModelForClass, modelOptions, prop } from '@typegoose/typegoose';
 import mongoose from 'mongoose';
 
@@ -16,7 +18,7 @@ export class Like {
   @prop({ required: true, ref: () => Post, type: () => mongoose.Types.ObjectId, index: true })
   public postId!: mongoose.Types.ObjectId;
 
-  @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId, index: true })
+  @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId })
   public userId!: mongoose.Types.ObjectId;
 
   public createdAt!: Date;
