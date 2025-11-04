@@ -13,45 +13,16 @@ const createOptions = (): RedisOptions => ({
   password: env.REDIS_PASSWORD,
   tls: env.REDIS_TLS ? {} : undefined,
   maxRetriesPerRequest: 3,
-  enableAutoPipelining: true,
-  retryStrategy: (times: number) => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  reconnectOnError: (err: Error) => {
-    const targetError = 'READONLY';
-    if (err.message.includes(targetError)) {
-      // Solo reconectar en casos específicos
-      return true;
-    }
-    return false;
-  }
+  enableAutoPipelining: true
 });
 
 const attachLogging = (instance: Redis, label: string): void => {
-  // Handler de errores (requerido para evitar warnings)
   instance.on('error', (error: Error) => {
     logger.error({ err: error, label }, 'Error en Redis');
   });
 
-  // Handler de conexión establecida
   instance.on('connect', () => {
     logger.info({ label }, 'Conexión a Redis establecida');
-  });
-
-  // Handler de reconexión (mejora el manejo de ECONNRESET)
-  instance.on('ready', () => {
-    logger.info({ label }, 'Redis listo');
-  });
-
-  // Handler de desconexión
-  instance.on('close', () => {
-    logger.warn({ label }, 'Conexión a Redis cerrada');
-  });
-
-  // Handler de reconexión en progreso
-  instance.on('reconnecting', (delay: number) => {
-    logger.info({ label, delay }, 'Reconectando a Redis...');
   });
 };
 
