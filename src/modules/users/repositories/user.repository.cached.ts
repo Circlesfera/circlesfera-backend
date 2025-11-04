@@ -1,5 +1,5 @@
 import { CacheService } from '@infra/cache/cache.service.js';
-import type { User } from '../models/user.model.js';
+import type { UserDomain } from '../models/user.model.js';
 import type { UserRepository } from './user.repository.js';
 import { MongoUserRepository } from './user.repository.js';
 
@@ -15,20 +15,20 @@ export class CachedUserRepository implements UserRepository {
     return this.cache.buildKey('user', userId);
   }
 
-  public async create(data: Parameters<UserRepository['create']>[0]): Promise<User> {
+  public async create(data: Parameters<UserRepository['create']>[0]): Promise<UserDomain> {
     const user = await this.repository.create(data);
     // No cachear usuarios nuevos automáticamente
     return user;
   }
 
-  public async findByEmail(email: string): Promise<User | null> {
+  public async findByEmail(email: string): Promise<UserDomain | null> {
     // No cachear por email (menos frecuente y puede cambiar)
     return this.repository.findByEmail(email);
   }
 
-  public async findByHandle(handle: string): Promise<User | null> {
+  public async findByHandle(handle: string): Promise<UserDomain | null> {
     const cacheKey = this.cache.buildKey('user', 'handle', handle.toLowerCase());
-    const cached = await this.cache.get<User>(cacheKey);
+    const cached = await this.cache.get<UserDomain>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -41,9 +41,9 @@ export class CachedUserRepository implements UserRepository {
     return user;
   }
 
-  public async findById(id: string): Promise<User | null> {
+  public async findById(id: string): Promise<UserDomain | null> {
     const cacheKey = this.userCacheKey(id);
-    const cached = await this.cache.get<User>(cacheKey);
+    const cached = await this.cache.get<UserDomain>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -56,15 +56,15 @@ export class CachedUserRepository implements UserRepository {
     return user;
   }
 
-  public async findManyByIds(ids: readonly string[]): Promise<User[]> {
+  public async findManyByIds(ids: readonly string[]): Promise<UserDomain[]> {
     if (ids.length === 0) {
       return [];
     }
 
     // Intentar obtener del cache
     const cacheKeys = ids.map((id) => this.userCacheKey(id));
-    const cachedUsers = await this.cache.mget<User>(cacheKeys);
-    const cachedMap = new Map<string, User>();
+    const cachedUsers = await this.cache.mget<UserDomain>(cacheKeys);
+    const cachedMap = new Map<string, UserDomain>();
     const missingIds: string[] = [];
 
     cachedUsers.forEach((user, index) => {
@@ -96,12 +96,12 @@ export class CachedUserRepository implements UserRepository {
     return ids.map((id) => cachedMap.get(id) || usersMap.get(id)!).filter(Boolean);
   }
 
-  public async findManyByHandles(handles: readonly string[]): Promise<User[]> {
+  public async findManyByHandles(handles: readonly string[]): Promise<UserDomain[]> {
     // Por simplicidad, no cacheamos por handles (menos frecuente)
     return this.repository.findManyByHandles(handles);
   }
 
-  public async searchUsers(options: Parameters<UserRepository['searchUsers']>[0]): Promise<User[]> {
+  public async searchUsers(options: Parameters<UserRepository['searchUsers']>[0]): Promise<UserDomain[]> {
     // No cachear búsquedas (son muy variadas)
     return this.repository.searchUsers(options);
   }
@@ -117,7 +117,7 @@ export class CachedUserRepository implements UserRepository {
     }
   }
 
-  public async updateById(userId: string, payload: Parameters<UserRepository['updateById']>[1]): Promise<User | null> {
+  public async updateById(userId: string, payload: Parameters<UserRepository['updateById']>[1]): Promise<UserDomain | null> {
     const user = await this.repository.updateById(userId, payload);
     if (user) {
       // Invalidar cache del usuario

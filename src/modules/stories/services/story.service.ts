@@ -123,12 +123,37 @@ export class StoryService {
   }
 
   public async getStoryFeed(userId: string): Promise<StoryGroup[]> {
+    const groups: StoryGroup[] = [];
+
+    // Primero, obtener las stories del usuario actual
+    const userStories = await this.stories.findByAuthorId(userId);
+    if (userStories.length > 0) {
+      const currentUser = await this.users.findById(userId);
+      if (currentUser) {
+        // Ordenar stories por fecha (más reciente primero)
+        const sortedStories = userStories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+        const storyItems = await Promise.all(
+          sortedStories.map((story) =>
+            this.mapStoryToItem(story, currentUser, userId, story.viewerIds.includes(userId))
+          )
+        );
+
+        groups.push({
+          author: {
+            id: currentUser.id,
+            handle: currentUser.handle,
+            displayName: currentUser.displayName,
+            avatarUrl: currentUser.avatarUrl ?? '',
+            isVerified: Boolean((currentUser as { isVerified?: boolean } | undefined)?.isVerified)
+          },
+          stories: storyItems
+        });
+      }
+    }
+
     // Obtener usuarios seguidos
     const followingIds = await this.follows.findFollowingIds(userId);
-
-    if (followingIds.length === 0) {
-      return [];
-    }
 
     // Obtener usuarios bloqueados (bidireccional)
     const [blockedIds, blockerIds] = await Promise.all([
@@ -137,20 +162,14 @@ export class StoryService {
     ]);
     const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
 
-    // Filtrar usuarios seguidos que no estén bloqueados
-    const validAuthorIds = followingIds.filter((id) => !blockedUserIdsSet.has(id));
+    // Filtrar usuarios seguidos que no estén bloqueados y excluir al usuario actual
+    const validAuthorIds = followingIds.filter((id) => id !== userId && !blockedUserIdsSet.has(id));
 
-    if (validAuthorIds.length === 0) {
-      return [];
-    }
-
+    if (validAuthorIds.length > 0) {
     // Obtener stories de usuarios seguidos
     const stories = await this.stories.findByAuthorIds(validAuthorIds);
 
-    if (stories.length === 0) {
-      return [];
-    }
-
+      if (stories.length > 0) {
     // Agrupar por autor
     const storiesByAuthor = new Map<string, StoryEntity[]>();
     for (const story of stories) {
@@ -164,9 +183,7 @@ export class StoryService {
     const authors = await this.users.findManyByIds(authorIds);
     const authorsMap = new Map(authors.map((user) => [user.id, user]));
 
-    // Construir grupos
-    const groups: StoryGroup[] = [];
-
+        // Construir grupos de usuarios seguidos
     for (const [authorId, authorStories] of storiesByAuthor.entries()) {
       const author = authorsMap.get(authorId);
       if (!author) {
@@ -175,15 +192,6 @@ export class StoryService {
 
       // Ordenar stories por fecha (más reciente primero)
       const sortedStories = authorStories.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-      // Verificar si el usuario ya vio alguna story
-      const viewerIdsSet = new Set<string>();
-      for (const story of sortedStories) {
-        for (const viewerId of story.viewerIds) {
-          viewerIdsSet.add(viewerId);
-        }
-      }
-      const hasViewedAny = viewerIdsSet.has(userId);
 
       const storyItems = await Promise.all(
         sortedStories.map((story) =>
@@ -201,10 +209,21 @@ export class StoryService {
         },
         stories: storyItems
       });
+        }
+      }
     }
 
-    // Ordenar grupos: primero los que no se han visto
+    // Ordenar grupos: primero el usuario actual, luego los que no se han visto
     return groups.sort((a, b) => {
+      // El usuario actual siempre primero
+      if (a.author.id === userId) {
+        return -1;
+      }
+      if (b.author.id === userId) {
+        return 1;
+      }
+
+      // Luego los que no se han visto
       const aViewed = a.stories.some((s) => s.hasViewed);
       const bViewed = b.stories.some((s) => s.hasViewed);
       if (aViewed === bViewed) {

@@ -221,7 +221,11 @@ export class MongoPostRepository implements PostRepository {
   }
 
   public async decrementLikes(postId: string): Promise<void> {
-    await PostModel.findByIdAndUpdate(postId, { $inc: { likes: -1 } }).exec();
+    // Decrementar likes, asegurando que nunca sea menor que 0
+    const post = await PostModel.findById(postId);
+    if (post && post.likes > 0) {
+      await PostModel.findByIdAndUpdate(postId, { $inc: { likes: -1 } }).exec();
+    }
   }
 
   public async incrementComments(postId: string): Promise<void> {

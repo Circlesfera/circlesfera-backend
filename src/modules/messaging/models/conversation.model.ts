@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import { ReturnModelType, getModelForClass, modelOptions, prop, Severity } from '@typegoose/typegoose';
 import mongoose from 'mongoose';
 

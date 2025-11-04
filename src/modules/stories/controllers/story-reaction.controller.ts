@@ -5,12 +5,12 @@ import { z } from 'zod';
 import { ApplicationError } from '@core/errors/application-error.js';
 import { authenticate } from '@interfaces/http/middlewares/auth.js';
 import { StoryReactionService } from '../services/story-reaction.service.js';
-import { ALLOWED_REACTION_EMOJIS } from '../models/story-reaction.model.js';
+import { ALLOWED_REACTION_EMOJIS, type ReactionEmoji } from '../models/story-reaction.model.js';
 
 const storyReactionService = new StoryReactionService();
 
 const reactToStorySchema = z.object({
-  emoji: z.enum(ALLOWED_REACTION_EMOJIS as [string, ...string[]])
+  emoji: z.enum([...ALLOWED_REACTION_EMOJIS] as [string, ...string[]])
 });
 
 export const storyReactionRouter = Router();
@@ -29,7 +29,7 @@ storyReactionRouter.post('/stories/:storyId/reactions', authenticate, async (req
     const payload = reactToStorySchema.parse(req.body);
 
     try {
-      const reaction = await storyReactionService.reactToStory(storyId, req.auth.userId, payload.emoji);
+      const reaction = await storyReactionService.reactToStory(storyId, req.auth.userId, payload.emoji as ReactionEmoji);
       res.status(201).json({ reaction });
     } catch (error) {
       // Si la reacción fue eliminada (toggle), retornar 200
