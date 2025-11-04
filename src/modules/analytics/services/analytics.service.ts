@@ -8,6 +8,10 @@ import type { CommentRepository } from '@modules/interactions/repositories/comme
 import { MongoCommentRepository } from '@modules/interactions/repositories/comment.repository.js';
 import type { SaveRepository } from '@modules/interactions/repositories/save.repository.js';
 import { MongoSaveRepository } from '@modules/interactions/repositories/save.repository.js';
+import mongoose from 'mongoose';
+import { LikeModel } from '@modules/interactions/models/like.model.js';
+import { CommentModel } from '@modules/interactions/models/comment.model.js';
+import { SaveModel } from '@modules/interactions/models/save.model.js';
 
 export interface PostAnalytics {
   postId: string;
@@ -77,27 +81,46 @@ export class AnalyticsService {
       cursor: undefined
     });
 
+    const postIds = allPosts.map((post) => post.id);
+
     // Obtener estadísticas básicas del perfil
     const [totalFollowers, totalFollowing] = await Promise.all([
       this.follows.countFollowers(userId),
       this.follows.countFollowing(userId)
     ]);
 
-    // Calcular métricas agregadas
-    const totalLikes = allPosts.reduce((sum, post) => sum + post.stats.likes, 0);
-    const totalComments = allPosts.reduce((sum, post) => sum + post.stats.comments, 0);
-    const totalSaves = allPosts.reduce((sum, post) => sum + post.stats.saves, 0);
+    // Contar directamente desde las colecciones para evitar desincronización
+    // Usar agregaciones para contar likes/comments/saves de todos los posts del usuario
+    const [totalLikes, totalComments, totalSaves] = await Promise.all([
+      postIds.length > 0
+        ? this.countLikesByPostIds(postIds)
+        : Promise.resolve(0),
+      postIds.length > 0
+        ? this.countCommentsByPostIds(postIds)
+        : Promise.resolve(0),
+      postIds.length > 0
+        ? this.countSavesByPostIds(postIds)
+        : Promise.resolve(0)
+    ]);
+
+    // Para shares y views, usar los contadores del post (no hay colección separada aún)
     const totalShares = allPosts.reduce((sum, post) => sum + post.stats.shares, 0);
     const totalViews = allPosts.reduce((sum, post) => sum + post.stats.views, 0);
 
-    // Calcular engagement rate promedio
-    const engagementRates = allPosts
+    // Calcular engagement rate promedio usando contadores reales
+    const engagementRatesPromises = allPosts
       .filter((post) => post.stats.views > 0)
-      .map((post) => {
-        const engagement = post.stats.likes + post.stats.comments + post.stats.saves;
+      .map(async (post) => {
+        const [realLikes, realComments, realSaves] = await Promise.all([
+          this.likes.countByPostId(post.id),
+          this.comments.countByPostId(post.id),
+          SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec()
+        ]);
+        const engagement = realLikes + realComments + realSaves;
         return (engagement / post.stats.views) * 100;
       });
 
+    const engagementRates = await Promise.all(engagementRatesPromises);
     const averageEngagementRate =
       engagementRates.length > 0
         ? engagementRates.reduce((sum, rate) => sum + rate, 0) / engagementRates.length
@@ -105,38 +128,68 @@ export class AnalyticsService {
 
     const averageViewsPerPost = allPosts.length > 0 ? totalViews / allPosts.length : 0;
 
-    // Posts recientes (últimos N)
-    const recentPosts = allPosts
-      .slice(0, limit)
+    // Posts recientes (últimos N) - usar contadores reales
+    const sortedRecentPosts = allPosts
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .map((post) => this.mapPostToAnalytics(post));
-
-    // Top posts por engagement
-    const topPosts = allPosts
-      .map((post) => {
-        const engagement = post.stats.likes + post.stats.comments + post.stats.saves;
-        return { post, engagement };
+      .slice(0, limit);
+    
+    const recentPosts = await Promise.all(
+      sortedRecentPosts.map(async (post) => {
+        const [realLikes, realComments, realSaves] = await Promise.all([
+          this.likes.countByPostId(post.id),
+          this.comments.countByPostId(post.id),
+          SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec()
+        ]);
+        return this.mapPostToAnalyticsWithRealCounts(post, realLikes, realComments, realSaves);
       })
+    );
+
+    // Top posts por engagement - usar contadores reales
+    const postsWithRealCounts = await Promise.all(
+      allPosts.map(async (post) => {
+        const [realLikes, realComments, realSaves] = await Promise.all([
+          this.likes.countByPostId(post.id),
+          this.comments.countByPostId(post.id),
+          SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec()
+        ]);
+        const engagement = realLikes + realComments + realSaves;
+        return { post, engagement, realLikes, realComments, realSaves };
+      })
+    );
+    
+    const topPosts = postsWithRealCounts
       .sort((a, b) => b.engagement - a.engagement)
       .slice(0, limit)
-      .map(({ post }) => this.mapPostToAnalytics(post));
+      .map(({ post, realLikes, realComments, realSaves }) => 
+        this.mapPostToAnalyticsWithRealCounts(post, realLikes, realComments, realSaves)
+      );
 
     // Calcular tendencias de crecimiento (simulado: basado en posts recientes vs antiguos)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentPostsCount = allPosts.filter((post) => post.createdAt >= thirtyDaysAgo).length;
 
     // Determinar tendencia de engagement comparando posts recientes vs antiguos
-    const recentEngagement = recentPosts
-      .slice(0, 5)
-      .reduce((sum, p) => sum + p.metrics.engagementRate, 0) / Math.max(recentPosts.slice(0, 5).length, 1);
-    const olderPosts = allPosts
-      .slice(limit, limit + 5)
-      .map((post) => {
-        const engagement = (post.stats?.likes ?? 0) + (post.stats?.comments ?? 0) + (post.stats?.saves ?? 0);
-        const rate = (engagement / Math.max(post.stats?.views ?? 1, 1)) * 100;
-        return rate;
-      });
-    const olderEngagement = olderPosts.length > 0 ? olderPosts.reduce((sum, r) => sum + r, 0) / olderPosts.length : 0;
+    // Usar los datos reales de recentPosts que ya tienen contadores reales
+    const recentEngagement = recentPosts.length > 0
+      ? recentPosts.slice(0, 5).reduce((sum, p) => sum + p.metrics.engagementRate, 0) / Math.max(recentPosts.slice(0, 5).length, 1)
+      : 0;
+    
+    // Para posts antiguos, calcular engagement rate con contadores reales
+    const olderPostsSlice = allPosts.slice(limit, limit + 5);
+    const olderPostsEngagementRates = await Promise.all(
+      olderPostsSlice.map(async (post) => {
+        const [realLikes, realComments, realSaves] = await Promise.all([
+          this.likes.countByPostId(post.id),
+          this.comments.countByPostId(post.id),
+          SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec()
+        ]);
+        const engagement = realLikes + realComments + realSaves;
+        return (engagement / Math.max(post.stats?.views ?? 1, 1)) * 100;
+      })
+    );
+    const olderEngagement = olderPostsEngagementRates.length > 0 
+      ? olderPostsEngagementRates.reduce((sum, r) => sum + r, 0) / olderPostsEngagementRates.length 
+      : 0;
 
     let engagementTrend: 'up' | 'down' | 'stable' = 'stable';
     if (recentEngagement > olderEngagement * 1.1) {
@@ -175,7 +228,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Obtiene analytics de un post individual.
+   * Obtiene analytics de un post individual usando contadores reales.
    */
   public async getPostAnalytics(postId: string): Promise<PostAnalytics | null> {
     const post = await this.posts.findById(postId);
@@ -183,7 +236,56 @@ export class AnalyticsService {
       return null;
     }
 
-    return this.mapPostToAnalytics(post);
+    // Obtener contadores reales desde las colecciones
+    const [realLikes, realComments, realSaves] = await Promise.all([
+      this.likes.countByPostId(postId),
+      this.comments.countByPostId(postId),
+      SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(postId) }).exec()
+    ]);
+
+    return this.mapPostToAnalyticsWithRealCounts(post, realLikes, realComments, realSaves);
+  }
+
+  /**
+   * Cuenta el total de likes para una lista de posts.
+   */
+  private async countLikesByPostIds(postIds: string[]): Promise<number> {
+    if (postIds.length === 0) {
+      return 0;
+    }
+
+    const objectIds = postIds.map((id) => new mongoose.Types.ObjectId(id));
+    return await LikeModel.countDocuments({
+      postId: { $in: objectIds }
+    }).exec();
+  }
+
+  /**
+   * Cuenta el total de comentarios para una lista de posts.
+   */
+  private async countCommentsByPostIds(postIds: string[]): Promise<number> {
+    if (postIds.length === 0) {
+      return 0;
+    }
+
+    const objectIds = postIds.map((id) => new mongoose.Types.ObjectId(id));
+    return await CommentModel.countDocuments({
+      postId: { $in: objectIds }
+    }).exec();
+  }
+
+  /**
+   * Cuenta el total de saves para una lista de posts.
+   */
+  private async countSavesByPostIds(postIds: string[]): Promise<number> {
+    if (postIds.length === 0) {
+      return 0;
+    }
+
+    const objectIds = postIds.map((id) => new mongoose.Types.ObjectId(id));
+    return await SaveModel.countDocuments({
+      postId: { $in: objectIds }
+    }).exec();
   }
 
   private mapPostToAnalytics(post: {
@@ -206,6 +308,46 @@ export class AnalyticsService {
         likes: stats.likes,
         comments: stats.comments,
         saves: stats.saves,
+        shares: stats.shares,
+        views: stats.views,
+        engagementRate: Math.round(engagementRate * 100) / 100,
+        reach: stats.views // Aproximación
+      }
+    };
+  }
+
+  /**
+   * Mapea un post a analytics usando contadores reales desde las colecciones.
+   */
+  private mapPostToAnalyticsWithRealCounts(
+    post: {
+      id: string;
+      createdAt: Date;
+      caption: string;
+      media: Array<{ id: string }>;
+      stats: { likes: number; comments: number; saves: number; shares: number; views: number };
+    },
+    realLikes?: number,
+    realComments?: number,
+    realSaves?: number
+  ): PostAnalytics {
+    const stats = post.stats;
+    // Usar contadores reales si están disponibles, sino usar los del post
+    const likes = realLikes ?? stats.likes;
+    const comments = realComments ?? stats.comments;
+    const saves = realSaves ?? stats.saves;
+    const engagement = likes + comments + saves;
+    const engagementRate = stats.views > 0 ? (engagement / stats.views) * 100 : 0;
+
+    return {
+      postId: post.id,
+      createdAt: post.createdAt.toISOString(),
+      caption: post.caption.substring(0, 100) + (post.caption.length > 100 ? '...' : ''),
+      mediaCount: post.media.length,
+      metrics: {
+        likes,
+        comments,
+        saves,
         shares: stats.shares,
         views: stats.views,
         engagementRate: Math.round(engagementRate * 100) / 100,

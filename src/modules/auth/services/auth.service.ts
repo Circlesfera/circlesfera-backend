@@ -1,3 +1,5 @@
+import '../../../core/init.js';
+
 import { hash, verify } from 'argon2';
 import jwt from 'jsonwebtoken';
 
@@ -23,8 +25,7 @@ interface PublicUser {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
-  isVerified: boolean;
-  isAdmin: boolean;
+  isVerified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,16 +35,20 @@ interface AuthResult {
   tokens: AuthTokens;
 }
 
-const userRepository: UserRepository = new MongoUserRepository();
-const refreshTokenService = new RefreshTokenService();
-
 const normalizeHandle = (handle: string): string => handle.toLowerCase();
 
 const ACCESS_TOKEN_EXPIRY = env.JWT_ACCESS_TOKEN_TTL; // seconds
 
 export class AuthService {
+  private readonly userRepository: UserRepository;
+  private readonly refreshTokenService: RefreshTokenService;
+
+  constructor(userRepo?: UserRepository, refreshTokenSvc?: RefreshTokenService) {
+    this.userRepository = userRepo ?? new MongoUserRepository();
+    this.refreshTokenService = refreshTokenSvc ?? new RefreshTokenService();
+  }
   public async register(payload: RegisterPayload): Promise<AuthResult> {
-    const existingByEmail = await userRepository.findByEmail(payload.email);
+    const existingByEmail = await this.userRepository.findByEmail(payload.email);
     if (existingByEmail) {
       throw new ApplicationError('El correo electrónico ya está en uso', {
         statusCode: 409,
@@ -51,7 +56,7 @@ export class AuthService {
       });
     }
 
-    const existingByHandle = await userRepository.findByHandle(payload.handle);
+    const existingByHandle = await this.userRepository.findByHandle(payload.handle);
     if (existingByHandle) {
       throw new ApplicationError('El handle ya está en uso', {
         statusCode: 409,
@@ -60,7 +65,7 @@ export class AuthService {
     }
 
     const passwordHash = await hash(payload.password);
-    const user = await userRepository.create({
+    const user = await this.userRepository.create({
       email: payload.email,
       handle: normalizeHandle(payload.handle),
       displayName: payload.displayName,
@@ -74,7 +79,7 @@ export class AuthService {
 
   public async login(payload: LoginPayload): Promise<AuthResult> {
     const identifier = payload.identifier.toLowerCase();
-    const user = (await userRepository.findByEmail(identifier)) ?? (await userRepository.findByHandle(identifier));
+    const user = (await this.userRepository.findByEmail(identifier)) ?? (await this.userRepository.findByHandle(identifier));
 
     if (!user) {
       throw new ApplicationError('Credenciales inválidas', {
@@ -98,7 +103,7 @@ export class AuthService {
 
   public async refresh(refreshToken: string): Promise<AuthTokens> {
     const payload = this.verifyRefreshToken(refreshToken);
-    const session = await refreshTokenService.validateSession(payload.sessionId);
+    const session = await this.refreshTokenService.validateSession(payload.sessionId);
     if (!session) {
       throw new ApplicationError('Sesión expirada o inexistente', {
         statusCode: 401,
@@ -106,17 +111,17 @@ export class AuthService {
       });
     }
 
-    await refreshTokenService.revokeSession(payload.sessionId);
+    await this.refreshTokenService.revokeSession(payload.sessionId);
     return this.issueTokens(session.userId);
   }
 
   public async logout(refreshToken: string): Promise<void> {
     const payload = this.verifyRefreshToken(refreshToken, { ignoreExpiration: true });
-    await refreshTokenService.revokeSession(payload.sessionId);
+    await this.refreshTokenService.revokeSession(payload.sessionId);
   }
 
   public async getProfile(userId: string): Promise<PublicUser> {
-    const user = await userRepository.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new ApplicationError('Usuario no encontrado', {
         statusCode: 404,
@@ -128,7 +133,7 @@ export class AuthService {
   }
 
   private async issueTokens(userId: string): Promise<AuthTokens> {
-    const sessionId = await refreshTokenService.createSession(userId);
+    const sessionId = await this.refreshTokenService.createSession(userId);
 
     const accessToken = jwt.sign({ type: 'access' }, env.JWT_ACCESS_TOKEN_SECRET, {
       expiresIn: `${ACCESS_TOKEN_EXPIRY}s`,
@@ -181,8 +186,7 @@ export class AuthService {
       displayName: user.displayName,
       bio: user.bio ?? null,
       avatarUrl: user.avatarUrl ?? null,
-      isVerified: (user as { isVerified?: boolean }).isVerified ?? false,
-      isAdmin: (user as { isAdmin?: boolean }).isAdmin ?? false,
+      isVerified: user.isVerified ?? false,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
