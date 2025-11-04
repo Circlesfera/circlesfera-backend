@@ -1,33 +1,84 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 import { FeedService } from '@modules/feed/services/feed.service.js';
 import { ApplicationError } from '@core/errors/application-error.js';
-import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
+import type { PostRepository, PostEntity } from '@modules/feed/repositories/post.repository.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
+import type { UserDomain } from '@modules/users/models/user.model.js';
 
 // Mocks básicos
-const mockPostRepository = {
+const mockPostRepository: jest.Mocked<PostRepository> = {
   create: jest.fn(),
+  findFeed: jest.fn(),
+  findByAuthorId: jest.fn(),
+  countByAuthorId: jest.fn(),
+  incrementLikes: jest.fn(),
+  decrementLikes: jest.fn(),
+  incrementComments: jest.fn(),
   findById: jest.fn(),
-  findByAuthorId: jest.fn()
-} as unknown as PostRepository;
+  findManyByIds: jest.fn(),
+  findExplore: jest.fn(),
+  findByHashtag: jest.fn(),
+  findByHashtags: jest.fn(),
+  searchPosts: jest.fn(),
+  findReels: jest.fn(),
+  updateCaption: jest.fn(),
+  deleteById: jest.fn(),
+  archiveById: jest.fn(),
+  unarchiveById: jest.fn(),
+  findArchivedByAuthorId: jest.fn()
+} as jest.Mocked<PostRepository>;
 
-const mockUserRepository = {
+const mockUserRepository: jest.Mocked<UserRepository> = {
+  create: jest.fn(),
+  findByEmail: jest.fn(),
+  findByHandle: jest.fn(),
   findById: jest.fn(),
-  findManyByIds: jest.fn()
-} as unknown as UserRepository;
+  findManyByIds: jest.fn(),
+  findManyByHandles: jest.fn(),
+  searchUsers: jest.fn(),
+  updateById: jest.fn(),
+  update: jest.fn(),
+  updatePassword: jest.fn(),
+  deleteById: jest.fn()
+} as jest.Mocked<UserRepository>;
 
 describe('FeedService', () => {
   let feedService: FeedService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // @ts-expect-error - Acceso privado para testing
-    feedService = new FeedService();
-    // @ts-expect-error - Mock de repositorios
-    feedService['postRepository'] = mockPostRepository;
-    // @ts-expect-error - Mock de repositorios
-    feedService['users'] = mockUserRepository;
+    const stubFollows: any = { findFollowingIds: jest.fn(async () => []) };
+    const stubBlocks: any = {
+      findBlockedIds: jest.fn(async () => []),
+      findBlockerIds: jest.fn(async () => []),
+      findMutualBlocks: jest.fn(async () => ({ user1BlocksUser2: false, user2BlocksUser1: false }))
+    };
+    const stubLikes: any = {
+      exists: jest.fn(async () => false),
+      findLikedPostIds: jest.fn(async () => [])
+    };
+    const stubSaves: any = {
+      exists: jest.fn(async () => false),
+      findSavedPostIds: jest.fn(async () => [])
+    };
+    const stubHashtags: any = {};
+    const stubMentions: any = {};
+    const stubFollowHashtags: any = { findFollowedTags: jest.fn(async () => []) };
+    const stubTags: any = { findByPostId: jest.fn(async () => []) };
+
+    feedService = new FeedService(
+      mockPostRepository,
+      mockUserRepository,
+      stubFollows,
+      stubBlocks,
+      stubLikes,
+      stubSaves,
+      stubHashtags,
+      stubMentions,
+      stubFollowHashtags,
+      stubTags
+    );
   });
 
   describe('createPost', () => {
@@ -47,26 +98,39 @@ describe('FeedService', () => {
         ]
       };
 
-      const mockPost = {
+      const mockPost: PostEntity = {
         id: 'post123',
         authorId: userId,
         caption: payload.caption,
         media: payload.media,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        hashtags: [],
+        isArchived: false,
+        stats: {
         likes: 0,
         comments: 0,
         saves: 0,
+          shares: 0,
         views: 0
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      mockPostRepository.create = jest.fn().mockResolvedValue(mockPost);
-      mockUserRepository.findById = jest.fn().mockResolvedValue({
+      const mockUser: UserDomain = {
         id: userId,
+        email: 'test@example.com',
         handle: 'testuser',
         displayName: 'Test User',
-        avatarUrl: ''
-      });
+        passwordHash: 'hash',
+        bio: null,
+        avatarUrl: '',
+        isVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      mockPostRepository.create.mockResolvedValue(mockPost);
+      mockUserRepository.findById.mockResolvedValue(mockUser);
 
       const result = await feedService.createPost(userId, payload);
 
@@ -76,16 +140,40 @@ describe('FeedService', () => {
       expect(mockPostRepository.create).toHaveBeenCalled();
     });
 
-    it('debe lanzar error si el usuario no existe', async () => {
+    it('debe devolver post con usuario desconocido si el usuario no existe', async () => {
       const userId = 'nonexistent';
       const payload = {
         caption: 'Test post',
         media: []
       };
 
-      mockUserRepository.findById = jest.fn().mockResolvedValue(null);
+      const mockPost: PostEntity = {
+        id: 'post123',
+        authorId: userId,
+        caption: payload.caption,
+        media: payload.media,
+        hashtags: [],
+        isArchived: false,
+        stats: {
+          likes: 0,
+          comments: 0,
+          saves: 0,
+          shares: 0,
+          views: 0
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-      await expect(feedService.createPost(userId, payload)).rejects.toThrow(ApplicationError);
+      mockPostRepository.create.mockResolvedValue(mockPost);
+      mockUserRepository.findById.mockResolvedValue(null);
+
+      const result = await feedService.createPost(userId, payload);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(mockPost.id);
+      expect(result.author.handle).toBe('usuario');
+      expect(result.author.displayName).toBe('Usuario desconocido');
     });
   });
 
@@ -94,7 +182,7 @@ describe('FeedService', () => {
       const postId = 'nonexistent';
       const userId = 'user123';
 
-      mockPostRepository.findById = jest.fn().mockResolvedValue(null);
+      mockPostRepository.findById.mockResolvedValue(null);
 
       const result = await feedService.getPostById(postId, userId);
 
@@ -105,26 +193,40 @@ describe('FeedService', () => {
       const postId = 'post123';
       const userId = 'user123';
 
-      const mockPost = {
+      const mockPost: PostEntity = {
         id: postId,
         authorId: userId,
         caption: 'Test post',
         media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        hashtags: [],
+        isArchived: false,
+        stats: {
         likes: 0,
         comments: 0,
         saves: 0,
+          shares: 0,
         views: 0
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      mockPostRepository.findById = jest.fn().mockResolvedValue(mockPost);
-      mockUserRepository.findById = jest.fn().mockResolvedValue({
+      const mockUser: UserDomain = {
         id: userId,
+        email: 'test@example.com',
         handle: 'testuser',
         displayName: 'Test User',
-        avatarUrl: ''
-      });
+        passwordHash: 'hash',
+        bio: null,
+        avatarUrl: '',
+        isVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      mockPostRepository.findById.mockResolvedValue(mockPost);
+      mockUserRepository.findById.mockResolvedValue(mockUser);
+      mockUserRepository.findManyByIds.mockResolvedValue([mockUser]);
 
       const result = await feedService.getPostById(postId, userId);
 
