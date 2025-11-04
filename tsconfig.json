@@ -15,24 +15,23 @@
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false,
     "outDir": "./dist",
-    "rootDir": "./src",
     "types": ["node"],
     "sourceMap": true,
     "skipLibCheck": true,
     "useUnknownInCatchVariables": true,
     "isolatedModules": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@core/*": ["core/*"],
-      "@modules/*": ["modules/*"],
-      "@infra/*": ["infra/*"],
-      "@interfaces/*": ["interfaces/*"],
-      "@config/*": ["config/*"],
-      "@shared/*": ["shared/*"],
-      "@workers/*": ["workers/*"]
+      "@core/*": ["src/core/*"],
+      "@modules/*": ["src/modules/*"],
+      "@infra/*": ["src/infra/*"],
+      "@interfaces/*": ["src/interfaces/*"],
+      "@config/*": ["src/config/*"],
+      "@shared/*": ["src/shared/*"],
+      "@workers/*": ["src/workers/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }
 
