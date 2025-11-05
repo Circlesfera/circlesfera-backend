@@ -8,6 +8,7 @@ import type { UpdateProfilePayload } from '../dtos/update-profile.dto.js';
 import type { ChangePasswordPayload } from '../dtos/change-password.dto.js';
 import type { User } from '../models/user.model.js';
 import { FeedService } from '@modules/feed/services/feed.service.js';
+import { MongoPreferencesRepository, type PreferencesRepository, type PreferencesEntity, type UpdatePreferencesInput } from '../repositories/preferences.repository.js';
 
 // Importar modelos para eliminación en cascada
 import { PostModel } from '@modules/feed/models/post.model.js';
@@ -35,6 +36,7 @@ import { RefreshTokenService } from '@modules/auth/services/refresh-token.servic
 const userRepository: UserRepository = new MongoUserRepository();
 const feedService = new FeedService();
 const refreshTokenService = new RefreshTokenService();
+const preferencesRepository: PreferencesRepository = new MongoPreferencesRepository();
 
 export type PublicProfile = {
   id: string;
@@ -135,6 +137,36 @@ export class UserService {
     // Obtener posts usando el feedService (usa el userId del request si está autenticado)
     const result = await feedService.getUserPosts(user.id, userId ?? null, limit, cursor);
     return result;
+  }
+
+  public async getPreferences(userId: string): Promise<PreferencesEntity> {
+    let preferences = await preferencesRepository.findByUserId(userId);
+    
+    // Si no existen preferencias, crearlas con valores por defecto
+    if (!preferences) {
+      preferences = await preferencesRepository.create(userId);
+    }
+    
+    return preferences;
+  }
+
+  public async updatePreferences(userId: string, payload: UpdatePreferencesInput): Promise<PreferencesEntity> {
+    // Asegurarse de que las preferencias existan
+    let preferences = await preferencesRepository.findByUserId(userId);
+    if (!preferences) {
+      preferences = await preferencesRepository.create(userId);
+    }
+    
+    // Actualizar preferencias
+    const updated = await preferencesRepository.update(userId, payload);
+    if (!updated) {
+      throw new ApplicationError('No se pudieron actualizar las preferencias', {
+        statusCode: 500,
+        code: 'PREFERENCES_UPDATE_FAILED'
+      });
+    }
+    
+    return updated;
   }
 
   public async changePassword(userId: string, payload: ChangePasswordPayload): Promise<void> {

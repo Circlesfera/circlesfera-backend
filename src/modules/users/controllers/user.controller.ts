@@ -6,12 +6,14 @@ import { ApplicationError } from '@core/errors/application-error.js';
 
 import { updateProfileSchema } from '../dtos/update-profile.dto.js';
 import { changePasswordSchema } from '../dtos/change-password.dto.js';
+import { updatePreferencesSchema } from '../dtos/update-preferences.dto.js';
 import { UserService } from '../services/user.service.js';
 
 const userService = new UserService();
 
 export const userRouter = Router();
 
+// Rutas específicas deben ir ANTES de las rutas con parámetros dinámicos
 userRouter.get('/search', authenticate, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = (req.query.q as string) ?? '';
@@ -19,6 +21,33 @@ userRouter.get('/search', authenticate, async (req: Request, res: Response, next
     
     const users = await userService.searchUsers({ query, limit });
     res.status(200).json({ users });
+  } catch (error) {
+    next(error);
+  }
+});
+
+userRouter.get('/me/preferences', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const preferences = await userService.getPreferences(req.auth.userId);
+    res.status(200).json({ preferences });
+  } catch (error) {
+    next(error);
+  }
+});
+
+userRouter.patch('/me/preferences', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const payload = updatePreferencesSchema.parse(req.body);
+    const preferences = await userService.updatePreferences(req.auth.userId, payload);
+    res.status(200).json({ preferences });
   } catch (error) {
     next(error);
   }
