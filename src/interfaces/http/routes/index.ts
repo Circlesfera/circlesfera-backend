@@ -20,6 +20,7 @@ import { verificationRouter } from '@modules/verification/controllers/verificati
 import { mediaRouter } from '@modules/media/controllers/media.controller.js';
 import { hashtagRouter } from '@modules/feed/controllers/hashtag.controller.js';
 import { tagRouter } from '@modules/feed/controllers/tag.controller.js';
+import { frameRouter } from '@modules/frames/controllers/frame.controller.js';
 
 /**
  * Registra las rutas HTTP principales. Cada módulo deberá exponer un registrador
@@ -32,6 +33,7 @@ export const registerHttpRoutes = (app: Express): void => {
 
   // Feed y contenido
   app.use('/feed', feedRouter);
+  app.use('/frames', frameRouter);
   app.use('/hashtags', hashtagRouter);
   app.use('/tags', tagRouter);
 

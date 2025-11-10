@@ -53,6 +53,8 @@ notificationRouter.get('/', authenticate, async (req: Request, res: Response, ne
       return {
         id: notification.id,
         type: notification.type,
+        targetModel: notification.targetModel,
+        targetId: notification.targetId,
         actor: actor
           ? {
               id: actor.id,

@@ -64,7 +64,7 @@ describe('FeedService', () => {
       findByHashtag: jest.fn(),
       findByHashtags: jest.fn(async () => ({ items: [], hasMore: false })),
       searchPosts: jest.fn(),
-      findReels: jest.fn(),
+      findFrames: jest.fn(),
       updateCaption: jest.fn(),
       deleteById: jest.fn(),
       archiveById: jest.fn(),

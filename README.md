@@ -3,9 +3,9 @@
 Backend basado en Node.js + TypeScript siguiendo principios de Clean Architecture, SOLID y arquitectura hexagonal. Expone APIs REST y canales WebSocket para la plataforma social CircleSfera.
 
 ## Requisitos
-- Node.js >= 20.10
-- npm >= 10 (o pnpm/yarn configurados manualmente)
-- Docker (para entornos locales con MongoDB/Redis/MinIO)
+- Node.js >= 24.11
+- npm >= 11.6.2 (o pnpm/yarn configurados manualmente)
+- Docker (para entornos locales con MongoDB 8.0+/Redis/MinIO)
 
 ## Scripts
 - `npm run dev`: inicia el servidor en modo desarrollo con recarga en caliente.
@@ -43,6 +43,6 @@ src/
 4. Definir contrato OpenAPI y publicarlo para consumo directo desde el frontend unificado.
 
 ## Conexión a MongoDB
-- **MongoDB Atlas**: actualiza tu `.env.local` estableciendo `MONGO_URI` con la cadena `mongodb+srv://…` proporcionada por Atlas. Asegúrate de permitir conexiones desde tu IP y de que el usuario tenga permisos sobre la base `circlesfera`.
-- **Docker local**: si prefieres usar contenedores, levanta MongoDB con `docker compose` y deja `MONGO_URI=mongodb://mongo:27017/circlesfera`.
+- **MongoDB Atlas (8.x)**: actualiza tu `.env.local` estableciendo `MONGO_URI` con la cadena `mongodb+srv://…` proporcionada por Atlas. Asegúrate de permitir conexiones desde tu IP y de que el usuario tenga permisos sobre la base `circlesfera`.
+- **Docker local (MongoDB 8.0)**: si prefieres usar contenedores, levanta MongoDB 8.0 con `docker compose` y deja `MONGO_URI=mongodb://mongo:27017/circlesfera`.
 - En ambos casos, revisa también `REDIS_HOST`, `REDIS_PORT` y almacenamiento S3/MinIO según tu entorno.

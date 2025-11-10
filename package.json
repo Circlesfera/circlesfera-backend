@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20.10.0"
+    "node": ">=24.11.0"
   },
   "scripts": {
     "dev": "tsx watch --env-file=.env --tsconfig ./tsconfig.json src/app.ts",
@@ -15,11 +15,14 @@
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "migrate:frames": "tsx --env-file=.env scripts/migrate-frames.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.645.0",
     "@aws-sdk/lib-storage": "^3.645.0",
+    "ffmpeg-static": "5.2.0",
+    "ffprobe-static": "^3.1.0",
     "@sentry/node": "^10.22.0",
     "@socket.io/redis-adapter": "^8.2.0",
     "@typegoose/typegoose": "^12.4.0",

@@ -21,7 +21,7 @@ const mockPostRepository: jest.Mocked<PostRepository> = {
   findByHashtag: jest.fn(),
   findByHashtags: jest.fn(),
   searchPosts: jest.fn(),
-  findReels: jest.fn(),
+  findFrames: jest.fn(),
   updateCaption: jest.fn(),
   deleteById: jest.fn(),
   archiveById: jest.fn(),

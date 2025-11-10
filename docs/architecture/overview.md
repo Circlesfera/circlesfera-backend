@@ -26,7 +26,7 @@ Clientes (Web, Mobile) ──> Interfaces (HTTP/REST, Socket.IO) ──> Casos d
 Cada módulo tendrá carpetas `controllers`, `dtos`, `services`, `repositories` y `mappers`, con pruebas unitarias e integración.
 
 ## Tecnologías Clave
-- **Runtime**: Node.js 20 LTS, TypeScript estricto.
+- **Runtime**: Node.js 24.11, TypeScript estricto.
 - **Framework**: Express 5 + Socket.IO para tiempo real.
 - **Persistencia**: MongoDB (Typegoose), Redis (caching, colas, rate limiting), S3/MinIO para recursos multimedia.
 - **Procesamiento**: BullMQ + workers ffmpeg (contenedorizados) para transcodificación asíncrona.

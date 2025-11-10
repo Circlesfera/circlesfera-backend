@@ -155,22 +155,6 @@ feedRouter.get('/explore', authenticate, readOperationRateLimiter, async (req: R
   }
 });
 
-feedRouter.get('/reels', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.auth) {
-      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
-    }
-
-    const query = homeFeedQuerySchema.parse(req.query);
-    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
-    const feed = await feedService.getReelsFeed(req.auth.userId, query.limit, cursorDate);
-
-    res.status(200).json(feed);
-  } catch (error) {
-    next(error);
-  }
-});
-
 /**
  * GET /feed/archived
  * Obtiene los posts archivados del usuario autenticado.

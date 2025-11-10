@@ -3,12 +3,14 @@ import { logger } from '@infra/logger/logger.js';
 
 import type { NotificationRepository } from '../repositories/notification.repository.js';
 import { MongoNotificationRepository } from '../repositories/notification.repository.js';
-import type { NotificationType } from '../models/notification.model.js';
+import type { NotificationType, NotificationTargetModel } from '../models/notification.model.js';
 
 export interface NotificationPayload {
   type: NotificationType;
   actorId: string;
   userId: string;
+  targetModel?: NotificationTargetModel;
+  targetId?: string;
   postId?: string;
   commentId?: string;
 }
@@ -27,12 +29,15 @@ export class NotificationService {
       return;
     }
 
-    // TODO: Implementar deduplicación temporal (ej: no crear nueva notificación
-    // si existe una del mismo tipo del mismo actor en los últimos X minutos)
+    const targetModel = payload.targetModel ?? (payload.postId ? 'Post' : undefined);
+    const targetId = payload.targetId ?? payload.postId;
+
     const notification = await this.repository.create({
       userId: payload.userId,
       type: payload.type,
       actorId: payload.actorId,
+      targetModel,
+      targetId,
       postId: payload.postId,
       commentId: payload.commentId
     });
@@ -44,6 +49,8 @@ export class NotificationService {
         id: notification.id,
         type: notification.type,
         actorId: notification.actorId,
+        targetModel: notification.targetModel,
+        targetId: notification.targetId,
         postId: notification.postId,
         commentId: notification.commentId,
         isRead: notification.isRead,
@@ -71,6 +78,8 @@ export class NotificationService {
           userId: payload.userId,
           type: payload.type,
           actorId: payload.actorId,
+          targetModel: payload.targetModel ?? (payload.postId ? 'Post' : undefined),
+          targetId: payload.targetId ?? payload.postId,
           postId: payload.postId,
           commentId: payload.commentId
         })

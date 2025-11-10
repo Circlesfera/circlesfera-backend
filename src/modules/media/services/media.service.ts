@@ -2,6 +2,8 @@ import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import { writeFile, unlink, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,12 +14,23 @@ import { getS3Client } from '@infra/storage/s3/client.js';
 import { logger } from '@infra/logger/logger.js';
 import { ApplicationError } from '@core/errors/application-error.js';
 
+const ffmpegBinaryPath = typeof ffmpegStatic === 'string' ? ffmpegStatic : ffmpegStatic?.path ?? null;
+const ffprobeBinaryPath = ffprobeStatic.path ?? null;
+
+if (!ffmpegBinaryPath || !ffprobeBinaryPath) {
+  logger.warn({ ffmpegBinaryPath, ffprobeBinaryPath }, 'No se pudieron resolver los binarios de ffmpeg/ffprobe. Asegúrate de que estén instalados en el sistema.');
+} else {
+  ffmpeg.setFfmpegPath(ffmpegBinaryPath);
+  ffmpeg.setFfprobePath(ffprobeBinaryPath);
+}
+
 export interface MediaUploadResult {
   url: string;
   thumbnailUrl: string;
   durationMs?: number;
   width?: number;
   height?: number;
+  rotation?: number;
 }
 
 export class MediaService {
@@ -238,17 +251,32 @@ export class MediaService {
     userId: string,
     mediaId: string,
     s3Client: ReturnType<typeof getS3Client>
-  ): Promise<Pick<MediaUploadResult, 'thumbnailUrl' | 'durationMs' | 'width' | 'height'>> {
+  ): Promise<Pick<MediaUploadResult, 'thumbnailUrl' | 'durationMs' | 'width' | 'height' | 'rotation'>> {
     const tempDir = tmpdir();
     const videoPath = join(tempDir, `${mediaId}.mp4`);
     const thumbnailPath = join(tempDir, `${mediaId}_thumb.jpg`);
 
     try {
+      const normalizeRotation = (value: unknown): number => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          const normalized = value % 360;
+          return normalized < 0 ? normalized + 360 : normalized;
+        }
+        if (typeof value === 'string') {
+          const parsed = Number.parseFloat(value);
+          if (Number.isFinite(parsed)) {
+            const normalized = parsed % 360;
+            return normalized < 0 ? normalized + 360 : normalized;
+          }
+        }
+        return 0;
+      };
+
       // Escribir video temporal
       await writeFile(videoPath, file);
 
       // Usar promisify para convertir callbacks en promises
-      const getVideoMetadata = (): Promise<{ duration?: number; width?: number; height?: number }> => {
+      const getVideoMetadata = (): Promise<{ duration?: number; width?: number; height?: number; rotation?: number }> => {
         return new Promise((resolve, reject) => {
           ffmpeg.ffprobe(videoPath, (err: Error | null, metadata: any) => {
             if (err) {
@@ -257,10 +285,32 @@ export class MediaService {
             }
 
             const videoStream = metadata.streams.find((stream: any) => stream.codec_type === 'video');
+            let rotation: number | undefined;
+
+            if (videoStream?.tags?.rotate !== undefined) {
+              rotation = normalizeRotation(videoStream.tags.rotate);
+            } else if (videoStream?.side_data_list) {
+              const rotationSideData = videoStream.side_data_list.find((data: any) => data.rotation !== undefined || data.displaymatrix !== undefined);
+              if (rotationSideData?.rotation !== undefined) {
+                rotation = normalizeRotation(rotationSideData.rotation);
+              } else if (typeof rotationSideData?.displaymatrix === 'string') {
+                // ffprobe puede exponer la matriz como string; intentar extraer el ángulo conocido
+                const displayMatrix: string = rotationSideData.displaymatrix;
+                if (displayMatrix.includes('rotate(90.0)')) {
+                  rotation = 90;
+                } else if (displayMatrix.includes('rotate(180.0)')) {
+                  rotation = 180;
+                } else if (displayMatrix.includes('rotate(270.0)')) {
+                  rotation = 270;
+                }
+              }
+            }
+
             resolve({
               duration: metadata.format.duration ? Math.round(metadata.format.duration * 1000) : undefined,
               width: videoStream?.width,
-              height: videoStream?.height
+              height: videoStream?.height,
+              rotation
             });
           });
         });
@@ -336,11 +386,17 @@ export class MediaService {
       // Limpiar archivos temporales
       await Promise.all([unlink(videoPath).catch(() => {}), unlink(thumbnailPath).catch(() => {})]);
 
+      const rotation = normalizeRotation(metadata.rotation ?? 0);
+      const shouldSwapDimensions = rotation === 90 || rotation === 270;
+      const adjustedWidth = shouldSwapDimensions ? metadata.height : metadata.width;
+      const adjustedHeight = shouldSwapDimensions ? metadata.width : metadata.height;
+
       return {
         thumbnailUrl,
         durationMs: metadata.duration,
-        width: metadata.width,
-        height: metadata.height
+        width: adjustedWidth,
+        height: adjustedHeight,
+        rotation
       };
     } catch (error) {
       logger.warn({ error }, 'Error al procesar video');
@@ -350,7 +406,8 @@ export class MediaService {
         thumbnailUrl: '', // Fallback
         durationMs: undefined,
         width: undefined,
-        height: undefined
+        height: undefined,
+        rotation: undefined
       };
     }
   }

@@ -95,6 +95,8 @@ export class StoryService {
         type: 'share', // Necesitamos agregar este tipo a NotificationType
         actorId: userId,
         userId: post.authorId.toString(),
+        targetModel: 'Post',
+        targetId: post.id,
         postId: post.id
       });
     }

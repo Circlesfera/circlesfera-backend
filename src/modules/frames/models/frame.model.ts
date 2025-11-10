@@ -5,12 +5,12 @@ import mongoose from 'mongoose';
 
 import { User } from '@modules/users/models/user.model.js';
 
-export class PostMedia {
+export class FrameMedia {
   @prop({ required: true, type: () => String })
   public id!: string;
 
-  @prop({ required: true, type: () => String, enum: ['image', 'video'] })
-  public kind!: 'image' | 'video';
+  @prop({ required: true, type: () => String, enum: ['video'] })
+  public kind!: 'video';
 
   @prop({ required: true, trim: true, type: () => String })
   public url!: string;
@@ -18,8 +18,8 @@ export class PostMedia {
   @prop({ trim: true, type: () => String })
   public thumbnailUrl?: string;
 
-  @prop({ type: () => Number })
-  public durationMs?: number;
+  @prop({ type: () => Number, required: true, max: 60_000 })
+  public durationMs!: number;
 
   @prop({ type: () => Number })
   public width?: number;
@@ -33,24 +33,25 @@ export class PostMedia {
 
 @modelOptions({
   schemaOptions: {
-    collection: 'posts',
+    collection: 'frames',
     timestamps: true
   }
 })
-export class Post {
+export class Frame {
   public id!: string;
 
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId })
   public authorId!: mongoose.Types.ObjectId;
 
-  @prop({ required: true, trim: true, type: () => String })
+  @prop({ trim: true, type: () => String, default: '' })
   public caption!: string;
 
-  @prop({ type: () => [PostMedia] as never, default: [] })
-  public media!: PostMedia[];
-
-  @prop({ type: () => [String] as never, default: [], index: true })
-  public hashtags!: string[];
+  @prop({
+    type: () => [FrameMedia] as never,
+    required: true,
+    validate: [(value: FrameMedia[]) => value.length === 1, 'Frames must contain exactly one media item']
+  })
+  public media!: FrameMedia[];
 
   @prop({ type: () => Number, default: 0 })
   public likes!: number;
@@ -70,20 +71,16 @@ export class Post {
   @prop({ type: () => Boolean, default: false })
   public isDeleted!: boolean;
 
-  @prop({ type: () => Boolean, default: false, index: true })
-  public isArchived!: boolean;
+  @prop({ type: () => mongoose.Types.ObjectId })
+  public legacyPostId?: mongoose.Types.ObjectId;
 
   public createdAt!: Date;
 
   public updatedAt!: Date;
 }
 
-export const PostModel: ReturnModelType<typeof Post> = getModelForClass(Post);
+export const FrameModel: ReturnModelType<typeof Frame> = getModelForClass(Frame);
 
-// Índices críticos para optimización de queries
-PostModel.schema.index({ authorId: 1, isDeleted: 1, isArchived: 1, createdAt: -1 }); // Feed del usuario y queries filtradas
-PostModel.schema.index({ hashtags: 1, isDeleted: 1, isArchived: 1, createdAt: -1 }); // Búsqueda por hashtag
-PostModel.schema.index({ createdAt: -1 }); // Ordenar por fecha (feeds recientes)
-PostModel.schema.index({ views: -1, createdAt: -1 }); // Trending posts
-PostModel.schema.index({ authorId: 1, createdAt: -1 }); // Posts del usuario ordenados por fecha
-
+FrameModel.schema.index({ authorId: 1, isDeleted: 1, createdAt: -1 });
+FrameModel.schema.index({ createdAt: -1 });
+FrameModel.schema.index({ views: -1, createdAt: -1 });

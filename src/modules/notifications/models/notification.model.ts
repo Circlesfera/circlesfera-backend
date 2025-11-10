@@ -4,9 +4,11 @@ import { ReturnModelType, getModelForClass, modelOptions, prop } from '@typegoos
 import mongoose from 'mongoose';
 
 import { Post } from '@modules/feed/models/post.model.js';
+import { Frame } from '@modules/frames/models/frame.model.js';
 import { User } from '@modules/users/models/user.model.js';
 
 export type NotificationType = 'like' | 'comment' | 'follow' | 'mention' | 'reply' | 'tagged' | 'share';
+export type NotificationTargetModel = 'Post' | 'Frame';
 
 @modelOptions({
   schemaOptions: {
@@ -25,6 +27,12 @@ export class Notification {
 
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId })
   public actorId!: mongoose.Types.ObjectId;
+
+  @prop({ enum: ['Post', 'Frame'], type: () => String })
+  public targetModel?: NotificationTargetModel;
+
+  @prop({ refPath: 'targetModel', type: () => mongoose.Types.ObjectId })
+  public targetId?: mongoose.Types.ObjectId;
 
   @prop({ ref: () => Post, type: () => mongoose.Types.ObjectId })
   public postId?: mongoose.Types.ObjectId;
@@ -45,4 +53,5 @@ export const NotificationModel: ReturnModelType<typeof Notification> = getModelF
 // Índices para consultas rápidas
 NotificationModel.schema.index({ userId: 1, isRead: 1, createdAt: -1 });
 NotificationModel.schema.index({ userId: 1, createdAt: -1 });
+NotificationModel.schema.index({ targetModel: 1, targetId: 1 });
 

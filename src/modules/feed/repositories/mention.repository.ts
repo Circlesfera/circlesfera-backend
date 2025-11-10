@@ -2,10 +2,13 @@ import type { DocumentType } from '@typegoose/typegoose';
 import mongoose from 'mongoose';
 
 import { MentionModel, Mention } from '../models/mention.model.js';
+import type { InteractionTargetModel } from '@modules/interactions/repositories/like.repository.js';
 
 export interface MentionEntity {
   id: string;
-  postId: string;
+  targetId: string;
+  postId: string; // alias legacy
+  targetModel: InteractionTargetModel;
   mentionedUserId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -14,14 +17,17 @@ export interface MentionEntity {
 export interface CreateMentionInput {
   postId: string;
   mentionedUserId: string;
+  targetModel?: InteractionTargetModel;
 }
+
+const DEFAULT_TARGET_MODEL: InteractionTargetModel = 'Post';
 
 export interface MentionRepository {
   create(data: CreateMentionInput): Promise<MentionEntity>;
   createMany(data: CreateMentionInput[]): Promise<MentionEntity[]>;
-  findByPostId(postId: string): Promise<MentionEntity[]>;
+  findByPostId(postId: string, targetModel?: InteractionTargetModel): Promise<MentionEntity[]>;
   findByUserId(userId: string, limit?: number, cursor?: Date): Promise<{ mentions: MentionEntity[]; hasMore: boolean }>;
-  deleteByPostId(postId: string): Promise<void>;
+  deleteByPostId(postId: string, targetModel?: InteractionTargetModel): Promise<void>;
 }
 
 const toDomainMention = (doc: DocumentType<Mention>): MentionEntity => {
@@ -29,7 +35,9 @@ const toDomainMention = (doc: DocumentType<Mention>): MentionEntity => {
 
   return {
     id: plain._id.toString(),
-    postId: plain.postId.toString(),
+    targetId: plain.targetId.toString(),
+    postId: plain.targetId.toString(),
+    targetModel: plain.targetModel,
     mentionedUserId: plain.mentionedUserId.toString(),
     createdAt: plain.createdAt,
     updatedAt: plain.updatedAt
@@ -38,8 +46,10 @@ const toDomainMention = (doc: DocumentType<Mention>): MentionEntity => {
 
 export class MongoMentionRepository implements MentionRepository {
   public async create(data: CreateMentionInput): Promise<MentionEntity> {
+    const targetModel = data.targetModel ?? DEFAULT_TARGET_MODEL;
     const mention = await MentionModel.create({
-      postId: new mongoose.Types.ObjectId(data.postId),
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(data.postId),
       mentionedUserId: new mongoose.Types.ObjectId(data.mentionedUserId)
     });
 
@@ -51,25 +61,31 @@ export class MongoMentionRepository implements MentionRepository {
       return [];
     }
 
-    // Eliminar duplicados antes de insertar
     const unique = Array.from(
-      new Map(data.map((item) => [`${item.postId}-${item.mentionedUserId}`, item])).values()
+      new Map(
+        data.map((item) => {
+          const model = item.targetModel ?? DEFAULT_TARGET_MODEL;
+          return [`${model}-${item.postId}-${item.mentionedUserId}`, { ...item, targetModel: model }];
+        })
+      ).values()
     );
 
     const mentions = await MentionModel.insertMany(
       unique.map((item) => ({
-        postId: new mongoose.Types.ObjectId(item.postId),
+        targetModel: item.targetModel ?? DEFAULT_TARGET_MODEL,
+        targetId: new mongoose.Types.ObjectId(item.postId),
         mentionedUserId: new mongoose.Types.ObjectId(item.mentionedUserId)
       })),
-      { ordered: false } // Continuar aunque haya duplicados (serán ignorados por unique index)
+      { ordered: false }
     );
 
     return mentions.map((mention) => toDomainMention(mention));
   }
 
-  public async findByPostId(postId: string): Promise<MentionEntity[]> {
+  public async findByPostId(postId: string, targetModel: InteractionTargetModel = DEFAULT_TARGET_MODEL): Promise<MentionEntity[]> {
     const mentions = await MentionModel.find({
-      postId: new mongoose.Types.ObjectId(postId)
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(postId)
     }).exec();
 
     return mentions.map((mention) => toDomainMention(mention));
@@ -99,9 +115,10 @@ export class MongoMentionRepository implements MentionRepository {
     };
   }
 
-  public async deleteByPostId(postId: string): Promise<void> {
+  public async deleteByPostId(postId: string, targetModel: InteractionTargetModel = DEFAULT_TARGET_MODEL): Promise<void> {
     await MentionModel.deleteMany({
-      postId: new mongoose.Types.ObjectId(postId)
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(postId)
     }).exec();
   }
 }

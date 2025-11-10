@@ -4,6 +4,7 @@ import { ReturnModelType, getModelForClass, modelOptions, prop } from '@typegoos
 import mongoose from 'mongoose';
 
 import { Post } from '@modules/feed/models/post.model.js';
+import { Frame } from '@modules/frames/models/frame.model.js';
 import { User } from '@modules/users/models/user.model.js';
 
 @modelOptions({
@@ -15,8 +16,11 @@ import { User } from '@modules/users/models/user.model.js';
 export class Save {
   public id!: string;
 
-  @prop({ required: true, ref: () => Post, type: () => mongoose.Types.ObjectId, index: true })
-  public postId!: mongoose.Types.ObjectId;
+  @prop({ required: true, enum: ['Post', 'Frame'], type: () => String, default: 'Post' })
+  public targetModel!: 'Post' | 'Frame';
+
+  @prop({ required: true, refPath: 'targetModel', type: () => mongoose.Types.ObjectId, index: true })
+  public targetId!: mongoose.Types.ObjectId;
 
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId, index: true })
   public userId!: mongoose.Types.ObjectId;
@@ -31,6 +35,5 @@ export class Save {
 
 export const SaveModel: ReturnModelType<typeof Save> = getModelForClass(Save);
 
-// Crear índice compuesto único para evitar saves duplicados
-SaveModel.schema.index({ postId: 1, userId: 1 }, { unique: true });
+SaveModel.schema.index({ targetModel: 1, targetId: 1, userId: 1 }, { unique: true });
 

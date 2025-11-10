@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import DOMPurify from 'isomorphic-dompurify';
 
 import { CacheService } from '@infra/cache/cache.service.js';
+import { FrameService, type FrameFeedItem } from '@modules/frames/services/frame.service.js';
 
 import type { CreatePostPayload } from '../dtos/create-post.dto.js';
 import type { HomeFeedQuery } from '../dtos/home-feed.dto.js';
@@ -17,8 +18,6 @@ import type { SaveRepository } from '@modules/interactions/repositories/save.rep
 import { MongoSaveRepository } from '@modules/interactions/repositories/save.repository.js';
 import type { CommentRepository } from '@modules/interactions/repositories/comment.repository.js';
 import { MongoCommentRepository } from '@modules/interactions/repositories/comment.repository.js';
-import mongoose from 'mongoose';
-import { SaveModel } from '@modules/interactions/models/save.model.js';
 import type { User } from '@modules/users/models/user.model.js';
 import type { UserRepository } from '@modules/users/repositories/user.repository.js';
 import { CachedUserRepository } from '@modules/users/repositories/user.repository.cached.js';
@@ -111,7 +110,8 @@ export class FeedService {
     private readonly mentions: MentionRepository = new MongoMentionRepository(),
     private readonly followHashtags: FollowHashtagRepository = new MongoFollowHashtagRepository(),
     private readonly tags: TagRepository = new MongoTagRepository(),
-    private readonly cache: CacheService = new CacheService()
+    private readonly cache: CacheService = new CacheService(),
+    private readonly frameService: FrameService = new FrameService()
   ) {}
 
   public async createPost(userId: string, payload: CreatePostPayload): Promise<FeedItem> {
@@ -240,6 +240,8 @@ export class FeedService {
       this.saves.exists(updatedPost.id, userId)
     ]);
 
+    await this.invalidateUserFeedCache(userId);
+
     return await this.mapPostToFeedItem(updatedPost, authorsMap, userId, isLiked, isSaved);
   }
 
@@ -265,6 +267,8 @@ export class FeedService {
 
     // Eliminar menciones asociadas
     await this.mentions.deleteByPostId(postId);
+
+    await this.invalidateUserFeedCache(userId);
   }
 
   public async archivePost(postId: string, userId: string): Promise<void> {
@@ -285,6 +289,7 @@ export class FeedService {
     }
 
     await this.posts.archiveById(postId);
+    await this.invalidateUserFeedCache(userId);
   }
 
   public async unarchivePost(postId: string, userId: string): Promise<void> {
@@ -305,6 +310,7 @@ export class FeedService {
     }
 
     await this.posts.unarchiveById(postId);
+    await this.invalidateUserFeedCache(userId);
   }
 
   public async getArchivedPosts(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
@@ -409,46 +415,61 @@ export class FeedService {
       }
     }
 
-    // Ordenar por fecha de creación (más reciente primero)
-    const combinedItems = Array.from(uniqueItemsMap.values()).sort((a, b) => {
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
+    const combinedItems = Array.from(uniqueItemsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    // Aplicar límite después de combinar
-    const limitedItems = combinedItems.slice(0, limit);
+    const { items: frameItems, hasMore: frameHasMore } = await this.frameService.getFramesByAuthorIds(
+      authorIds,
+      userId,
+      limit,
+      cursorDate
+    );
 
     // Filtrar posts de usuarios bloqueados
-    const filteredItems = limitedItems.filter((post) => !blockedUserIdsSet.has(post.authorId));
+    const postCandidates = combinedItems.slice(0, limit);
+    const filteredPostEntities = postCandidates.filter((post) => !blockedUserIdsSet.has(post.authorId));
 
-    if (filteredItems.length === 0) {
+    const postEntriesMeta = filteredPostEntities.map((post) => ({
+      type: 'post' as const,
+      id: post.id,
+      createdAt: post.createdAt
+    }));
+
+    const frameFeedMap = new Map(frameItems.map((frame) => [frame.id, this.convertFrameFeedItemToFeedItem(frame)]));
+
+    const mergeResult = this.mergeFeedCandidates(filteredPostEntities, frameItems, limit);
+    const limitedEntries = mergeResult.items;
+
+    if (limitedEntries.length === 0) {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(filteredItems);
-    const postIds = filteredItems.map((post) => post.id);
-    const [likedPostIds, savedPostIds] = await Promise.all([
-      this.likes.findLikedPostIds(userId, postIds),
-      this.saves.findSavedPostIds(userId, postIds)
-    ]);
-    const likedPostIdsSet = new Set(likedPostIds);
-    const savedPostIdsSet = new Set(savedPostIds);
+    const selectedPostIds = limitedEntries.filter((entry) => entry.type === 'post').map((entry) => entry.id);
+    const postById = new Map(filteredPostEntities.map((post) => [post.id, post]));
+    const selectedPosts = selectedPostIds.map((id) => postById.get(id)).filter((post): post is PostEntity => Boolean(post));
+    const selectedPostFeedItems = selectedPosts.length > 0 ? await this.mapPostsToFeedItems(selectedPosts, userId) : [];
+    const postFeedMap = new Map<string, FeedItem>();
+    selectedPostIds.forEach((id, index) => {
+      const feedItem = selectedPostFeedItems[index];
+      if (feedItem) {
+        postFeedMap.set(id, feedItem);
+      }
+    });
 
-    const viewerId = userId;
-    const data = await Promise.all(
-      filteredItems.map((post) =>
-        this.mapPostToFeedItem(
-          post,
-          authors,
-          viewerId,
-          likedPostIdsSet.has(post.id),
-          savedPostIdsSet.has(post.id)
-        )
-      )
+    const hasMoreResults =
+      feedHasMore ||
+      hashtagHasMore ||
+      frameHasMore ||
+      mergeResult.remainingPosts > 0 ||
+      mergeResult.remainingFrames > 0 ||
+      combinedItems.length > postCandidates.length;
+
+    const nextCursor = hasMoreResults
+      ? limitedEntries[limitedEntries.length - 1].createdAt.toISOString()
+      : null;
+
+    const data = limitedEntries.map((entry) =>
+      entry.type === 'post' ? postFeedMap.get(entry.id)! : frameFeedMap.get(entry.id)!
     );
-
-    const lastItem = filteredItems[filteredItems.length - 1];
-    const hasMoreResults = feedHasMore || hashtagHasMore || combinedItems.length > limit;
-    const nextCursor = hasMoreResults ? lastItem.createdAt.toISOString() : null;
 
     const result: FeedCursorResult = {
       data,
@@ -481,38 +502,47 @@ export class FeedService {
       excludeAuthorIds: followingIds // Excluir posts de usuarios seguidos
     });
 
-    // Filtrar posts de usuarios bloqueados
-    const filteredItems = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
+    const filteredPostEntities = items.filter((post) => !blockedUserIdsSet.has(post.authorId));
 
-    if (filteredItems.length === 0) {
+    const { items: frameItems, hasMore: frameHasMore } = await this.frameService.getExploreFrames(
+      userId,
+      limit,
+      cursor,
+      followingIds
+    );
+
+    const frameFeedMap = new Map(frameItems.map((frame) => [frame.id, this.convertFrameFeedItemToFeedItem(frame)]));
+
+    const mergeResult = this.mergeFeedCandidates(filteredPostEntities, frameItems, limit);
+    const limitedEntries = mergeResult.items;
+
+    if (limitedEntries.length === 0) {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(filteredItems);
-    const postIds = filteredItems.map((post) => post.id);
-    const [likedPostIds, savedPostIds] = await Promise.all([
-      this.likes.findLikedPostIds(userId, postIds),
-      this.saves.findSavedPostIds(userId, postIds)
-    ]);
-    const likedPostIdsSet = new Set(likedPostIds);
-    const savedPostIdsSet = new Set(savedPostIds);
+    const selectedPostIds = limitedEntries.filter((entry) => entry.type === 'post').map((entry) => entry.id);
+    const postById = new Map(filteredPostEntities.map((post) => [post.id, post]));
+    const selectedPosts = selectedPostIds.map((id) => postById.get(id)).filter((post): post is PostEntity => Boolean(post));
+    const selectedPostFeedItems = selectedPosts.length > 0 ? await this.mapPostsToFeedItems(selectedPosts, userId) : [];
+    const postFeedMap = new Map<string, FeedItem>();
+    selectedPostIds.forEach((id, index) => {
+      const feedItem = selectedPostFeedItems[index];
+      if (feedItem) {
+        postFeedMap.set(id, feedItem);
+      }
+    });
 
-    const data = await Promise.all(
-      filteredItems.map((post) =>
-        this.mapPostToFeedItem(
-          post,
-          authors,
-          userId,
-          likedPostIdsSet.has(post.id),
-          savedPostIdsSet.has(post.id)
-        )
-      )
-    );
+    const hasMoreResults = hasMore || frameHasMore || mergeResult.remainingPosts > 0 || mergeResult.remainingFrames > 0;
+    const nextCursor = hasMoreResults
+      ? limitedEntries[limitedEntries.length - 1].createdAt.toISOString()
+      : null;
 
-    const lastItem = filteredItems[filteredItems.length - 1];
-    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
-
-    return { data, nextCursor };
+    return {
+      data: limitedEntries.map((entry) =>
+        entry.type === 'post' ? postFeedMap.get(entry.id)! : frameFeedMap.get(entry.id)!
+      ),
+      nextCursor
+    };
   }
 
   public async getPostById(postId: string, userId: string): Promise<FeedItem | null> {
@@ -771,48 +801,6 @@ export class FeedService {
     return new Map(users.map((user) => [user.id, user]));
   }
 
-  public async getReelsFeed(userId: string, limit = 20, cursor?: Date): Promise<FeedCursorResult> {
-    // Obtener IDs de usuarios bloqueados (bidireccional)
-    const [blockedIds, blockerIds] = await Promise.all([
-      this.blocks.findBlockedIds(userId),
-      this.blocks.findBlockerIds(userId)
-    ]);
-    const blockedUserIdsSet = new Set([...blockedIds, ...blockerIds]);
-
-    // Obtener reels excluyendo usuarios bloqueados
-    const excludeAuthorIds = Array.from(blockedUserIdsSet);
-    const result = await this.posts.findReels({
-      limit,
-      cursor,
-      excludeAuthorIds
-    });
-
-    if (result.items.length === 0) {
-      return { data: [], nextCursor: null };
-    }
-
-    const authors = await this.fetchAuthors(result.items);
-    const postIds = result.items.map((post) => post.id);
-    const [likedPostIds, savedPostIds] = await Promise.all([
-      this.likes.findLikedPostIds(userId, postIds),
-      this.saves.findSavedPostIds(userId, postIds)
-    ]);
-
-    const likedPostIdsSet = new Set(likedPostIds);
-    const savedPostIdsSet = new Set(savedPostIds);
-
-    const data = await Promise.all(
-      result.items.map((post) =>
-        this.mapPostToFeedItem(post, authors, userId, likedPostIdsSet.has(post.id), savedPostIdsSet.has(post.id))
-      )
-    );
-
-    const lastItem = result.items[result.items.length - 1];
-    const nextCursor = result.hasMore ? lastItem.createdAt.toISOString() : null;
-
-    return { data, nextCursor };
-  }
-
   private async mapPostToFeedItem(post: PostEntity, authors: Map<string, User>, viewerId: string, isLiked = false, isSaved = false): Promise<FeedItem> {
     const author = authors.get(post.authorId);
 
@@ -835,7 +823,7 @@ export class FeedService {
     const [realLikes, realComments, realSaves] = await Promise.all([
       this.likes.countByPostId(post.id),
       this.comments.countByPostId(post.id),
-      SaveModel.countDocuments({ postId: new mongoose.Types.ObjectId(post.id) }).exec().catch(() => post.stats.saves) // Contar saves directamente
+      this.saves.countByPostId(post.id)
     ]);
 
     return {
@@ -845,6 +833,7 @@ export class FeedService {
         const mediaTags = tagsByMediaIndex.get(index) || [];
         return {
           ...media,
+          thumbnailUrl: media.thumbnailUrl ?? '',
           tags: mediaTags.map((tag) => {
             const user = taggedUsersMap.get(tag.userId);
             return {
@@ -893,6 +882,58 @@ export class FeedService {
     };
   }
 
+  private convertFrameFeedItemToFeedItem(frame: FrameFeedItem): FeedItem {
+    return {
+      id: frame.id,
+      caption: frame.caption,
+      media: frame.media,
+      stats: frame.stats,
+      createdAt: frame.createdAt,
+      author: frame.author,
+      isLikedByViewer: frame.isLikedByViewer,
+      isSavedByViewer: frame.isSavedByViewer,
+      soundTrackUrl: undefined
+    };
+  }
+
+  private mergeFeedCandidates(
+    postEntries: PostEntity[],
+    frameEntries: FrameFeedItem[],
+    limit: number
+  ): {
+    items: Array<{ type: 'post' | 'frame'; id: string; createdAt: Date }>;
+    remainingPosts: number;
+    remainingFrames: number;
+  } {
+    const items: Array<{ type: 'post' | 'frame'; id: string; createdAt: Date }> = [];
+    let postIndex = 0;
+    let frameIndex = 0;
+    const frameDates = frameEntries.map((frame) => new Date(frame.createdAt));
+
+    while (items.length < limit) {
+      const postEntry = postEntries[postIndex];
+      const frameEntry = frameEntries[frameIndex];
+
+      if (!postEntry && !frameEntry) {
+        break;
+      }
+
+      if (!frameEntry || (postEntry && postEntry.createdAt >= frameDates[frameIndex])) {
+        items.push({ type: 'post', id: postEntry.id, createdAt: postEntry.createdAt });
+        postIndex += 1;
+      } else {
+        items.push({ type: 'frame', id: frameEntry.id, createdAt: frameDates[frameIndex] });
+        frameIndex += 1;
+      }
+    }
+
+    return {
+      items,
+      remainingPosts: postEntries.length - postIndex,
+      remainingFrames: frameEntries.length - frameIndex
+    };
+  }
+
   /**
    * Sanitiza el caption para prevenir XSS attacks.
    * Elimina todo HTML y JavaScript, manteniendo solo texto plano.
@@ -934,37 +975,51 @@ export class FeedService {
       includeArchived: false // No mostrar posts archivados en el perfil público
     });
 
-    if (items.length === 0) {
+    const postEntriesMeta = items.map((post) => ({
+      type: 'post' as const,
+      id: post.id,
+      createdAt: post.createdAt
+    }));
+
+    const { items: frameItems, hasMore: frameHasMore } = await this.frameService.getFramesByAuthorIds(
+      [authorId],
+      viewerId,
+      limit,
+      cursor
+    );
+
+    const frameFeedMap = new Map(frameItems.map((frame) => [frame.id, this.convertFrameFeedItemToFeedItem(frame)]));
+
+    const mergeResult = this.mergeFeedCandidates(items, frameItems, limit);
+    const limitedEntries = mergeResult.items;
+
+    if (limitedEntries.length === 0) {
       return { data: [], nextCursor: null };
     }
 
-    const authors = await this.fetchAuthors(items);
-    const postIds = items.map((post) => post.id);
+    const selectedPostIds = limitedEntries.filter((entry) => entry.type === 'post').map((entry) => entry.id);
+    const postById = new Map(items.map((post) => [post.id, post]));
+    const selectedPosts = selectedPostIds.map((id) => postById.get(id)).filter((post): post is PostEntity => Boolean(post));
+    const selectedPostFeedItems = selectedPosts.length > 0 ? await this.mapPostsToFeedItems(selectedPosts, viewerId) : [];
+    const postFeedMap = new Map<string, FeedItem>();
+    selectedPostIds.forEach((id, index) => {
+      const feedItem = selectedPostFeedItems[index];
+      if (feedItem) {
+        postFeedMap.set(id, feedItem);
+      }
+    });
 
-    // Buscar likes/saves del viewer
-    const [likedPostIds, savedPostIds] = await Promise.all([
-      this.likes.findLikedPostIds(viewerId, postIds),
-      this.saves.findSavedPostIds(viewerId, postIds)
-    ]);
-    const likedPostIdsSet = new Set(likedPostIds);
-    const savedPostIdsSet = new Set(savedPostIds);
+    const hasMoreResults = hasMore || frameHasMore || mergeResult.remainingPosts > 0 || mergeResult.remainingFrames > 0;
+    const nextCursor = hasMoreResults
+      ? limitedEntries[limitedEntries.length - 1].createdAt.toISOString()
+      : null;
 
-    const data = await Promise.all(
-      items.map((post) =>
-        this.mapPostToFeedItem(
-          post,
-          authors,
-          viewerId,
-          likedPostIdsSet.has(post.id),
-          savedPostIdsSet.has(post.id)
-        )
-      )
-    );
-
-    const lastItem = items[items.length - 1];
-    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
-
-    return { data, nextCursor };
+    return {
+      data: limitedEntries.map((entry) =>
+        entry.type === 'post' ? postFeedMap.get(entry.id)! : frameFeedMap.get(entry.id)!
+      ),
+      nextCursor
+    };
   }
 
   private async invalidateUserFeedCache(userId: string): Promise<void> {

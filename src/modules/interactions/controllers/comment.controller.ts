@@ -9,6 +9,8 @@ import { ApplicationError } from '@core/errors/application-error.js';
 import { logger } from '@infra/logger/logger.js';
 import type { PostRepository } from '@modules/feed/repositories/post.repository.js';
 import { MongoPostRepository } from '@modules/feed/repositories/post.repository.js';
+import type { FrameRepository } from '@modules/frames/repositories/frame.repository.js';
+import { MongoFrameRepository } from '@modules/frames/repositories/frame.repository.js';
 import { NotificationService } from '@modules/notifications/services/notification.service.js';
 import type { CommentRepository } from '../repositories/comment.repository.js';
 import { MongoCommentRepository } from '../repositories/comment.repository.js';
@@ -17,6 +19,7 @@ import { MongoUserRepository } from '@modules/users/repositories/user.repository
 
 const commentRepository: CommentRepository = new MongoCommentRepository();
 const postRepository: PostRepository = new MongoPostRepository();
+const frameRepository: FrameRepository = new MongoFrameRepository();
 const userRepository: UserRepository = new MongoUserRepository();
 const notificationService = new NotificationService();
 
@@ -85,13 +88,17 @@ commentRouter.post('/posts/:postId/comments', authenticate, sensitiveOperationRa
       ? (await commentRepository.findById(payload.parentId))?.authorId ?? post.authorId.toString()
       : post.authorId.toString();
 
-    await notificationService.createNotification({
+    await notificationService
+      .createNotification({
       type: payload.parentId ? 'reply' : 'comment',
       actorId: userId,
       userId: notificationTargetId,
+        targetModel: 'Post',
+        targetId: post.id,
       postId: post.id,
       commentId: comment.id
-    }).catch((err) => {
+      })
+      .catch((err) => {
       // No fallar si la notificación no se puede crear
       logger.warn({ err, postId: post.id, commentId: comment.id, userId: notificationTargetId }, 'Error al crear notificación de comentario');
     });
@@ -137,6 +144,155 @@ commentRouter.get('/posts/:postId/comments', authenticate, readOperationRateLimi
       limit: query.limit,
       cursor: cursorDate
     });
+
+    if (items.length === 0) {
+      return res.status(200).json({
+        data: [],
+        nextCursor: null
+      });
+    }
+
+    const authorIds = Array.from(new Set(items.map((comment) => comment.authorId)));
+    const authors = await userRepository.findManyByIds(authorIds);
+    const authorsMap = new Map(authors.map((user) => [user.id, user]));
+
+    const data = items.map((comment) => {
+      const author = authorsMap.get(comment.authorId);
+      return {
+        id: comment.id,
+        postId: comment.postId,
+        author: author
+          ? {
+              id: author.id,
+              handle: author.handle,
+              displayName: author.displayName,
+              avatarUrl: author.avatarUrl ?? '',
+              isVerified: (author as { isVerified?: boolean }).isVerified ?? false
+            }
+          : null,
+        content: comment.content,
+        likes: comment.likes,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString()
+      };
+    });
+
+    const lastItem = items[items.length - 1];
+    const nextCursor = hasMore ? lastItem.createdAt.toISOString() : null;
+
+    res.status(200).json({ data, nextCursor });
+  } catch (error) {
+    next(error);
+  }
+});
+
+commentRouter.post('/frames/:frameId/comments', authenticate, sensitiveOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const frameId = req.params.frameId;
+    const userId = req.auth.userId;
+
+    const frame = await frameRepository.findById(frameId);
+    if (!frame) {
+      throw new ApplicationError('Frame no encontrado', {
+        statusCode: 404,
+        code: 'FRAME_NOT_FOUND'
+      });
+    }
+
+    const payload = createCommentSchema.parse(req.body);
+
+    const sanitizedContent = DOMPurify.sanitize(payload.content, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: []
+    });
+
+    if (payload.parentId) {
+      const parentComment = await commentRepository.findById(payload.parentId);
+      if (!parentComment || parentComment.postId !== frameId || parentComment.targetModel !== 'Frame') {
+        throw new ApplicationError('Comentario padre no encontrado', {
+          statusCode: 404,
+          code: 'PARENT_COMMENT_NOT_FOUND'
+        });
+      }
+    }
+
+    const comment = await commentRepository.create({
+      postId: frameId,
+      authorId: userId,
+      content: sanitizedContent,
+      parentId: payload.parentId,
+      targetModel: 'Frame'
+    });
+
+    if (!payload.parentId) {
+      await frameRepository.incrementComments(frameId);
+    }
+
+    const notificationTargetId = payload.parentId
+      ? (await commentRepository.findById(payload.parentId))?.authorId ?? frame.authorId
+      : frame.authorId;
+
+    await notificationService
+      .createNotification({
+        type: payload.parentId ? 'reply' : 'comment',
+        actorId: userId,
+        userId: notificationTargetId,
+        targetId: frame.id,
+        targetModel: 'Frame',
+        commentId: comment.id
+      })
+      .catch((err) => {
+        logger.warn({ err, frameId: frame.id, commentId: comment.id, userId: notificationTargetId }, 'Error al crear notificación de comentario de frame');
+      });
+
+    const author = await userRepository.findById(userId);
+
+    res.status(201).json({
+      comment: {
+        id: comment.id,
+        postId: comment.postId,
+        author: author
+          ? {
+              id: author.id,
+              handle: author.handle,
+              displayName: author.displayName,
+              avatarUrl: author.avatarUrl ?? '',
+              isVerified: (author as { isVerified?: boolean }).isVerified ?? false
+            }
+          : null,
+        content: comment.content,
+        likes: comment.likes,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString()
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+commentRouter.get('/frames/:frameId/comments', authenticate, readOperationRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ code: 'ACCESS_TOKEN_REQUIRED', message: 'Token requerido' });
+    }
+
+    const frameId = req.params.frameId;
+    const query = commentQuerySchema.parse(req.query);
+    const cursorDate = query.cursor ? new Date(query.cursor) : undefined;
+
+    const { items, hasMore } = await commentRepository.findByPostId(
+      {
+        postId: frameId,
+        limit: query.limit,
+        cursor: cursorDate
+      },
+      'Frame'
+    );
 
     if (items.length === 0) {
       return res.status(200).json({

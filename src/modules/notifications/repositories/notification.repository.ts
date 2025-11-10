@@ -1,13 +1,20 @@
 import type { DocumentType } from '@typegoose/typegoose';
 import mongoose from 'mongoose';
 
-import { NotificationModel, Notification, type NotificationType } from '../models/notification.model.js';
+import {
+  NotificationModel,
+  Notification,
+  type NotificationType,
+  type NotificationTargetModel
+} from '../models/notification.model.js';
 
 export interface NotificationEntity {
   id: string;
   userId: string;
   type: NotificationType;
   actorId: string;
+  targetModel?: NotificationTargetModel;
+  targetId?: string;
   postId?: string;
   commentId?: string;
   isRead: boolean;
@@ -19,6 +26,8 @@ export interface CreateNotificationInput {
   userId: string;
   type: NotificationType;
   actorId: string;
+  targetModel?: NotificationTargetModel;
+  targetId?: string;
   postId?: string;
   commentId?: string;
 }
@@ -46,11 +55,16 @@ export interface NotificationRepository {
 const toDomainNotification = (doc: DocumentType<Notification>): NotificationEntity => {
   const plain = doc.toObject<Notification & { _id: mongoose.Types.ObjectId }>();
 
+  const targetModel = (plain.targetModel as NotificationTargetModel | undefined) ?? (plain.postId ? 'Post' : undefined);
+  const targetId = plain.targetId?.toString() ?? plain.postId?.toString();
+
   return {
     id: plain._id.toString(),
     userId: plain.userId.toString(),
     type: plain.type,
     actorId: plain.actorId.toString(),
+    targetModel,
+    targetId,
     postId: plain.postId?.toString(),
     commentId: plain.commentId?.toString(),
     isRead: plain.isRead,
@@ -61,11 +75,16 @@ const toDomainNotification = (doc: DocumentType<Notification>): NotificationEnti
 
 export class MongoNotificationRepository implements NotificationRepository {
   public async create(data: CreateNotificationInput): Promise<NotificationEntity> {
+    const targetModel = data.targetModel ?? (data.postId ? 'Post' : undefined);
+    const targetId = data.targetId ?? data.postId;
+
     const notification = await NotificationModel.create({
       userId: new mongoose.Types.ObjectId(data.userId),
       type: data.type,
       actorId: new mongoose.Types.ObjectId(data.actorId),
-      postId: data.postId ? new mongoose.Types.ObjectId(data.postId) : undefined,
+      targetModel,
+      targetId: targetId ? new mongoose.Types.ObjectId(targetId) : undefined,
+      postId: targetModel === 'Post' && targetId ? new mongoose.Types.ObjectId(targetId) : undefined,
       commentId: data.commentId ? new mongoose.Types.ObjectId(data.commentId) : undefined
     });
 

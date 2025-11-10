@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 
 import { User } from '@modules/users/models/user.model.js';
 import { Post } from './post.model.js';
+import { Frame } from '@modules/frames/models/frame.model.js';
 
 @modelOptions({
   schemaOptions: {
@@ -15,8 +16,11 @@ import { Post } from './post.model.js';
 export class Mention {
   public id!: string;
 
-  @prop({ required: true, ref: () => Post, type: () => mongoose.Types.ObjectId, index: true })
-  public postId!: mongoose.Types.ObjectId;
+  @prop({ required: true, enum: ['Post', 'Frame'], type: () => String, default: 'Post' })
+  public targetModel!: 'Post' | 'Frame';
+
+  @prop({ required: true, refPath: 'targetModel', type: () => mongoose.Types.ObjectId, index: true })
+  public targetId!: mongoose.Types.ObjectId;
 
   @prop({ required: true, ref: () => User, type: () => mongoose.Types.ObjectId, index: true })
   public mentionedUserId!: mongoose.Types.ObjectId;
@@ -28,7 +32,6 @@ export class Mention {
 
 export const MentionModel: ReturnModelType<typeof Mention> = getModelForClass(Mention);
 
-// Índice compuesto para búsquedas eficientes
-MentionModel.schema.index({ postId: 1, mentionedUserId: 1 }, { unique: true });
+MentionModel.schema.index({ targetModel: 1, targetId: 1, mentionedUserId: 1 }, { unique: true });
 MentionModel.schema.index({ mentionedUserId: 1, createdAt: -1 });
 

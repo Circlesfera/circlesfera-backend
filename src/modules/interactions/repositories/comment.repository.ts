@@ -2,10 +2,13 @@ import type { DocumentType } from '@typegoose/typegoose';
 import mongoose from 'mongoose';
 
 import { CommentModel, Comment } from '../models/comment.model.js';
+import type { InteractionTargetModel } from './like.repository.js';
 
 export interface CommentEntity {
   id: string;
-  postId: string;
+  targetId: string;
+  postId: string; // alias legacy
+  targetModel: InteractionTargetModel;
   authorId: string;
   parentId?: string;
   content: string;
@@ -19,6 +22,7 @@ export interface CreateCommentInput {
   authorId: string;
   content: string;
   parentId?: string;
+  targetModel?: InteractionTargetModel;
 }
 
 export interface CommentQueryOptions {
@@ -32,20 +36,16 @@ export interface CommentQueryResult {
   hasMore: boolean;
 }
 
-export interface CommentRepository {
-  create(data: CreateCommentInput): Promise<CommentEntity>;
-  findByPostId(options: CommentQueryOptions): Promise<CommentQueryResult>;
-  countByPostId(postId: string): Promise<number>;
-  findById(commentId: string): Promise<CommentEntity | null>;
-  findRepliesByCommentId(commentId: string): Promise<CommentEntity[]>;
-}
+const DEFAULT_TARGET_MODEL: InteractionTargetModel = 'Post';
 
 const toDomainComment = (doc: DocumentType<Comment>): CommentEntity => {
   const plain = doc.toObject<Comment & { _id: mongoose.Types.ObjectId }>();
 
   return {
     id: plain._id.toString(),
-    postId: plain.postId.toString(),
+    targetId: plain.targetId.toString(),
+    postId: plain.targetId.toString(),
+    targetModel: plain.targetModel,
     authorId: plain.authorId.toString(),
     parentId: plain.parentId?.toString(),
     content: plain.content,
@@ -55,10 +55,20 @@ const toDomainComment = (doc: DocumentType<Comment>): CommentEntity => {
   };
 };
 
+export interface CommentRepository {
+  create(data: CreateCommentInput): Promise<CommentEntity>;
+  findByPostId(options: CommentQueryOptions, targetModel?: InteractionTargetModel): Promise<CommentQueryResult>;
+  countByPostId(postId: string, targetModel?: InteractionTargetModel): Promise<number>;
+  findById(commentId: string): Promise<CommentEntity | null>;
+  findRepliesByCommentId(commentId: string): Promise<CommentEntity[]>;
+}
+
 export class MongoCommentRepository implements CommentRepository {
   public async create(data: CreateCommentInput): Promise<CommentEntity> {
+    const targetModel = data.targetModel ?? DEFAULT_TARGET_MODEL;
     const comment = await CommentModel.create({
-      postId: new mongoose.Types.ObjectId(data.postId),
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(data.postId),
       authorId: new mongoose.Types.ObjectId(data.authorId),
       content: data.content,
       parentId: data.parentId ? new mongoose.Types.ObjectId(data.parentId) : undefined
@@ -67,10 +77,10 @@ export class MongoCommentRepository implements CommentRepository {
     return toDomainComment(comment);
   }
 
-  public async findByPostId({ postId, limit, cursor }: CommentQueryOptions): Promise<CommentQueryResult> {
-    // Solo obtener comentarios de primer nivel (sin parentId)
+  public async findByPostId({ postId, limit, cursor }: CommentQueryOptions, targetModel: InteractionTargetModel = DEFAULT_TARGET_MODEL): Promise<CommentQueryResult> {
     const query: mongoose.FilterQuery<Comment> = {
-      postId: new mongoose.Types.ObjectId(postId),
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(postId),
       parentId: { $exists: false }
     };
 
@@ -93,22 +103,20 @@ export class MongoCommentRepository implements CommentRepository {
     };
   }
 
-  /**
-   * Obtiene todos los replies de un comentario específico.
-   */
   public async findRepliesByCommentId(commentId: string): Promise<CommentEntity[]> {
     const documents = await CommentModel.find({
       parentId: new mongoose.Types.ObjectId(commentId)
     })
-      .sort({ createdAt: 1 }) // Orden cronológico para replies
+      .sort({ createdAt: 1 })
       .exec();
 
     return documents.map((doc) => toDomainComment(doc));
   }
 
-  public async countByPostId(postId: string): Promise<number> {
+  public async countByPostId(postId: string, targetModel: InteractionTargetModel = DEFAULT_TARGET_MODEL): Promise<number> {
     return await CommentModel.countDocuments({
-      postId: new mongoose.Types.ObjectId(postId)
+      targetModel,
+      targetId: new mongoose.Types.ObjectId(postId)
     }).exec();
   }
 

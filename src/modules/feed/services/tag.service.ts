@@ -133,6 +133,8 @@ export class TagService {
         type: 'tagged',
         actorId: authorId,
         userId: input.userId,
+        targetModel: 'Post',
+        targetId: postId,
         postId
       });
     }
